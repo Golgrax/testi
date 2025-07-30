@@ -664,47 +664,53 @@
 
             initiateDrag(e, element) {
                 if (!element) return;
+                e.preventDefault(); // Prevent other browser actions
+                e.stopPropagation();
 
+                let needsPositionChange = false;
                 const positionType = window.getComputedStyle(element).position;
+
+                // If the element is part of the normal document flow,
+                // we need to switch it to 'relative' to allow top/left positioning.
                 if (positionType === 'static') {
-                    this.updateElementStyle('position', 'relative');
-                    // We don't set top/left here; the first drag will start from 0,0 relative to its static flow, which is correct.
+                    element.style.position = 'relative'; // Apply style directly for an immediate effect
+                    needsPositionChange = true;
                 }
 
                 const initialMouse = { x: e.clientX, y: e.clientY };
-                
-                // Get the element's current top/left style value, defaulting to 0 if not set.
+                const zoom = parseFloat(document.getElementById('zoom-slider').value) / 100;
+
+                // Get the element's starting top/left from its inline style.
+                // If it was static, these will be empty and correctly default to 0.
                 const initialElementPos = {
                     left: parseFloat(element.style.left) || 0,
                     top: parseFloat(element.style.top) || 0
                 };
 
-                // Get the zoom factor at the start of the drag
-                const zoom = parseFloat(document.getElementById('zoom-slider').value) / 100;
-
                 const handleMouseMove = (moveEvent) => {
-                    // Calculate how far the mouse has moved from the starting point.
                     const dx = moveEvent.clientX - initialMouse.x;
                     const dy = moveEvent.clientY - initialMouse.y;
 
-                    // The new position is the original position plus the SCALED mouse movement.
+                    // Calculate the new position based on the initial position plus the SCALED mouse movement.
                     const newLeft = initialElementPos.left + (dx / zoom);
                     const newTop = initialElementPos.top + (dy / zoom);
-                    
-                    // Directly update the element's inline style for a live preview.
-                    element.style.left = `${newLeft}px`;
-                    element.style.top = `${newTop}px`;
-                    
-                    // Make the selection wrapper follow the element in real-time.
+
+                    // Update the live style and the selection wrapper
+                    element.style.left = `${newLeft.toFixed(1)}px`;
+                    element.style.top = `${newTop.toFixed(1)}px`;
                     this.repositionSelectionWrapper();
                 };
 
                 const handleMouseUp = () => {
                     window.removeEventListener('mousemove', handleMouseMove);
                     
-                    // Finalize the position in our data model and save to history.
+                    // Now we commit the changes to our data model for saving and history.
+                    if (needsPositionChange) {
+                        this.updateElementStyle('position', 'relative');
+                    }
                     this.updateElementStyle('left', element.style.left);
                     this.updateElementStyle('top', element.style.top);
+                    
                     this.saveToHistory();
                 };
 
@@ -2062,6 +2068,15 @@
 
                     const controls = el.querySelector('.element-controls');
                     if (controls) {
+                        // Add the mousedown listener for the move handle
+                        const moveBtn = controls.querySelector('.fa-arrows-alt');
+                        if (moveBtn) {
+                            moveBtn.addEventListener('mousedown', (e) => {
+                                e.stopPropagation();
+                                this.initiateDrag(e, el);
+                            });
+                        }
+
                         const editBtn = controls.querySelector('.fa-edit');
                         if (editBtn) editBtn.addEventListener('click', (e) => { e.stopPropagation(); this.editElement(el); });
                         
@@ -2070,7 +2085,7 @@
                     }
                 });
             }
-
+            
             export() {
                 const html = this.generatePreviewHTML();
                 const blob = new Blob([html], { type: 'text/html' });
