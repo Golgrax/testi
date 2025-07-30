@@ -629,13 +629,13 @@
                             }
 
                             // Apply the new styles
-                            this.updateElementStyle('width', `${Math.max(10, newWidth).toFixed(0)}px`, false);
-                            this.updateElementStyle('height', `${Math.max(10, newHeight).toFixed(0)}px`, false);
-                            this.updateElementStyle('top', `${newTop.toFixed(0)}px`, false);
-                            this.updateElementStyle('left', `${newLeft.toFixed(0)}px`, false);
+                            this.updateElementStyle('width', `${Math.max(10, newWidth).toFixed(0)}px`);
+                            this.updateElementStyle('height', `${Math.max(10, newHeight).toFixed(0)}px`);
+                            this.updateElementStyle('top', `${newTop.toFixed(0)}px`);
+                            this.updateElementStyle('left', `${newLeft.toFixed(0)}px`);
 
-                            // Now, update the wrapper just ONCE after all styles are applied
-                            this.repositionSelectionWrapper();
+                            // ADD THIS LINE: Update the wrapper's position just once.
+                            this.repositionSelectionWrapper(); 
                         };
 
                         const handleMouseUp = () => {
@@ -664,54 +664,51 @@
 
             initiateDrag(e, element) {
                 if (!element) return;
-                
-                // Set position to relative if it's static, so 'top' and 'left' will work.
+
                 const positionType = window.getComputedStyle(element).position;
                 if (positionType === 'static') {
                     this.updateElementStyle('position', 'relative');
+                    // We don't set top/left here; the first drag will start from 0,0 relative to its static flow, which is correct.
                 }
 
-                // Store the starting mouse position.
                 const initialMouse = { x: e.clientX, y: e.clientY };
                 
-                // Store the element's starting top/left position from its style.
-                // Fallback to 0 if the style is not set (e.g., for newly 'relative' elements).
+                // Get the element's current top/left style value, defaulting to 0 if not set.
                 const initialElementPos = {
                     left: parseFloat(element.style.left) || 0,
                     top: parseFloat(element.style.top) || 0
                 };
 
                 const handleMouseMove = (moveEvent) => {
-                    // Calculate the distance the mouse has moved from the start.
+                    // Calculate how far the mouse has moved from the starting point.
                     const dx = moveEvent.clientX - initialMouse.x;
                     const dy = moveEvent.clientY - initialMouse.y;
 
-                    // The new position is simply the initial position plus the distance moved.
+                    // The new position is simply the original position plus the mouse's movement.
                     const newLeft = initialElementPos.left + dx;
                     const newTop = initialElementPos.top + dy;
                     
-                    // Apply this new position directly to the element's style for a live preview.
+                    // Directly update the element's inline style for a live preview.
                     element.style.left = `${newLeft}px`;
                     element.style.top = `${newTop}px`;
                     
-                    // The selection box needs to follow the element as it's dragged.
+                    // Make the selection wrapper follow the element in real-time.
                     this.repositionSelectionWrapper();
                 };
 
                 const handleMouseUp = () => {
-                    // IMPORTANT: Clean up the mousemove listener from the window.
                     window.removeEventListener('mousemove', handleMouseMove);
                     
-                    // Now that the drag is finished, update our official data model with the final position.
+                    // Finalize the position in our data model and save to history.
                     this.updateElementStyle('left', element.style.left);
                     this.updateElementStyle('top', element.style.top);
                     this.saveToHistory();
                 };
 
-                // Add the listeners to the entire window, so the drag continues even if the mouse leaves the element.
                 window.addEventListener('mousemove', handleMouseMove);
-                window.addEventListener('mouseup', handleMouseUp, { once: true }); // Automatically cleans itself up.
-            }            setupEventListeners() {
+                window.addEventListener('mouseup', handleMouseUp, { once: true });
+            }
+                setupEventListeners() {
                 this.clipboard = null;
                 // Tab switching
                 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -1564,7 +1561,7 @@
             }
 
             // MODIFY this entire function
-            updateElementStyle(property, value, reposition = true) {
+            updateElementStyle(property, value) {
                 if (!this.selectedElement) return;
 
                 let styles = {};
@@ -1584,12 +1581,9 @@
                 this.selectedElement.dataset.styles = JSON.stringify(styles);
 
                 this.applyAllStyles(this.selectedElement);
-                
-                // Only reposition if the flag is true
-                if (reposition) {
-                    this.repositionSelectionWrapper();
-                }
+                // this.repositionSelectionWrapper(); // <-- DELETE THIS LINE
             }
+            
             applyAllStyles(element) {
                 // Clear all previous inline styles to start fresh
                 element.style.cssText = '';
