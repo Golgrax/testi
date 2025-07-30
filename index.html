@@ -428,6 +428,26 @@
                     e.preventDefault();
                     canvas.classList.remove('drag-over');
                     
+                    if (this.draggedElement && this.draggedElement.type === 'asset') {
+                        const asset = this.assets.find(a => a.id === this.draggedElement.assetId);
+                        if (!asset) return;
+
+                        const targetEl = e.target.closest('.canvas-element');
+                        if (targetEl) {
+                            const imageEl = targetEl.querySelector('img');
+                            const videoEl = targetEl.querySelector('video');
+
+                            if (imageEl && asset.type.startsWith('image/')) {
+                                imageEl.src = asset.data;
+                                this.saveToHistory();
+                            } else if (videoEl && asset.type.startsWith('video/')) {
+                                videoEl.src = asset.data;
+                                this.saveToHistory();
+                            }
+                        }
+                        this.draggedElement = null;
+                        return;
+                    }
                     if (this.draggedElement && this.draggedElement.type === 'component') {
                         this.addComponent(this.draggedElement.componentType, e);
                     }
@@ -665,6 +685,29 @@
                 const panel = document.getElementById('properties-panel');
                 const componentType = element.dataset.componentType;
                 
+                // --- THIS BLOCK IS NEW ---
+                let specificProperties = '';
+                switch(componentType) {
+                    case 'image':
+                        specificProperties = `
+                            <div class="sidebar-section pb-4 mb-4">
+                                <h4 class="font-medium mb-2">Image Settings</h4>
+                                <div class="mb-2">
+                                    <label class="text-xs text-gray-600">Image Source (URL)</label>
+                                    <input type="text" class="property-input" value="${element.querySelector('img')?.src || ''}" onchange="app.updateElementAttribute('src', this.value, 'img')">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-600">Alt Text</label>
+                                    <input type="text" class="property-input" value="${element.querySelector('img')?.alt || ''}" onchange="app.updateElementAttribute('alt', this.value, 'img')">
+                                </div>
+                            </div>`;
+                        break;
+                    case 'button':
+                        // The content editor already handles the button text, but we could add button-specific things here later.
+                        break;
+                }
+                // --- END OF NEW BLOCK ---
+
                 let propertiesHTML = `
                     <div class="p-4">
                         <h3 class="font-semibold mb-4">${componentType.charAt(0).toUpperCase() + componentType.slice(1)} Properties</h3>
@@ -682,7 +725,7 @@
                                     <input type="text" class="property-input" value="${element.style.height || 'auto'}" onchange="app.updateElementStyle('height', this.value)">
                                 </div>
                             </div>
-                            <div class="grid grid-cols-4 gap-1 mb-2">
+                            <div class="grid grid-cols-2 gap-2 mb-2">
                                 <div>
                                     <label class="text-xs text-gray-600">Margin</label>
                                     <input type="text" class="property-input" value="${element.style.margin || '0'}" onchange="app.updateElementStyle('margin', this.value)">
@@ -691,6 +734,8 @@
                                     <label class="text-xs text-gray-600">Padding</label>
                                     <input type="text" class="property-input" value="${element.style.padding || '0'}" onchange="app.updateElementStyle('padding', this.value)">
                                 </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
                                 <div>
                                     <label class="text-xs text-gray-600">Border</label>
                                     <input type="text" class="property-input" value="${element.style.border || 'none'}" onchange="app.updateElementStyle('border', this.value)">
@@ -739,12 +784,14 @@
                             <h4 class="font-medium mb-2">Content</h4>
                             <textarea class="property-input h-20" placeholder="Edit content..." onchange="app.updateElementContent(this.value)">${this.getElementText(element)}</textarea>
                         </div>
+
+                        <!-- This is where the new properties will be injected -->
+                        ${specificProperties}
                     </div>
                 `;
 
                 panel.innerHTML = propertiesHTML;
             }
-
             updateElementStyle(property, value) {
                 if (this.selectedElement) {
                     this.selectedElement.style[property] = value;
@@ -759,6 +806,16 @@
                         textElement.textContent = content;
                     }
                     this.saveToHistory();
+                }
+            }
+
+            updateElementAttribute(attr, value, selector) {
+                if (this.selectedElement) {
+                    const target = this.selectedElement.querySelector(selector);
+                    if (target) {
+                        target.setAttribute(attr, value);
+                        this.saveToHistory();
+                    }
                 }
             }
 
@@ -903,14 +960,23 @@
             updateAssetsGrid() {
                 const grid = document.getElementById('assets-grid');
                 grid.innerHTML = this.assets.map(asset => `
-                    <div class="asset-item border rounded p-2 cursor-pointer hover:bg-gray-50" data-asset-id="${asset.id}">
+                    <div class="asset-item border rounded p-2 cursor-pointer hover:bg-gray-50" draggable="true" data-asset-id="${asset.id}">
                         ${asset.type.startsWith('image/') 
-                            ? `<img src="${asset.data}" alt="${asset.name}" class="w-full h-20 object-cover rounded mb-1">`
-                            : `<div class="w-full h-20 bg-gray-200 rounded mb-1 flex items-center justify-center"><i class="fas fa-video text-gray-500"></i></div>`
+                            ? `<img src="${asset.data}" alt="${asset.name}" class="w-full h-20 object-cover rounded mb-1 pointer-events-none">`
+                            : `<div class="w-full h-20 bg-gray-200 rounded mb-1 flex items-center justify-center pointer-events-none"><i class="fas fa-video text-gray-500"></i></div>`
                         }
-                        <p class="text-xs truncate">${asset.name}</p>
+                        <p class="text-xs truncate pointer-events-none">${asset.name}</p>
                     </div>
                 `).join('');
+
+                grid.querySelectorAll('.asset-item').forEach(item => {
+                    item.addEventListener('dragstart', (e) => {
+                        this.draggedElement = {
+                            type: 'asset',
+                            assetId: e.target.dataset.assetId
+                        };
+                    });
+                });
             }
 
             showPreview() {
