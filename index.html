@@ -11,6 +11,10 @@
     <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
     <style>
 
+        .canvas-element.is-editing #selection-wrapper {
+            display: block !important;
+        }
+
         /* Add this to your <style> block */
         .layer-item.active-layer {
             background-color: #dbeafe; /* A light blue color */
@@ -650,9 +654,12 @@
                 e.preventDefault();
                 e.stopPropagation();
 
-                // FIX: ALWAYS hide the wrapper on drag start to exit edit mode.
-                const selectionWrapper = document.getElementById('selection-wrapper');
-                selectionWrapper.classList.add('hidden');
+                // --- CRITICAL FIX: Force exit from Edit Mode on drag ---
+                if (element.classList.contains('is-editing')) {
+                    element.classList.remove('is-editing');
+                }
+                document.getElementById('selection-wrapper').classList.add('hidden');
+                // --- END FIX ---
 
                 let needsPositionChange = false;
                 const positionType = window.getComputedStyle(element).position;
@@ -680,12 +687,7 @@
 
                 const handleMouseUp = () => {
                     window.removeEventListener('mousemove', handleMouseMove);
-                    
-                    // After dropping, update the element's position data.
-                    // The selection wrapper remains hidden, leaving it in 'Selected' state.
-                    if (needsPositionChange) {
-                        this.updateElementStyle('position', 'relative');
-                    }
+                    if (needsPositionChange) this.updateElementStyle('position', 'relative');
                     this.updateElementStyle('left', element.style.left);
                     this.updateElementStyle('top', element.style.top);
                     this.saveToHistory();
@@ -1218,48 +1220,44 @@
             }
 
             selectElement(element) {
+                if (this.selectedElement === element) return; // Do nothing if it's already selected
+
                 const selectionWrapper = document.getElementById('selection-wrapper');
 
-                // Case 1: Clicking an already selected element to enter/exit 'Edit Mode'.
-                if (this.selectedElement === element) {
-                    // Toggle the visibility of the wrapper to enter/exit edit mode.
-                    selectionWrapper.classList.toggle('hidden');
-                } 
-                // Case 2: Selecting a new element.
-                else {
-                    if (this.selectedElement) {
-                        this.selectedElement.classList.remove('selected');
-                    }
-                    element.classList.add('selected');
-                    this.selectedElement = element;
-                    
-                    this.showProperties(element);
-                    this.repositionSelectionWrapper(); // Position the wrapper
-                    selectionWrapper.classList.add('hidden'); // But keep it hidden initially
+                // Deselect the previous element
+                if (this.selectedElement) {
+                    this.selectedElement.classList.remove('selected', 'is-editing');
                 }
 
+                // Select the new element
+                element.classList.add('selected');
+                this.selectedElement = element;
+                
+                // Update UI
+                this.showProperties(element);
+                this.repositionSelectionWrapper();
+                selectionWrapper.classList.add('hidden'); // Always hide wrapper on initial select
                 this.updateBreadcrumbs();
-                // Update the layers panel to highlight the active layer
+                
+                // Highlight in layers panel
                 document.querySelectorAll('.layer-item.active-layer').forEach(item => item.classList.remove('active-layer'));
                 const activeLayer = document.querySelector(`.layer-item[data-element-id="${element.dataset.elementId}"]`);
-                if (activeLayer) {
-                    activeLayer.classList.add('active-layer');
-                }
+                if (activeLayer) activeLayer.classList.add('active-layer');
             }
 
             handleCanvasClick(e) {
-                if (e.target.id === 'canvas' || e.target.closest('#canvas-container') && e.target.id !== 'canvas-container') {
-                    if(e.target.closest('.canvas-element')) return;
+                // Check if the click is on the canvas itself or the scroll area, but not on a component
+                const isClickOnCanvas = e.target.id === 'canvas' || e.target.id === 'canvas-container';
 
+                if (isClickOnCanvas) {
                     if (this.selectedElement) {
-                        this.selectedElement.classList.remove('selected');
+                        this.selectedElement.classList.remove('selected', 'is-editing');
+                        this.selectedElement = null;
                     }
-                    this.selectedElement = null;
-                    document.getElementById('properties-panel').innerHTML = `...`;
-                    this.repositionSelectionWrapper();
+                    // Hide properties panel and selection wrapper
+                    document.getElementById('properties-panel').innerHTML = `<div class="p-4 text-center text-gray-500"><i class="fas fa-mouse-pointer text-3xl mb-2 block"></i><p>Select an element to edit its properties</p></div>`;
+                    document.getElementById('selection-wrapper').classList.add('hidden');
                     this.updateBreadcrumbs();
-                    // In the handleCanvasClick function, when deselecting...
-                    // ADD this line:
                     document.querySelectorAll('.layer-item.active-layer').forEach(item => item.classList.remove('active-layer'));
                 }
             }
@@ -1658,7 +1656,19 @@
             }
 
             editElement(element) {
-                this.selectElement(element);
+                if (!element) return;
+                this.selectElement(element); // Ensure it's selected first
+                
+                // Toggle edit mode
+                element.classList.toggle('is-editing');
+                
+                const selectionWrapper = document.getElementById('selection-wrapper');
+                if (element.classList.contains('is-editing')) {
+                    selectionWrapper.classList.remove('hidden');
+                } else {
+                    selectionWrapper.classList.add('hidden');
+                }
+                this.repositionSelectionWrapper();
             }
 
             handleCanvasClick(e) {
@@ -2043,22 +2053,15 @@
                 const elements = [element, ...element.querySelectorAll('.canvas-element')];
                 elements.forEach(el => {
                     el.draggable = true;
-                    // --- HOVER LOGIC TO SHOW/HIDE RESIZERS ---
-                    el.addEventListener('mouseenter', () => {
-                        if (el.classList.contains('selected')) {
-                            document.getElementById('selection-wrapper').classList.remove('hidden');
-                        }
+                    // The main click now just selects the element.
+                    el.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.selectElement(el);
                     });
 
-                    el.addEventListener('mouseleave', () => {
-                        if (!this.isResizing) { // Don't hide if we are in the middle of resizing
-                            document.getElementById('selection-wrapper').classList.add('hidden');
-                        }
-                    });
-
+                    // Event listeners for the control buttons
                     const controls = el.querySelector('.element-controls');
                     if (controls) {
-                        // Add the mousedown listener for the move handle
                         const moveBtn = controls.querySelector('.fa-arrows-alt');
                         if (moveBtn) {
                             moveBtn.addEventListener('mousedown', (e) => {
@@ -2068,14 +2071,25 @@
                         }
 
                         const editBtn = controls.querySelector('.fa-edit');
-                        if (editBtn) editBtn.addEventListener('click', (e) => { e.stopPropagation(); this.editElement(el); });
+                        if (editBtn) {
+                            // The pencil icon is now the ONLY way to enter Edit Mode.
+                            editBtn.addEventListener('click', (e) => { 
+                                e.stopPropagation(); 
+                                this.editElement(el); 
+                            });
+                        }
                         
                         const deleteBtn = controls.querySelector('.fa-trash');
-                        if (deleteBtn) deleteBtn.addEventListener('click', (e) => { e.stopPropagation(); this.deleteElement(el); });
+                        if (deleteBtn) {
+                            deleteBtn.addEventListener('click', (e) => { 
+                                e.stopPropagation(); 
+                                this.deleteElement(el); 
+                            });
+                        }
                     }
                 });
             }
-
+            
             export() {
                 const html = this.generatePreviewHTML();
                 const blob = new Blob([html], { type: 'text/html' });
