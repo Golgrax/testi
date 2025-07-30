@@ -649,6 +649,42 @@
                 this.loadFromLocalStorage();
             }
 
+            _bindElementEvents(element) {
+                // Main click event for selecting the element
+                element.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.selectElement(element);
+                });
+
+                // --- Control Buttons Logic ---
+                const controls = element.querySelector('.element-controls');
+                if (controls) {
+                    const moveBtn = controls.querySelector('.fa-arrows-alt');
+                    if (moveBtn) {
+                        moveBtn.addEventListener('mousedown', (e) => {
+                            e.stopPropagation();
+                            this.initiateDrag(e, element);
+                        });
+                    }
+
+                    const editBtn = controls.querySelector('.fa-edit');
+                    if (editBtn) {
+                        editBtn.addEventListener('click', (e) => { 
+                            e.stopPropagation(); 
+                            this.editElement(element); 
+                        });
+                    }
+                    
+                    const deleteBtn = controls.querySelector('.fa-trash');
+                    if (deleteBtn) {
+                        deleteBtn.addEventListener('click', (e) => { 
+                            e.stopPropagation(); 
+                            this.deleteElement(element); 
+                        });
+                    }
+                }
+            }
+
             initiateDrag(e, element) {
                 if (!element) return;
                 e.preventDefault();
@@ -1168,52 +1204,27 @@
                 element.dataset.elementId = this.generateId();
                 element.draggable = true;
 
-                // Apply default styles
                 if (component.defaultStyles) {
                     Object.assign(element.style, component.defaultStyles);
                 }
 
-                // Add controls
+                // Create and append controls
                 const controls = document.createElement('div');
                 controls.className = 'element-controls';
-
-                const moveBtn = document.createElement('i');
-                moveBtn.className = 'fas fa-arrows-alt mr-2 cursor-move'; // Adds the icon and move cursor
-                moveBtn.addEventListener('mousedown', (e) => {
-                    e.stopPropagation();
-                    this.initiateDrag(e, element); // This will be our new drag function
-                });
-
-                const editBtn = document.createElement('i');
-                editBtn.className = 'fas fa-edit mr-1 cursor-pointer';
-                editBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.editElement(element);
-                });
-
-                const deleteBtn = document.createElement('i');
-                deleteBtn.className = 'fas fa-trash cursor-pointer';
-                deleteBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.deleteElement(element);
-                });
-
-                controls.appendChild(moveBtn);
-                controls.appendChild(editBtn);
-                controls.appendChild(deleteBtn);
+                controls.innerHTML = `
+                    <i class="fas fa-arrows-alt mr-2 cursor-move"></i>
+                    <i class="fas fa-edit mr-1 cursor-pointer"></i>
+                    <i class="fas fa-trash cursor-pointer"></i>
+                `;
                 element.appendChild(controls);
 
+                // Use our new central function to add all events
+                this._bindElementEvents(element);
 
-                // Find drop position
-                let targetContainer = document.getElementById('canvas');
-                if (event.target.classList.contains('canvas-element') || event.target.closest('.canvas-element')) {
-                    const closestElement = event.target.closest('.canvas-element');
-                    if (closestElement.dataset.componentType === 'container' || closestElement.dataset.componentType === 'row') {
-                        targetContainer = closestElement;
-                    }
-                }
-
+                // Find drop position and append
+                let targetContainer = event.target.closest('.drop-zone') || document.getElementById('canvas');
                 targetContainer.appendChild(element);
+
                 this.selectElement(element);
                 this.saveToHistory();
                 this.updateLayersTree();
@@ -1246,22 +1257,21 @@
             }
 
             handleCanvasClick(e) {
-                // Check if the click is on the canvas itself or the scroll area, but not on a component
-                const isClickOnCanvas = e.target.id === 'canvas' || e.target.id === 'canvas-container';
+                // This ensures we only deselect if the click is truly on the canvas background
+                // and not on any element or its controls.
+                if (e.target.closest('.canvas-element')) return;
 
-                if (isClickOnCanvas) {
-                    if (this.selectedElement) {
-                        this.selectedElement.classList.remove('selected', 'is-editing');
-                        this.selectedElement = null;
-                    }
-                    // Hide properties panel and selection wrapper
-                    document.getElementById('properties-panel').innerHTML = `<div class="p-4 text-center text-gray-500"><i class="fas fa-mouse-pointer text-3xl mb-2 block"></i><p>Select an element to edit its properties</p></div>`;
-                    document.getElementById('selection-wrapper').classList.add('hidden');
-                    this.updateBreadcrumbs();
-                    document.querySelectorAll('.layer-item.active-layer').forEach(item => item.classList.remove('active-layer'));
+                if (this.selectedElement) {
+                    this.selectedElement.classList.remove('selected', 'is-editing');
+                    this.selectedElement = null;
                 }
+                
+                // Reset the UI
+                document.getElementById('properties-panel').innerHTML = `<div class="p-4 text-center text-gray-500"><i class="fas fa-mouse-pointer text-3xl mb-2 block"></i><p>Select an element to edit its properties</p></div>`;
+                document.getElementById('selection-wrapper').classList.add('hidden');
+                this.updateBreadcrumbs();
+                document.querySelectorAll('.layer-item.active-layer').forEach(item => item.classList.remove('active-layer'));
             }
-
             showProperties(element) {
                 const panel = document.getElementById('properties-panel');
                 const componentType = element.dataset.componentType;
@@ -1657,35 +1667,39 @@
 
             editElement(element) {
                 if (!element) return;
-                this.selectElement(element); // Ensure it's selected first
+                this.selectElement(element);
                 
-                // Toggle edit mode
                 element.classList.toggle('is-editing');
                 
                 const selectionWrapper = document.getElementById('selection-wrapper');
+                const editIcon = element.querySelector('.fa-edit');
+
                 if (element.classList.contains('is-editing')) {
                     selectionWrapper.classList.remove('hidden');
+                    if(editIcon) editIcon.classList.replace('fa-edit', 'fa-check'); // UI Feedback
                 } else {
                     selectionWrapper.classList.add('hidden');
+                    if(editIcon) editIcon.classList.replace('fa-check', 'fa-edit'); // UI Feedback
                 }
                 this.repositionSelectionWrapper();
             }
 
             handleCanvasClick(e) {
-                if (e.target.id === 'canvas') {
-                    this.selectedElement = null;
-                    document.querySelectorAll('.canvas-element.selected').forEach(el => {
-                        el.classList.remove('selected');
-                    });
-                    document.getElementById('properties-panel').innerHTML = `
-                        <div class="p-4 text-center text-gray-500">
-                            <i class="fas fa-mouse-pointer text-3xl mb-2 block"></i>
-                            <p>Select an element to edit its properties</p>
-                        </div>
-                    `;
-                }
-            }
+                // This ensures we only deselect if the click is truly on the canvas background
+                // and not on any element or its controls.
+                if (e.target.closest('.canvas-element')) return;
 
+                if (this.selectedElement) {
+                    this.selectedElement.classList.remove('selected', 'is-editing');
+                    this.selectedElement = null;
+                }
+                
+                // Reset the UI
+                document.getElementById('properties-panel').innerHTML = `<div class="p-4 text-center text-gray-500"><i class="fas fa-mouse-pointer text-3xl mb-2 block"></i><p>Select an element to edit its properties</p></div>`;
+                document.getElementById('selection-wrapper').classList.add('hidden');
+                this.updateBreadcrumbs();
+                document.querySelectorAll('.layer-item.active-layer').forEach(item => item.classList.remove('active-layer'));
+            }
             updateLayersTree() {
             const tree = document.getElementById('layers-tree');
             const canvas = document.getElementById('canvas');
@@ -2025,71 +2039,17 @@
 
             reattachEventListeners() {
                 document.querySelectorAll('.canvas-element').forEach(element => {
-                    element.draggable = true;
-                    element.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        this.selectElement(element);
-                    });
-
-                    const editBtn = element.querySelector('.fa-edit');
-                    if (editBtn) {
-                        editBtn.addEventListener('click', (e) => {
-                            e.stopPropagation();
-                            this.editElement(element);
-                        });
-                    }
-                    
-                    const deleteBtn = element.querySelector('.fa-trash');
-                    if (deleteBtn) {
-                        deleteBtn.addEventListener('click', (e) => {
-                            e.stopPropagation();
-                            this.deleteElement(element);
-                        });
-                    }
+                    this._bindElementEvents(element);
                 });
             }
 
             reattachEventListenersToElement(element) {
                 const elements = [element, ...element.querySelectorAll('.canvas-element')];
                 elements.forEach(el => {
-                    el.draggable = true;
-                    // The main click now just selects the element.
-                    el.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        this.selectElement(el);
-                    });
-
-                    // Event listeners for the control buttons
-                    const controls = el.querySelector('.element-controls');
-                    if (controls) {
-                        const moveBtn = controls.querySelector('.fa-arrows-alt');
-                        if (moveBtn) {
-                            moveBtn.addEventListener('mousedown', (e) => {
-                                e.stopPropagation();
-                                this.initiateDrag(e, el);
-                            });
-                        }
-
-                        const editBtn = controls.querySelector('.fa-edit');
-                        if (editBtn) {
-                            // The pencil icon is now the ONLY way to enter Edit Mode.
-                            editBtn.addEventListener('click', (e) => { 
-                                e.stopPropagation(); 
-                                this.editElement(el); 
-                            });
-                        }
-                        
-                        const deleteBtn = controls.querySelector('.fa-trash');
-                        if (deleteBtn) {
-                            deleteBtn.addEventListener('click', (e) => { 
-                                e.stopPropagation(); 
-                                this.deleteElement(el); 
-                            });
-                        }
-                    }
+                    this._bindElementEvents(el);
                 });
             }
-            
+
             export() {
                 const html = this.generatePreviewHTML();
                 const blob = new Blob([html], { type: 'text/html' });
