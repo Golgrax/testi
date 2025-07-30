@@ -572,12 +572,14 @@
                 // The line that forced it to be visible has been removed.
             }
 
-                setupResizing() {
+            setupResizing() {
                 const selectionWrapper = document.getElementById('selection-wrapper');
                 selectionWrapper.querySelectorAll('.resizer').forEach(resizer => {
                     resizer.addEventListener('mousedown', (e) => {
+                        // FIX: Prevents the click from bubbling up to the element,
+                        // which would toggle off the edit mode we need for resizing.
+                        e.stopPropagation(); 
                         e.preventDefault();
-                        e.stopPropagation();
 
                         if (this.selectedElement) {
                             this.selectedElement.draggable = false;
@@ -590,7 +592,6 @@
                         const scrollContainer = document.getElementById('scroll-area');
                         const scrollRect = scrollContainer.getBoundingClientRect();
 
-                        // Store initial properties for calculation
                         this.elementInitialSize = {
                             width: parseFloat(computedStyle.width),
                             height: parseFloat(computedStyle.height),
@@ -605,54 +606,28 @@
                             const zoom = parseFloat(document.getElementById('zoom-slider').value) / 100;
                             const dx = (moveEvent.clientX - this.resizerInitialPos.x) / zoom;
                             const dy = (moveEvent.clientY - this.resizerInitialPos.y) / zoom;
-
-                            let newWidth = this.elementInitialSize.width;
-                            let newHeight = this.elementInitialSize.height;
-                            let newTop = this.elementInitialSize.top;
-                            let newLeft = this.elementInitialSize.left;
-
+                            let newWidth = this.elementInitialSize.width, newHeight = this.elementInitialSize.height;
+                            let newTop = this.elementInitialSize.top, newLeft = this.elementInitialSize.left;
                             const direction = resizer.dataset.resizer;
 
-                            // Adjust width and left position
-                            if (direction.includes('right')) {
-                                newWidth += dx;
-                            } else if (direction.includes('left')) {
-                                newWidth -= dx;
-                                newLeft += dx; // Move left edge as it resizes
-                            }
+                            if (direction.includes('right')) newWidth += dx;
+                            else if (direction.includes('left')) { newWidth -= dx; newLeft += dx; }
+                            if (direction.includes('bottom')) newHeight += dy;
+                            else if (direction.includes('top')) { newHeight -= dy; newTop += dy; }
 
-                            // Adjust height and top position
-                            if (direction.includes('bottom')) {
-                                newHeight += dy;
-                            } else if (direction.includes('top')) {
-                                newHeight -= dy;
-                                newTop += dy; // Move top edge as it resizes
-                            }
-
-                            // Apply the new styles
                             this.updateElementStyle('width', `${Math.max(10, newWidth).toFixed(0)}px`);
                             this.updateElementStyle('height', `${Math.max(10, newHeight).toFixed(0)}px`);
                             this.updateElementStyle('top', `${newTop.toFixed(0)}px`);
                             this.updateElementStyle('left', `${newLeft.toFixed(0)}px`);
-
-                            // ADD THIS LINE: Update the wrapper's position just once.
                             this.repositionSelectionWrapper(); 
                         };
 
                         const handleMouseUp = () => {
-                            if (this.selectedElement) {
-                                this.selectedElement.draggable = true;
-                            }
-                            this.isResizing = false; // Set resizing to false FIRST
+                            if (this.selectedElement) this.selectedElement.draggable = true;
+                            this.isResizing = false;
                             window.removeEventListener('mousemove', handleMouseMove);
                             window.removeEventListener('mouseup', handleMouseUp);
                             this.saveToHistory();
-
-                            // Check if the mouse is still hovering the element. If not, hide the wrapper.
-                            const isHovering = this.selectedElement && this.selectedElement.matches(':hover');
-                            if (!isHovering) {
-                                document.getElementById('selection-wrapper').classList.add('hidden');
-                            }
                         };
 
                         window.addEventListener('mousemove', handleMouseMove);
@@ -660,7 +635,8 @@
                     });
                 });
             }
-                init() {
+
+            init() {
                 this.setupEventListeners();
                 this.setupDragAndDrop();
                 this.loadComponents();
@@ -674,7 +650,7 @@
                 e.preventDefault();
                 e.stopPropagation();
 
-                // --- FIX: Hide the selection wrapper on drag start ---
+                // FIX: ALWAYS hide the wrapper on drag start to exit edit mode.
                 const selectionWrapper = document.getElementById('selection-wrapper');
                 selectionWrapper.classList.add('hidden');
 
@@ -688,7 +664,6 @@
 
                 const initialMouse = { x: e.clientX, y: e.clientY };
                 const zoom = parseFloat(document.getElementById('zoom-slider').value) / 100;
-
                 const initialElementPos = {
                     left: parseFloat(element.style.left) || 0,
                     top: parseFloat(element.style.top) || 0
@@ -697,30 +672,22 @@
                 const handleMouseMove = (moveEvent) => {
                     const dx = moveEvent.clientX - initialMouse.x;
                     const dy = moveEvent.clientY - initialMouse.y;
-
                     const newLeft = initialElementPos.left + (dx / zoom);
                     const newTop = initialElementPos.top + (dy / zoom);
-
                     element.style.left = `${newLeft.toFixed(1)}px`;
                     element.style.top = `${newTop.toFixed(1)}px`;
-                    
-                    // We call this to update the wrapper's position in memory,
-                    // even though it's hidden. This prevents a jump when it reappears.
-                    this.repositionSelectionWrapper(); 
                 };
 
                 const handleMouseUp = () => {
                     window.removeEventListener('mousemove', handleMouseMove);
                     
-                    // --- FIX: Show the wrapper again after drag ends ---
-                    selectionWrapper.classList.remove('hidden');
-
+                    // After dropping, update the element's position data.
+                    // The selection wrapper remains hidden, leaving it in 'Selected' state.
                     if (needsPositionChange) {
                         this.updateElementStyle('position', 'relative');
                     }
                     this.updateElementStyle('left', element.style.left);
                     this.updateElementStyle('top', element.style.top);
-                    
                     this.saveToHistory();
                 };
 
@@ -1234,19 +1201,6 @@
                 controls.appendChild(deleteBtn);
                 element.appendChild(controls);
 
-                // Add event listeners
-                // --- HOVER LOGIC TO SHOW/HIDE RESIZERS ---
-                element.addEventListener('mouseenter', () => {
-                    if (element.classList.contains('selected')) {
-                        document.getElementById('selection-wrapper').classList.remove('hidden');
-                    }
-                });
-
-                element.addEventListener('mouseleave', () => {
-                    if (!this.isResizing) { // Don't hide if we are in the middle of resizing
-                        document.getElementById('selection-wrapper').classList.add('hidden');
-                    }
-                });
 
                 // Find drop position
                 let targetContainer = document.getElementById('canvas');
@@ -1264,18 +1218,28 @@
             }
 
             selectElement(element) {
-                if (this.selectedElement === element) return;
+                const selectionWrapper = document.getElementById('selection-wrapper');
 
-                if (this.selectedElement) {
-                    this.selectedElement.classList.remove('selected');
+                // Case 1: Clicking an already selected element to enter/exit 'Edit Mode'.
+                if (this.selectedElement === element) {
+                    // Toggle the visibility of the wrapper to enter/exit edit mode.
+                    selectionWrapper.classList.toggle('hidden');
+                } 
+                // Case 2: Selecting a new element.
+                else {
+                    if (this.selectedElement) {
+                        this.selectedElement.classList.remove('selected');
+                    }
+                    element.classList.add('selected');
+                    this.selectedElement = element;
+                    
+                    this.showProperties(element);
+                    this.repositionSelectionWrapper(); // Position the wrapper
+                    selectionWrapper.classList.add('hidden'); // But keep it hidden initially
                 }
 
-                element.classList.add('selected');
-                this.selectedElement = element;
-                this.showProperties(element);
-
-                this.repositionSelectionWrapper();
                 this.updateBreadcrumbs();
+                // Update the layers panel to highlight the active layer
                 document.querySelectorAll('.layer-item.active-layer').forEach(item => item.classList.remove('active-layer'));
                 const activeLayer = document.querySelector(`.layer-item[data-element-id="${element.dataset.elementId}"]`);
                 if (activeLayer) {
