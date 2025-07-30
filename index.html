@@ -9,6 +9,26 @@
     <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
     <style>
 
+        .responsive-indicator {
+            position: absolute;
+            left: -12px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 6px;
+            height: 6px;
+            background-color: #3b82f6;
+            border-radius: 50%;
+        }
+
+        .context-menu-item {
+            padding: 6px 12px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .context-menu-item:hover {
+            background-color: #f3f4f6;
+        }
+
         #selection-wrapper {
             border: 2px solid #3b82f6;
         }
@@ -244,20 +264,23 @@
         <div class="flex-1 flex flex-col">
             <!-- Top Toolbar -->
             <div class="bg-white shadow-sm border-b p-4 flex justify-between items-center">
-                <!-- Responsive Controls -->
-                <div class="flex items-center gap-2">
-                    <span class="text-sm font-medium mr-2">Device:</span>
-                    <button class="breakpoint-button active" data-breakpoint="desktop">
-                        <i class="fas fa-desktop mr-1"></i>Desktop
-                    </button>
-                    <button class="breakpoint-button" data-breakpoint="tablet">
-                        <i class="fas fa-tablet-alt mr-1"></i>Tablet
-                    </button>
-                    <button class="breakpoint-button" data-breakpoint="mobile">
-                        <i class="fas fa-mobile-alt mr-1"></i>Mobile
-                    </button>
+                <div class="flex items-center gap-4">
+                    <!-- Responsive Controls -->
+                    <div class="flex items-center gap-2">
+                        <div id="breadcrumbs" class="flex items-center gap-2 text-sm text-gray-500">
+                        </div>
+                        <span class="text-sm font-medium mr-2">Device:</span>
+                        <button class="breakpoint-button active" data-breakpoint="desktop">
+                            <i class="fas fa-desktop mr-1"></i>Desktop
+                        </button>
+                        <button class="breakpoint-button" data-breakpoint="tablet">
+                            <i class="fas fa-tablet-alt mr-1"></i>Tablet
+                        </button>
+                        <button class="breakpoint-button" data-breakpoint="mobile">
+                            <i class="fas fa-mobile-alt mr-1"></i>Mobile
+                        </button>
+                    </div>
                 </div>
-
                 <!-- View Controls -->
                 <div class="flex items-center gap-2">
                     <button id="preview-btn" class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">
@@ -314,6 +337,14 @@
 
     <div id="drop-indicator" class="fixed bg-blue-500 h-1 pointer-events-none hidden" style="z-index: 9999;"></div>
     
+    <div id="context-menu" class="hidden fixed bg-white shadow-lg rounded-md p-2 text-sm z-50">
+        <div class="context-menu-item" id="context-duplicate">Duplicate</div>
+        <div class="context-menu-item" id="context-copy">Copy</div>
+        <div class="context-menu-item" id="context-paste">Paste</div>
+        <hr class="my-1">
+        <div class="context-menu-item text-red-500" id="context-delete">Delete</div>
+    </div>
+
     <!-- Preview Modal -->
     <div id="preview-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
         <div class="h-full flex flex-col">
@@ -363,7 +394,57 @@
                 this.isResizing = false;
                 this.resizerInitialPos = {};
                 this.elementInitialSize = {};
+                this.googleFonts = [
+                    "Roboto", "Open Sans", "Lato", "Montserrat", "Oswald", "Source Sans Pro", "Raleway"
+                ];
                 this.init();
+            }
+
+            hasBreakpointSpecificStyle(property) {
+                if (!this.selectedElement || this.currentBreakpoint === 'desktop') return false;
+                let styles = {};
+                try {
+                    styles = JSON.parse(this.selectedElement.dataset.styles || '{}');
+                } catch(e) { return false; }
+                
+                return !!styles[this.currentBreakpoint]?.[property];
+            }
+
+            loadGoogleFont(fontName) {
+                const fontId = `font-${fontName.replace(/\s+/g, '-')}`;
+                if (document.getElementById(fontId)) return; // Don't load the same font twice
+
+                const link = document.createElement('link');
+                link.id = fontId;
+                link.rel = 'stylesheet';
+                link.href = `https://fonts.googleapis.com/css2?family=${fontName.replace(/\s+/g, '+')}:wght@400;700&display=swap`;
+                document.head.appendChild(link);
+            }
+
+            updateBreadcrumbs() {
+                const breadcrumbsContainer = document.getElementById('breadcrumbs');
+                if (!this.selectedElement) {
+                    breadcrumbsContainer.innerHTML = '';
+                    return;
+                }
+
+                let crumbsHTML = '';
+                let current = this.selectedElement;
+                while (current && current.id !== 'canvas') {
+                    if (current.classList.contains('canvas-element')) {
+                        const componentType = current.dataset.componentType || 'element';
+                        const elementId = current.dataset.elementId;
+                        crumbsHTML = `
+                            <span class="hover:text-blue-500 cursor-pointer" onclick="app.selectElementById('${elementId}')">${componentType}</span>
+                            <i class="fas fa-chevron-right text-xs"></i>
+                            ${crumbsHTML}
+                        `;
+                    }
+                    current = current.parentElement;
+                }
+                breadcrumbsContainer.innerHTML = `<span class="hover:text-blue-500 cursor-pointer" onclick="app.handleCanvasClick({target: document.getElementById('canvas')})">body</span> <i class="fas fa-chevron-right text-xs"></i> ${crumbsHTML}`;
+                // Remove the last chevron
+                breadcrumbsContainer.querySelector('i:last-of-type')?.remove();
             }
 
             getCurrentStyle(property) {
@@ -458,6 +539,7 @@
             }
 
             setupEventListeners() {
+                this.clipboard = null;
                 // Tab switching
                 document.querySelectorAll('.tab-btn').forEach(btn => {
                     btn.addEventListener('click', (e) => {
@@ -526,6 +608,35 @@
                         }, { once: true });
                     }
                 });
+
+                // --- CONTEXT MENU LOGIC ---
+                document.getElementById('canvas').addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    const targetElement = e.target.closest('.canvas-element');
+                    if (!targetElement) return;
+
+                    this.selectElement(targetElement);
+
+                    const menu = document.getElementById('context-menu');
+                    menu.classList.remove('hidden');
+                    menu.style.top = `${e.clientY}px`;
+                    menu.style.left = `${e.clientX}px`;
+
+                    document.getElementById('context-duplicate').onclick = () => {
+                        const clone = this.selectedElement.cloneNode(true);
+                        clone.dataset.elementId = this.generateId();
+                        this.reattachEventListenersToElement(clone);
+                        this.selectedElement.after(clone);
+                        this.saveToHistory();
+                    };
+                    document.getElementById('context-delete').onclick = () => this.deleteElement(this.selectedElement);
+                    // Copy/Paste actions can be added here later
+                });
+
+                window.addEventListener('click', () => {
+                    document.getElementById('context-menu').classList.add('hidden');
+                }, true);
+                // --- END CONTEXT MENU LOGIC ---
 
                 // Keyboard shortcuts
                 document.addEventListener('keydown', (e) => {
@@ -918,6 +1029,7 @@
                 this.showProperties(element);
 
                 this.repositionSelectionWrapper();
+                this.updateBreadcrumbs();
             }
 
             handleCanvasClick(e) {
@@ -930,6 +1042,7 @@
                     this.selectedElement = null;
                     document.getElementById('properties-panel').innerHTML = `...`;
                     this.repositionSelectionWrapper();
+                    this.updateBreadcrumbs();
                 }
             }
 
@@ -951,6 +1064,11 @@
                                     <label class="text-xs text-gray-600">Alt Text</label>
                                     <input type="text" class="property-input" value="${element.querySelector('img')?.alt || ''}" onchange="app.updateElementAttribute('alt', this.value, 'img')">
                                 </div>
+                            </div>
+                            <div class="relative"> <!-- Add this wrapper -->
+                                <label class="text-xs text-gray-600">Width</label>
+                                <input type="text" class="property-input" value="${this.getCurrentStyle('width') || 'auto'}" onchange="app.updateElementStyle('width', this.value)">
+                                ${this.hasBreakpointSpecificStyle('width') ? '<span class="responsive-indicator"></span>' : ''} <!-- Add this indicator -->
                             </div>`;
                         break;
                     case 'button':
@@ -994,8 +1112,6 @@
                                     <label class="text-xs text-gray-600">Padding</label>
                                     <input type="text" class="property-input" value="${this.getCurrentStyle('padding') || '0'}" onchange="app.updateElementStyle('padding', this.value)">
                                 </div>
-                            </div>
-                            <div class="grid grid-cols-2 gap-2">
                                 <div>
                                     <label class="text-xs text-gray-600">Border</label>
                                     <input type="text" class="property-input" value="${this.getCurrentStyle('border') || 'none'}" onchange="app.updateElementStyle('border', this.value)">
@@ -1008,6 +1124,13 @@
                         </div>
 
                         <!-- Typography -->
+                        <div class="mb-2"> <!-- Wrap it in a div -->
+                            <label class="text-xs text-gray-600">Font Family</label>
+                            <select class="property-input" onchange="app.updateElementStyle('fontFamily', this.value)">
+                                <option value="">Default</option>
+                                ${this.googleFonts.map(font => `<option value="'${font}', sans-serif" ${this.getCurrentStyle('fontFamily').includes(font) ? 'selected' : ''}>${font}</option>`).join('')}
+                            </select>
+                        </div>
                         <div class="sidebar-section pb-4 mb-4">
                             <h4 class="font-medium mb-2">Typography</h4>
                             <div class="grid grid-cols-2 gap-2 mb-2">
@@ -1036,6 +1159,20 @@
                             <div class="mb-2">
                                 <label class="text-xs text-gray-600">Background Color</label>
                                 <input type="color" class="property-input" value="${this.rgbToHex(this.getCurrentStyle('backgroundColor')) || '#ffffff'}" onchange="app.updateElementStyle('backgroundColor', this.value)">
+                            </div>
+                            <div class="mb-2">
+                                <label class="text-xs text-gray-600">Background Image (URL or Gradient)</label>
+                                <input type="text" class="property-input" placeholder="url(...) or linear-gradient(...)" value="${this.getCurrentStyle('backgroundImage') || ''}" onchange="app.updateElementStyle('backgroundImage', this.value)">
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="text-xs text-gray-600">Size</label>
+                                    <input type="text" class="property-input" placeholder="cover, contain, 100%" value="${this.getCurrentStyle('backgroundSize') || 'auto'}" onchange="app.updateElementStyle('backgroundSize', this.value)">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-600">Position</label>
+                                    <input type="text" class="property-input" placeholder="center, top left" value="${this.getCurrentStyle('backgroundPosition') || 'center'}" onchange="app.updateElementStyle('backgroundPosition', this.value)">
+                                </div>
                             </div>
                         </div>
 
@@ -1112,12 +1249,15 @@
                     styles[this.currentBreakpoint] = {};
                 }
 
+                if (property === 'fontFamily' && value) {
+                    this.loadGoogleFont(value.split(',')[0].replace(/'/g, ''));
+                }
+
                 styles[this.currentBreakpoint][property] = value;
                 this.selectedElement.dataset.styles = JSON.stringify(styles);
 
                 this.applyAllStyles(this.selectedElement);
                 this.repositionSelectionWrapper();
-                this.saveToHistory();
             }
 
             applyAllStyles(element) {
@@ -1535,6 +1675,26 @@
                             e.stopPropagation();
                             this.deleteElement(element);
                         });
+                    }
+                });
+            }
+
+            reattachEventListenersToElement(element) {
+                const elements = [element, ...element.querySelectorAll('.canvas-element')];
+                elements.forEach(el => {
+                    el.draggable = true;
+                    el.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.selectElement(el);
+                    });
+
+                    const controls = el.querySelector('.element-controls');
+                    if (controls) {
+                        const editBtn = controls.querySelector('.fa-edit');
+                        if (editBtn) editBtn.addEventListener('click', (e) => { e.stopPropagation(); this.editElement(el); });
+                        
+                        const deleteBtn = controls.querySelector('.fa-trash');
+                        if (deleteBtn) deleteBtn.addEventListener('click', (e) => { e.stopPropagation(); this.deleteElement(el); });
                     }
                 });
             }
