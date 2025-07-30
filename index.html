@@ -486,24 +486,24 @@
                 breadcrumbsContainer.querySelector('i:last-of-type')?.remove();
             }
 
-            // Function: getCurrentStyle (REPLACE)
-getCurrentStyle(property) {
-    if (!this.selectedElement) return '';
+            getCurrentStyle(property) {
+                if (!this.selectedElement) return '';
 
-    let styles = {};
-    try {
-        styles = JSON.parse(this.selectedElement.dataset.styles || '{}');
-    } catch (e) { return this.selectedElement.style[property] || ''; }
+                let styles = {};
+                try {
+                    styles = JSON.parse(this.selectedElement.dataset.styles || '{}');
+                } catch (e) {
+                    return this.selectedElement.style[property] || '';
+                }
 
-    // Get style from the current state/breakpoint, with fallbacks
-    return styles[this.currentState]?.[this.currentBreakpoint]?.[property] 
-        || styles['base']?.[this.currentBreakpoint]?.[property] 
-        || styles['base']?.['desktop']?.[property] 
-        || '';
-}
+                // Correctly get style from the current state and breakpoint
+                return styles[this.currentState]?.[this.currentBreakpoint]?.[property] 
+                    || styles['base']?.[this.currentBreakpoint]?.[property] // Fallback to base style for this breakpoint
+                    || styles['base']?.['desktop']?.[property] // Ultimate fallback to desktop base
+                    || '';
+            }
 
-            // Function: repositionSelectionWrapper (REPLACE the whole thing)
-repositionSelectionWrapper() {
+            repositionSelectionWrapper() {
     if (!this.selectedElement) {
         document.getElementById('selection-wrapper').classList.add('hidden');
         return;
@@ -1164,10 +1164,251 @@ repositionSelectionWrapper() {
             }
 
             showProperties(element) {
-                // ... all your existing propertiesHTML logic ...
+                const panel = document.getElementById('properties-panel');
+                const componentType = element.dataset.componentType;
+
+                let specificProperties = '';
+                switch(componentType) {
+                    case 'image':
+                        specificProperties = `
+                            <div class="sidebar-section pb-4 mb-4">
+                                <h4 class="font-medium mb-2">Image Settings</h4>
+                                <div class="mb-2">
+                                    <label class="text-xs text-gray-600">Image Source (URL)</label>
+                                    <input type="text" class="property-input" value="${element.querySelector('img')?.src || ''}" onchange="app.updateElementAttribute('src', this.value, 'img')">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-600">Alt Text</label>
+                                    <input type="text" class="property-input" value="${element.querySelector('img')?.alt || ''}" onchange="app.updateElementAttribute('alt', this.value, 'img')">
+                                </div>
+                            </div>
+                        `;
+                        break;
+                    case 'button':
+                        // The content editor already handles the button text, but we could add button-specific things here later.
+                        break;
+                }
+
+                let propertiesHTML = `
+                    <div class="p-4">
+                        <div class="mb-4">
+                            <label class="text-sm font-medium">State</label>
+                            <select id="state-selector" class="property-input mt-1">
+                                <option value="base">Base</option>
+                                <option value="hover">Hover</option>
+                            </select>
+                        </div>
+                        
+                        <div class="sidebar-section pb-4 mb-4">
+                            <h4 class="font-medium mb-2">CSS Classes</h4>
+                            <input type="text" id="class-input" class="property-input" placeholder="e.g. btn btn-primary" 
+                                value="${this.selectedElement.className.replace('canvas-element','').replace('selected','').trim()}"
+                                onchange="app.updateElementClasses(this.value)">
+                        </div>
+                        <h3 class="font-semibold mb-4">${componentType.charAt(0).toUpperCase() + componentType.slice(1)} Properties</h3>
+                        
+                        <!-- Basic Properties -->
+                        <div class="sidebar-section pb-4 mb-4">
+                            <h4 class="font-medium mb-2">Layout</h4>
+                            <!-- Display property -->
+                            <div class="mb-2">
+                                <label class="text-xs text-gray-600">Display</label>
+                                <select class="property-input" onchange="app.updateElementStyle('display', this.value)">
+                                    <option value="block" ${this.getCurrentStyle('display') === 'block' ? 'selected' : ''}>Block</option>
+                                    <option value="flex" ${this.getCurrentStyle('display') === 'flex' ? 'selected' : ''}>Flex</option>
+                                    <option value="inline-block" ${this.getCurrentStyle('display') === 'inline-block' ? 'selected' : ''}>Inline Block</option>
+                                    <option value="none" ${this.getCurrentStyle('display') === 'none' ? 'selected' : ''}>None</option>
+                                </select>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 mb-2">
+                                <div class="relative">
+                                    <label class="text-xs text-gray-600">Width</label>
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('width') || 'auto'}" onchange="app.updateElementStyle('width', this.value)">
+                                    ${this.hasBreakpointSpecificStyle('width') ? '<span class="responsive-indicator"></span>' : ''}
+                                </div>
+                                <div class="relative">
+                                    <label class="text-xs text-gray-600">Height</label>
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('height') || 'auto'}" onchange="app.updateElementStyle('height', this.value)">
+                                    ${this.hasBreakpointSpecificStyle('height') ? '<span class="responsive-indicator"></span>' : ''}
+                                </div>
+                                <div class="relative">
+                                    <label class="text-xs text-gray-600">Margin</label>
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('margin') || '0'}" onchange="app.updateElementStyle('margin', this.value)">
+                                    ${this.hasBreakpointSpecificStyle('margin') ? '<span class="responsive-indicator"></span>' : ''}
+                                </div>
+                                <div class="relative">
+                                    <label class="text-xs text-gray-600">Padding</label>
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('padding') || '0'}" onchange="app.updateElementStyle('padding', this.value)">
+                                    ${this.hasBreakpointSpecificStyle('padding') ? '<span class="responsive-indicator"></span>' : ''}
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-600">Border</label>
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('border') || 'none'}" onchange="app.updateElementStyle('border', this.value)">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-600">Radius</label>
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('borderRadius') || '0'}" onchange="app.updateElementStyle('borderRadius', this.value)">
+                                </div>
+                            </div>
+                            <div class="border-t pt-2 mt-2">
+                                <h5 class="text-xs font-bold mb-1">Positioning</h5>
+                                <div class="mb-2">
+                                    <label class="text-xs text-gray-600">Position</label>
+                                    <select class="property-input" onchange="app.updateElementStyle('position', this.value)">
+                                        <option value="static" ${this.getCurrentStyle('position') === 'static' ? 'selected' : ''}>Static</option>
+                                        <option value="relative" ${this.getCurrentStyle('position') === 'relative' ? 'selected' : ''}>Relative</option>
+                                        <option value="absolute" ${this.getCurrentStyle('position') === 'absolute' ? 'selected' : ''}>Absolute</option>
+                                        <option value="fixed" ${this.getCurrentStyle('position') === 'fixed' ? 'selected' : ''}>Fixed</option>
+                                        <option value="sticky" ${this.getCurrentStyle('position') === 'sticky' ? 'selected' : ''}>Sticky</option>
+                                    </select>
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="text-xs text-gray-600">Top</label>
+                                        <input type="text" class="property-input" value="${this.getCurrentStyle('top') || ''}" onchange="app.updateElementStyle('top', this.value)">
+                                    </div>
+                                    <div>
+                                        <label class="text-xs text-gray-600">Left</label>
+                                        <input type="text" class="property-input" value="${this.getCurrentStyle('left') || ''}" onchange="app.updateElementStyle('left', this.value)">
+                                    </div>
+                                    <div>
+                                        <label class="text-xs text-gray-600">Right</label>
+                                        <input type="text" class="property-input" value="${this.getCurrentStyle('right') || ''}" onchange="app.updateElementStyle('right', this.value)">
+                                    </div>
+                                    <div>
+                                        <label class="text-xs text-gray-600">Bottom</label>
+                                        <input type="text" class="property-input" value="${this.getCurrentStyle('bottom') || ''}" onchange="app.updateElementStyle('bottom', this.value)">
+                                    </div>
+                                    <div>
+                                        <label class="text-xs text-gray-600">Z-Index</label>
+                                        <input type="number" class="property-input" value="${this.getCurrentStyle('zIndex') || ''}" onchange="app.updateElementStyle('zIndex', this.value)">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Typography -->
+                        <div class="sidebar-section pb-4 mb-4">
+                            <h4 class="font-medium mb-2">Typography</h4>
+                            <div class="mb-2"> <!-- Wrap it in a div -->
+                                <label class="text-xs text-gray-600">Font Family</label>
+                                <select class="property-input" onchange="app.updateElementStyle('fontFamily', this.value)">
+                                    <option value="">Default</option>
+                                    ${this.googleFonts.map(font => `<option value="'${font}', sans-serif" ${this.getCurrentStyle('fontFamily').includes(font) ? 'selected' : ''}>${font}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 mb-2">
+                                <div>
+                                    <label class="text-xs text-gray-600">Font Size</label>
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('fontSize') || '16px'}" onchange="app.updateElementStyle('fontSize', this.value)">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-600">Font Weight</label>
+                                    <select class="property-input" onchange="app.updateElementStyle('fontWeight', this.value)">
+                                        <option value="normal" ${this.getCurrentStyle('fontWeight') === 'normal' ? 'selected' : ''}>Normal</option>
+                                        <option value="bold" ${this.getCurrentStyle('fontWeight') === 'bold' ? 'selected' : ''}>Bold</option>
+                                        <option value="lighter" ${this.getCurrentStyle('fontWeight') === 'lighter' ? 'selected' : ''}>Lighter</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="mb-2">
+                                <label class="text-xs text-gray-600">Color</label>
+                                <input type="color" class="property-input" value="${this.rgbToHex(this.getCurrentStyle('color')) || '#333333'}" onchange="app.updateElementStyle('color', this.value)">
+                            </div>
+                        </div>
+
+                        <!-- Background -->
+                        <div class="sidebar-section pb-4 mb-4">
+                            <h4 class="font-medium mb-2">Background</h4>
+                            <div class="mb-2">
+                                <label class="text-xs text-gray-600">Background Color</label>
+                                <input type="color" class="property-input" value="${this.rgbToHex(this.getCurrentStyle('backgroundColor')) || '#ffffff'}" onchange="app.updateElementStyle('backgroundColor', this.value)">
+                            </div>
+                            <div class="mb-2">
+                                <label class="text-xs text-gray-600">Background Image (URL or Gradient)</label>
+                                <input type="text" class="property-input" placeholder="url(...) or linear-gradient(...)" value="${this.getCurrentStyle('backgroundImage') || ''}" onchange="app.updateElementStyle('backgroundImage', this.value)">
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="text-xs text-gray-600">Size</label>
+                                    <input type="text" class="property-input" placeholder="cover, contain, 100%" value="${this.getCurrentStyle('backgroundSize') || 'auto'}" onchange="app.updateElementStyle('backgroundSize', this.value)">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-600">Position</label>
+                                    <input type="text" class="property-input" placeholder="center, top left" value="${this.getCurrentStyle('backgroundPosition') || 'center'}" onchange="app.updateElementStyle('backgroundPosition', this.value)">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Content Editing -->
+                        <div class="sidebar-section pb-4 mb-4">
+                            <h4 class="font-medium mb-2">Content</h4>
+                            <textarea class="property-input h-20" placeholder="Edit content..." onchange="app.updateElementContent(this.value)">${this.getElementText(element)}</textarea>
+                        </div>
+
+                        <!-- This is where the new properties will be injected -->
+                        ${specificProperties}
+
+                        <!-- Flexbox section (only if display: flex) -->
+                        ${this.getCurrentStyle('display') === 'flex' ? `
+                        <div class="sidebar-section pb-4 mb-4">
+                            <h4 class="font-medium mb-2">Flexbox</h4>
+                            <div class="grid grid-cols-2 gap-2 mb-2">
+                                <div>
+                                    <label class="text-xs text-gray-600">Direction</label>
+                                    <select class="property-input" onchange="app.updateElementStyle('flexDirection', this.value)">
+                                        <option value="row" ${this.getCurrentStyle('flexDirection') === 'row' ? 'selected' : ''}>Row</option>
+                                        <option value="column" ${this.getCurrentStyle('flexDirection') === 'column' ? 'selected' : ''}>Column</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-600">Justify Content</label>
+                                    <select class="property-input" onchange="app.updateElementStyle('justifyContent', this.value)">
+                                        <option value="flex-start" ${this.getCurrentStyle('justifyContent') === 'flex-start' ? 'selected' : ''}>Start</option>
+                                        <option value="center" ${this.getCurrentStyle('justifyContent') === 'center' ? 'selected' : ''}>Center</option>
+                                        <option value="flex-end" ${this.getCurrentStyle('justifyContent') === 'flex-end' ? 'selected' : ''}>End</option>
+                                        <option value="space-between" ${this.getCurrentStyle('justifyContent') === 'space-between' ? 'selected' : ''}>Space Between</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-600">Align Items</label>
+                                    <select class="property-input" onchange="app.updateElementStyle('alignItems', this.value)">
+                                        <option value="stretch" ${this.getCurrentStyle('alignItems') === 'stretch' ? 'selected' : ''}>Stretch</option>
+                                        <option value="flex-start" ${this.getCurrentStyle('alignItems') === 'flex-start' ? 'selected' : ''}>Start</option>
+                                        <option value="center" ${this.getCurrentStyle('alignItems') === 'center' ? 'selected' : ''}>Center</option>
+                                        <option value="flex-end" ${this.getCurrentStyle('alignItems') === 'flex-end' ? 'selected' : ''}>End</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-600">Gap</label>
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('gap') || '0px'}" onchange="app.updateElementStyle('gap', this.value)">
+                                </div>
+                            </div>
+                        </div>
+                        ` : ''}
+                        <div class="sidebar-section pb-4 mb-4">
+                            <h4 class="font-medium mb-2">Effects</h4>
+                            <div class="mb-2">
+                                <label class="text-xs text-gray-600">Box Shadow</label>
+                                <input type="text" class="property-input" placeholder="e.g., 0px 10px 15px rgba(0,0,0,0.1)" value="${this.getCurrentStyle('boxShadow') || ''}" onchange="app.updateElementStyle('boxShadow', this.value)">
+                            </div>
+                        </div>
+                        <div class="sidebar-section pb-4 mb-4">
+                            <h4 class="font-medium mb-2">Transitions & Transforms</h4>
+                            <div class="mb-2">
+                                <label class="text-xs text-gray-600">Transition</label>
+                                <input type="text" class="property-input" placeholder="e.g., all 0.3s ease" value="${this.getCurrentStyle('transition') || ''}" onchange="app.updateElementStyle('transition', this.value)">
+                            </div>
+                            <div class="mb-2">
+                                <label class="text-xs text-gray-600">Transform</label>
+                                <input type="text" class="property-input" placeholder="e.g., scale(1.1) rotate(5deg)" value="${this.getCurrentStyle('transform') || ''}" onchange="app.updateElementStyle('transform', this.value)">
+                            </div>
+                        </div>
+                    </div>
+                `;
+
                 panel.innerHTML = propertiesHTML;
 
-                // vvv ADD THIS ENTIRE BLOCK AT THE END OF THE FUNCTION vvv
                 const stateSelector = document.getElementById('state-selector');
                 if (stateSelector) {
                     stateSelector.value = this.currentState;
@@ -1177,33 +1418,31 @@ repositionSelectionWrapper() {
                         this.showProperties(this.selectedElement); 
                     });
                 }
-                // ^^^ END OF NEW BLOCK ^^^
             }
 
-            // Function: updateElementStyle (REPLACE)
-updateElementStyle(property, value) {
-    if (!this.selectedElement) return;
+            updateElementStyle(property, value) {
+                if (!this.selectedElement) return;
 
-    let styles = {};
-    try {
-        styles = JSON.parse(this.selectedElement.dataset.styles || '{}');
-    } catch (e) { styles = {}; }
+                let styles = {};
+                try {
+                    styles = JSON.parse(this.selectedElement.dataset.styles || '{}');
+                } catch (e) { styles = {}; }
 
-    // Ensure nested objects exist
-    if (!styles[this.currentState]) styles[this.currentState] = {};
-    if (!styles[this.currentState][this.currentBreakpoint]) styles[this.currentState][this.currentBreakpoint] = {};
+                // Make sure our objects exist
+                if (!styles[this.currentState]) styles[this.currentState] = {};
+                if (!styles[this.currentState][this.currentBreakpoint]) styles[this.currentState][this.currentBreakpoint] = {};
 
-    styles[this.currentState][this.currentBreakpoint][property] = value;
+                styles[this.currentState][this.currentBreakpoint][property] = value;
 
-    if (property === 'fontFamily' && value) {
-        this.loadGoogleFont(value.split(',')[0].replace(/'/g, ''));
-    }
+                if (property === 'fontFamily' && value) {
+                    this.loadGoogleFont(value.split(',')[0].replace(/'/g, ''));
+                }
 
-    this.selectedElement.dataset.styles = JSON.stringify(styles);
-    this.applyAllStyles(this.selectedElement);
-    this.repositionSelectionWrapper();
-    // No saveToHistory() here, it's handled by mouseup or onchange
-}
+                this.selectedElement.dataset.styles = JSON.stringify(styles);
+
+                this.applyAllStyles(this.selectedElement);
+                this.repositionSelectionWrapper();
+            }
 
             applyAllStyles(element) {
                 element.style.cssText = '';
@@ -1465,55 +1704,78 @@ updateElementStyle(property, value) {
                 return clone.innerHTML;
             }
 
-            // Function: extractStyles (REPLACE)
-extractStyles() {
-    let css = '';
-    for (const className in this.globalStyles) {
-        // ... (this part is correct)
-    }
+            extractStyles() {
+                let css = '';
+                for (const className in this.globalStyles) {
+                    const styleObj = this.globalStyles[className];
+                    const styleString = Object.entries(styleObj).map(([prop, val]) => `${this.camelToKebab(prop)}: ${val};`).join(' ');
+                    if (styleString) {
+                        css += `.${className} { ${styleString} }\n`;
+                    }
+                }
 
-    const elements = document.querySelectorAll('.canvas-element');
-    
-    elements.forEach(element => {
-        const elementId = element.dataset.elementId;
-        if (!elementId) return;
-        
-        let styles = {};
-        try {
-            styles = JSON.parse(element.dataset.styles || '{}');
-        } catch (e) { return; }
+                const elements = document.querySelectorAll('.canvas-element');
+                const desktopStyles = new Map();
+                const tabletStyles = new Map();
+                const mobileStyles = new Map();
 
-        // --- BASE STYLES ---
-        const baseDesktop = styles.base?.desktop || {};
-        const baseTablet = styles.base?.tablet || {};
-        const baseMobile = styles.base?.mobile || {};
-        
-        const desktopString = Object.entries(baseDesktop).map(([p, v]) => `${this.camelToKebab(p)}: ${v};`).join(' ');
-        if (desktopString) css += `[data-element-id="${elementId}"] { ${desktopString} }\n`;
+                elements.forEach(element => {
+                    const elementId = element.dataset.elementId;
+                    if (!elementId) return;
+                    let styles = {};
+                    try {
+                        styles = JSON.parse(element.dataset.styles || '{}');
+                    } catch (e) { return; }
+                    
+                    // Add styles for the BASE state
+                    if (styles.base?.desktop) desktopStyles.set(elementId, styles.base.desktop);
+                    if (styles.base?.tablet) tabletStyles.set(elementId, styles.base.tablet);
+                    if (styles.base?.mobile) mobileStyles.set(elementId, styles.base.mobile);
 
-        const tabletString = Object.entries(baseTablet).map(([p, v]) => `${this.camelToKebab(p)}: ${v};`).join(' ');
-        if (tabletString) css += `@media (max-width: 1023px) { [data-element-id="${elementId}"] { ${tabletString} } }\n`;
+                    // --- ADD THIS NEW BLOCK FOR HOVER STATE ---
+                    if (styles.hover) {
+                        // We'll generate a separate hover CSS string
+                        let hoverCss = '';
+                        const hoverDesktop = styles.hover?.desktop || {};
+                        const hoverTablet = styles.hover?.tablet || {};
+                        const hoverMobile = styles.hover?.mobile || {};
 
-        const mobileString = Object.entries(baseMobile).map(([p, v]) => `${this.camelToKebab(p)}: ${v};`).join(' ');
-        if (mobileString) css += `@media (max-width: 767px) { [data-element-id="${elementId}"] { ${mobileString} } }\n`;
+                        const hoverDesktopString = Object.entries(hoverDesktop).map(([p, v]) => `${this.camelToKebab(p)}: ${v};`).join(' ');
+                        if (hoverDesktopString) css += `[data-element-id="${elementId}"]:hover { ${hoverDesktopString} }\n`;
+                        
+                        const hoverTabletString = Object.entries(hoverTablet).map(([p, v]) => `${this.camelToKebab(p)}: ${v};`).join(' ');
+                        if (hoverTabletString) css += `@media (max-width: 1023px) { [data-element-id="${elementId}"]:hover { ${hoverTabletString} } }\n`;
 
-        // --- HOVER STYLES ---
-        const hoverDesktop = styles.hover?.desktop || {};
-        const hoverTablet = styles.hover?.tablet || {};
-        const hoverMobile = styles.hover?.mobile || {};
+                        const hoverMobileString = Object.entries(hoverMobile).map(([p, v]) => `${this.camelToKebab(p)}: ${v};`).join(' ');
+                        if (hoverMobileString) css += `@media (max-width: 767px) { [data-element-id="${elementId}"]:hover { ${hoverMobileString} } }\n`;
+                    }
+                });
 
-        const hoverDesktopString = Object.entries(hoverDesktop).map(([p, v]) => `${this.camelToKebab(p)}: ${v};`).join(' ');
-        if (hoverDesktopString) css += `[data-element-id="${elementId}"]:hover { ${hoverDesktopString} }\n`;
-        
-        const hoverTabletString = Object.entries(hoverTablet).map(([p, v]) => `${this.camelToKebab(p)}: ${v};`).join(' ');
-        if (hoverTabletString) css += `@media (max-width: 1023px) { [data-element-id="${elementId}"]:hover { ${hoverTabletString} } }\n`;
+                desktopStyles.forEach((styleObj, id) => {
+                    const styleString = Object.entries(styleObj).map(([prop, val]) => `${this.camelToKebab(prop)}: ${val};`).join(' ');
+                    css += `[data-element-id="${id}"] { ${styleString} }\n`;
+                });
 
-        const hoverMobileString = Object.entries(hoverMobile).map(([p, v]) => `${this.camelToKebab(p)}: ${v};`).join(' ');
-        if (hoverMobileString) css += `@media (max-width: 767px) { [data-element-id="${elementId}"]:hover { ${hoverMobileString} } }\n`;
-    });
+                if (tabletStyles.size > 0) {
+                    css += '@media (max-width: 1023px) {\n';
+                    tabletStyles.forEach((styleObj, id) => {
+                        const styleString = Object.entries(styleObj).map(([prop, val]) => `${this.camelToKebab(prop)}: ${val};`).join(' ');
+                        css += `  [data-element-id="${id}"] { ${styleString} }\n`;
+                    });
+                    css += '}\n';
+                }
 
-    return css;
-}
+                if (mobileStyles.size > 0) {
+                    css += '@media (max-width: 767px) {\n';
+                    mobileStyles.forEach((styleObj, id) => {
+                        const styleString = Object.entries(styleObj).map(([prop, val]) => `${this.camelToKebab(prop)}: ${val};`).join(' ');
+                        css += `  [data-element-id="${id}"] { ${styleString} }\n`;
+                    });
+                    css += '}\n';
+                }
+                
+                return css;
+            }
 
             camelToKebab(str) {
                 return str.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`);
