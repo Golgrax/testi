@@ -8,6 +8,49 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
     <style>
+
+        .responsive-indicator {
+            position: absolute;
+            left: -12px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 6px;
+            height: 6px;
+            background-color: #3b82f6;
+            border-radius: 50%;
+        }
+
+        .context-menu-item {
+            padding: 6px 12px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .context-menu-item:hover {
+            background-color: #f3f4f6;
+        }
+
+        #selection-wrapper {
+            border: 2px solid #3b82f6;
+        }
+        .resizer {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #3b82f6;
+            border: 1px solid white;
+            border-radius: 50%;
+            pointer-events: all;
+            transform: translate(-50%, -50%);
+        }
+        .resizer.top-left { top: 0; left: 0; cursor: nwse-resize; }
+        .resizer.top-right { top: 0; right: 0; cursor: nesw-resize; }
+        .resizer.bottom-left { bottom: 0; left: 0; cursor: nesw-resize; }
+        .resizer.bottom-right { bottom: 0; right: 0; cursor: nwse-resize; }
+        .resizer.top-center { top: 0; left: 50%; cursor: ns-resize; }
+        .resizer.bottom-center { bottom: 0; left: 50%; cursor: ns-resize; }
+        .resizer.left-center { top: 50%; left: 0; cursor: ew-resize; }
+        .resizer.right-center { top: 50%; right: 0; cursor: ew-resize; }
+
         .component-item {
             transition: all 0.2s ease;
         }
@@ -90,6 +133,9 @@
             <div class="p-4 border-b">
                 <h1 class="text-xl font-bold text-gray-800">WebBuilder Pro</h1>
                 <div class="flex gap-2 mt-2">
+                    <button id="page-settings-btn" class="w-full text-left mt-3 text-sm text-gray-600 hover:text-blue-500">
+                        <i class="fas fa-cog mr-1"></i>Page Settings
+                    </button>
                     <button id="save-btn" class="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">
                         <i class="fas fa-save mr-1"></i>Save
                     </button>
@@ -115,6 +161,9 @@
                 </button>
                 <button class="tab-btn flex-1 py-2 px-4 text-sm font-medium" data-tab="assets">
                     <i class="fas fa-images mr-1"></i>Assets
+                </button>
+                <button class="tab-btn flex-1 py-2 px-4 text-sm font-medium" data-tab="styles">
+                    <i class="fas fa-palette mr-1"></i>Styles
                 </button>
             </div>
 
@@ -214,6 +263,19 @@
                         </div>
                     </div>
                 </div>
+
+                <div id="styles-tab" class="tab-content hidden">
+                    <div class="p-4">
+                        <h3 class="font-semibold mb-3">Class Manager</h3>
+                        <div class="mb-4">
+                            <input type="text" id="new-class-name" class="property-input" placeholder="Enter new class name...">
+                            <button id="add-class-btn" class="w-full mt-2 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Add Class</button>
+                        </div>
+                        <div id="class-manager-list" class="space-y-2">
+                            <!-- Saved classes will be listed here -->
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -221,20 +283,23 @@
         <div class="flex-1 flex flex-col">
             <!-- Top Toolbar -->
             <div class="bg-white shadow-sm border-b p-4 flex justify-between items-center">
-                <!-- Responsive Controls -->
-                <div class="flex items-center gap-2">
-                    <span class="text-sm font-medium mr-2">Device:</span>
-                    <button class="breakpoint-button active" data-breakpoint="desktop">
-                        <i class="fas fa-desktop mr-1"></i>Desktop
-                    </button>
-                    <button class="breakpoint-button" data-breakpoint="tablet">
-                        <i class="fas fa-tablet-alt mr-1"></i>Tablet
-                    </button>
-                    <button class="breakpoint-button" data-breakpoint="mobile">
-                        <i class="fas fa-mobile-alt mr-1"></i>Mobile
-                    </button>
+                <div class="flex items-center gap-4">
+                    <!-- Responsive Controls -->
+                    <div class="flex items-center gap-2">
+                        <div id="breadcrumbs" class="flex items-center gap-2 text-sm text-gray-500">
+                        </div>
+                        <span class="text-sm font-medium mr-2">Device:</span>
+                        <button class="breakpoint-button active" data-breakpoint="desktop">
+                            <i class="fas fa-desktop mr-1"></i>Desktop
+                        </button>
+                        <button class="breakpoint-button" data-breakpoint="tablet">
+                            <i class="fas fa-tablet-alt mr-1"></i>Tablet
+                        </button>
+                        <button class="breakpoint-button" data-breakpoint="mobile">
+                            <i class="fas fa-mobile-alt mr-1"></i>Mobile
+                        </button>
+                    </div>
                 </div>
-
                 <!-- View Controls -->
                 <div class="flex items-center gap-2">
                     <button id="preview-btn" class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">
@@ -248,6 +313,17 @@
                         <span id="zoom-display" class="text-sm ml-2">100%</span>
                     </div>
                 </div>
+            </div>
+
+            <div id="selection-wrapper" class="hidden absolute pointer-events-none" style="z-index: 100;">
+                <div class="resizer top-left" data-resizer="top-left"></div>
+                <div class="resizer top-right" data-resizer="top-right"></div>
+                <div class="resizer bottom-left" data-resizer="bottom-left"></div>
+                <div class="resizer bottom-right" data-resizer="bottom-right"></div>
+                <div class="resizer top-center" data-resizer="top-center"></div>
+                <div class="resizer bottom-center" data-resizer="bottom-center"></div>
+                <div class="resizer left-center" data-resizer="left-center"></div>
+                <div class="resizer right-center" data-resizer="right-center"></div>
             </div>
 
             <!-- Canvas Area -->
@@ -280,6 +356,14 @@
 
     <div id="drop-indicator" class="fixed bg-blue-500 h-1 pointer-events-none hidden" style="z-index: 9999;"></div>
     
+    <div id="context-menu" class="hidden fixed bg-white shadow-lg rounded-md p-2 text-sm z-50">
+        <div class="context-menu-item" id="context-duplicate">Duplicate</div>
+        <div class="context-menu-item" id="context-copy">Copy</div>
+        <div class="context-menu-item" id="context-paste">Paste</div>
+        <hr class="my-1">
+        <div class="context-menu-item text-red-500" id="context-delete">Delete</div>
+    </div>
+
     <!-- Preview Modal -->
     <div id="preview-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
         <div class="h-full flex flex-col">
@@ -326,25 +410,186 @@
                 this.draggedElement = null;
                 this.codeEditor = null;
                 this.currentCodeTab = 'html';
-                
+                this.isResizing = false;
+                this.resizerInitialPos = {};
+                this.elementInitialSize = {};
+                this.googleFonts = [
+                    "Roboto", "Open Sans", "Lato", "Montserrat", "Oswald", "Source Sans Pro", "Raleway"
+                ];
+                this.globalStyles = {};
                 this.init();
             }
 
+            updateElementClasses(classString) {
+                if (!this.selectedElement) return;
+                // Keep our essential classes, but replace all user-defined ones
+                this.selectedElement.className = 'canvas-element selected ' + classString.trim();
+                this.saveToHistory();
+            }
+
+            showNotification(message) {
+                const notification = document.createElement('div');
+                notification.className = 'fixed top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded shadow-lg z-50';
+                notification.textContent = message;
+                document.body.appendChild(notification);
+                return notification;
+            }
+
+            hasBreakpointSpecificStyle(property) {
+                if (!this.selectedElement || this.currentBreakpoint === 'desktop') return false;
+                let styles = {};
+                try {
+                    styles = JSON.parse(this.selectedElement.dataset.styles || '{}');
+                } catch(e) { return false; }
+                
+                return !!styles[this.currentBreakpoint]?.[property];
+            }
+
+            loadGoogleFont(fontName) {
+                const fontId = `font-${fontName.replace(/\s+/g, '-')}`;
+                if (document.getElementById(fontId)) return; // Don't load the same font twice
+
+                const link = document.createElement('link');
+                link.id = fontId;
+                link.rel = 'stylesheet';
+                link.href = `https://fonts.googleapis.com/css2?family=${fontName.replace(/\s+/g, '+')}:wght@400;700&display=swap`;
+                document.head.appendChild(link);
+            }
+
+            updateBreadcrumbs() {
+                const breadcrumbsContainer = document.getElementById('breadcrumbs');
+                if (!this.selectedElement) {
+                    breadcrumbsContainer.innerHTML = '';
+                    return;
+                }
+
+                let crumbsHTML = '';
+                let current = this.selectedElement;
+                while (current && current.id !== 'canvas') {
+                    if (current.classList.contains('canvas-element')) {
+                        const componentType = current.dataset.componentType || 'element';
+                        const elementId = current.dataset.elementId;
+                        crumbsHTML = `
+                            <span class="hover:text-blue-500 cursor-pointer" onclick="app.selectElementById('${elementId}')">${componentType}</span>
+                            <i class="fas fa-chevron-right text-xs"></i>
+                            ${crumbsHTML}
+                        `;
+                    }
+                    current = current.parentElement;
+                }
+                breadcrumbsContainer.innerHTML = `<span class="hover:text-blue-500 cursor-pointer" onclick="app.handleCanvasClick({target: document.getElementById('canvas')})">body</span> <i class="fas fa-chevron-right text-xs"></i> ${crumbsHTML}`;
+                // Remove the last chevron
+                breadcrumbsContainer.querySelector('i:last-of-type')?.remove();
+            }
+
+            getCurrentStyle(property) {
+                if (!this.selectedElement) return '';
+
+                let styles = {};
+                try {
+                    styles = JSON.parse(this.selectedElement.dataset.styles || '{}');
+                } catch (e) {
+                    return this.selectedElement.style[property] || '';
+                }
+
+                return styles[this.currentBreakpoint]?.[property] || styles['desktop']?.[property] || this.selectedElement.style[property] || '';
+            }
+
+            repositionSelectionWrapper() {
+                if (!this.selectedElement) {
+                    document.getElementById('selection-wrapper').classList.add('hidden');
+                    return;
+                }
+
+                const selectionWrapper = document.getElementById('selection-wrapper');
+                const mainContentArea = document.querySelector('.flex-1.flex.flex-col'); // The wrapper's direct parent
+                
+                const elementRect = this.selectedElement.getBoundingClientRect();
+                const parentRect = mainContentArea.getBoundingClientRect();
+
+                selectionWrapper.style.top = (elementRect.top - parentRect.top) + 'px';
+                selectionWrapper.style.left = (elementRect.left - parentRect.left) + 'px';
+                selectionWrapper.style.width = elementRect.width + 'px';
+                selectionWrapper.style.height = elementRect.height + 'px';
+                selectionWrapper.classList.remove('hidden');
+            }
+
+            setupResizing() {
+                const selectionWrapper = document.getElementById('selection-wrapper');
+                selectionWrapper.querySelectorAll('.resizer').forEach(resizer => {
+                    resizer.addEventListener('mousedown', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        this.isResizing = true;
+                        this.resizerInitialPos = { x: e.clientX, y: e.clientY };
+
+                        const computedStyle = window.getComputedStyle(this.selectedElement);
+                        this.elementInitialSize = {
+                            width: parseFloat(computedStyle.width),
+                            height: parseFloat(computedStyle.height)
+                        };
+
+                        const handleMouseMove = (moveEvent) => {
+                            if (!this.isResizing) return;
+                            
+                            const zoom = parseFloat(document.getElementById('zoom-slider').value) / 100;
+                            const dx = (moveEvent.clientX - this.resizerInitialPos.x) / zoom;
+                            const dy = (moveEvent.clientY - this.resizerInitialPos.y) / zoom;
+
+                            let newWidth = this.elementInitialSize.width;
+                            let newHeight = this.elementInitialSize.height;
+
+                            const direction = resizer.dataset.resizer;
+
+                            if (direction.includes('right')) newWidth += dx;
+                            if (direction.includes('left')) newWidth -= dx;
+                            if (direction.includes('bottom')) newHeight += dy;
+                            if (direction.includes('top')) newHeight -= dy;
+                            
+                            this.updateElementStyle('width', `${newWidth.toFixed(0)}px`);
+                            this.updateElementStyle('height', `${newHeight.toFixed(0)}px`);
+                        };
+
+                        const handleMouseUp = () => {
+                            this.isResizing = false;
+                            window.removeEventListener('mousemove', handleMouseMove);
+                            window.removeEventListener('mouseup', handleMouseUp);
+                            this.saveToHistory();
+                        };
+
+                        window.addEventListener('mousemove', handleMouseMove);
+                        window.addEventListener('mouseup', handleMouseUp);
+                    });
+                });
+            }
+            
             init() {
                 this.setupEventListeners();
                 this.setupDragAndDrop();
                 this.loadComponents();
                 this.setupMonacoEditor();
+                this.setupResizing();
                 this.loadFromLocalStorage();
             }
 
             setupEventListeners() {
+                this.clipboard = null;
                 // Tab switching
                 document.querySelectorAll('.tab-btn').forEach(btn => {
                     btn.addEventListener('click', (e) => {
                         const tab = e.target.dataset.tab;
                         this.switchTab(tab);
                     });
+                });
+
+                document.getElementById('page-settings-btn').addEventListener('click', () => {
+                    const canvasBody = document.getElementById('canvas-container');
+                    canvasBody.dataset.componentType = 'Page Body';
+                    if (!canvasBody.dataset.elementId) {
+                        canvasBody.dataset.elementId = this.generateId();
+                    }
+                    this.selectElement(canvasBody);
                 });
 
                 // Breakpoint switching
@@ -388,6 +633,81 @@
                     this.handleCanvasClick(e);
                 });
 
+                document.getElementById('canvas').addEventListener('dblclick', (e) => {
+                    const target = e.target.closest('.canvas-element');
+                    if (!target) return;
+
+                    const textElement = target.querySelector('p, h1, h2, h3, h4, h5, h6, button, a, span');
+                    if (textElement && !textElement.isContentEditable) {
+                        e.stopPropagation();
+                        this.selectElement(target);
+
+                        textElement.contentEditable = true;
+                        textElement.focus();
+                        
+                        textElement.addEventListener('blur', () => {
+                            textElement.contentEditable = false;
+                            this.saveToHistory();
+                            this.showProperties(target);
+                        }, { once: true });
+                    }
+                });
+
+                // --- CONTEXT MENU LOGIC ---
+                document.getElementById('canvas').addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    const targetElement = e.target.closest('.canvas-element');
+                    if (!targetElement) return;
+
+                    this.selectElement(targetElement);
+
+                    const menu = document.getElementById('context-menu');
+                    menu.classList.remove('hidden');
+                    menu.style.top = `${e.clientY}px`;
+                    menu.style.left = `${e.clientX}px`;
+
+                    document.getElementById('context-duplicate').onclick = () => {
+                        const clone = this.selectedElement.cloneNode(true);
+                        clone.dataset.elementId = this.generateId();
+                        this.reattachEventListenersToElement(clone);
+                        this.selectedElement.after(clone);
+                        this.saveToHistory();
+                    };
+                    document.getElementById('context-copy').onclick = () => {
+                        if(this.selectedElement) {
+                            this.clipboard = {
+                                html: this.selectedElement.innerHTML,
+                                styles: this.selectedElement.dataset.styles,
+                                componentType: this.selectedElement.dataset.componentType
+                            };
+                            // Optional: give user feedback
+                            const notification = this.showNotification('Copied to clipboard!');
+                            setTimeout(() => notification.remove(), 2000);
+                        }
+                    };
+                    document.getElementById('context-paste').onclick = () => {
+                        if(this.clipboard && this.selectedElement) {
+                            const newElement = document.createElement('div');
+                            newElement.className = 'canvas-element';
+                            newElement.innerHTML = this.clipboard.html;
+                            newElement.dataset.styles = this.clipboard.styles;
+                            newElement.dataset.componentType = this.clipboard.componentType;
+                            newElement.dataset.elementId = this.generateId();
+                            
+                            this.reattachEventListenersToElement(newElement);
+                            this.selectedElement.after(newElement);
+                            this.saveToHistory();
+                        }
+                    };
+                    document.getElementById('context-delete').onclick = () => this.deleteElement(this.selectedElement);
+                    // Copy/Paste actions can be added here later
+                });
+
+                window.addEventListener('click', () => {
+                    document.getElementById('context-menu').classList.add('hidden');
+                }, true);
+                // --- END CONTEXT MENU LOGIC ---
+
                 // Keyboard shortcuts
                 document.addEventListener('keydown', (e) => {
                     if (e.ctrlKey || e.metaKey) {
@@ -408,6 +728,15 @@
                     }
                     if (e.key === 'Delete' && this.selectedElement) {
                         this.deleteElement(this.selectedElement);
+                    }
+                });
+
+                document.getElementById('add-class-btn').addEventListener('click', () => {
+                    const classNameInput = document.getElementById('new-class-name');
+                    const className = classNameInput.value.trim();
+                    if (className) {
+                        this.addNewGlobalClass(className);
+                        classNameInput.value = '';
                     }
                 });
             }
@@ -768,22 +1097,38 @@
             }
 
             selectElement(element) {
-                // Remove previous selection
-                document.querySelectorAll('.canvas-element.selected').forEach(el => {
-                    el.classList.remove('selected');
-                });
+                if (this.selectedElement === element) return;
 
-                // Select new element
+                if (this.selectedElement) {
+                    this.selectedElement.classList.remove('selected');
+                }
+
                 element.classList.add('selected');
                 this.selectedElement = element;
                 this.showProperties(element);
+
+                this.repositionSelectionWrapper();
+                this.updateBreadcrumbs();
+            }
+
+            handleCanvasClick(e) {
+                if (e.target.id === 'canvas' || e.target.closest('#canvas-container') && e.target.id !== 'canvas-container') {
+                    if(e.target.closest('.canvas-element')) return;
+
+                    if (this.selectedElement) {
+                        this.selectedElement.classList.remove('selected');
+                    }
+                    this.selectedElement = null;
+                    document.getElementById('properties-panel').innerHTML = `...`;
+                    this.repositionSelectionWrapper();
+                    this.updateBreadcrumbs();
+                }
             }
 
             showProperties(element) {
                 const panel = document.getElementById('properties-panel');
                 const componentType = element.dataset.componentType;
-                
-                // --- THIS BLOCK IS NEW ---
+
                 let specificProperties = '';
                 switch(componentType) {
                     case 'image':
@@ -798,49 +1143,69 @@
                                     <label class="text-xs text-gray-600">Alt Text</label>
                                     <input type="text" class="property-input" value="${element.querySelector('img')?.alt || ''}" onchange="app.updateElementAttribute('alt', this.value, 'img')">
                                 </div>
+                            </div>
+                            <div class="relative"> <!-- Add this wrapper -->
+                                <label class="text-xs text-gray-600">Width</label>
+                                <input type="text" class="property-input" value="${this.getCurrentStyle('width') || 'auto'}" onchange="app.updateElementStyle('width', this.value)">
+                                ${this.hasBreakpointSpecificStyle('width') ? '<span class="responsive-indicator"></span>' : ''} <!-- Add this indicator -->
                             </div>`;
                         break;
                     case 'button':
                         // The content editor already handles the button text, but we could add button-specific things here later.
                         break;
                 }
-                // --- END OF NEW BLOCK ---
 
                 let propertiesHTML = `
                     <div class="p-4">
+                        <div class="sidebar-section pb-4 mb-4">
+                            <h4 class="font-medium mb-2">CSS Classes</h4>
+                            <input type="text" id="class-input" class="property-input" placeholder="e.g. btn btn-primary" 
+                                value="${this.selectedElement.className.replace('canvas-element','').replace('selected','').trim()}"
+                                onchange="app.updateElementClasses(this.value)">
+                        </div>
                         <h3 class="font-semibold mb-4">${componentType.charAt(0).toUpperCase() + componentType.slice(1)} Properties</h3>
                         
                         <!-- Basic Properties -->
                         <div class="sidebar-section pb-4 mb-4">
                             <h4 class="font-medium mb-2">Layout</h4>
+                            <!-- Display property -->
+                            <div class="mb-2">
+                                <label class="text-xs text-gray-600">Display</label>
+                                <select class="property-input" onchange="app.updateElementStyle('display', this.value)">
+                                    <option value="block" ${this.getCurrentStyle('display') === 'block' ? 'selected' : ''}>Block</option>
+                                    <option value="flex" ${this.getCurrentStyle('display') === 'flex' ? 'selected' : ''}>Flex</option>
+                                    <option value="inline-block" ${this.getCurrentStyle('display') === 'inline-block' ? 'selected' : ''}>Inline Block</option>
+                                    <option value="none" ${this.getCurrentStyle('display') === 'none' ? 'selected' : ''}>None</option>
+                                </select>
+                            </div>
                             <div class="grid grid-cols-2 gap-2 mb-2">
-                                <div>
+                                <div class="relative">
                                     <label class="text-xs text-gray-600">Width</label>
-                                    <input type="text" class="property-input" value="${element.style.width || 'auto'}" onchange="app.updateElementStyle('width', this.value)">
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('width') || 'auto'}" onchange="app.updateElementStyle('width', this.value)">
+                                    ${this.hasBreakpointSpecificStyle('width') ? '<span class="responsive-indicator"></span>' : ''}
                                 </div>
-                                <div>
+                                <div class="relative">
                                     <label class="text-xs text-gray-600">Height</label>
-                                    <input type="text" class="property-input" value="${element.style.height || 'auto'}" onchange="app.updateElementStyle('height', this.value)">
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('height') || 'auto'}" onchange="app.updateElementStyle('height', this.value)">
+                                    ${this.hasBreakpointSpecificStyle('height') ? '<span class="responsive-indicator"></span>' : ''}
                                 </div>
-                            </div>
-                            <div class="grid grid-cols-2 gap-2 mb-2">
-                                <div>
+                                <div class="relative">
                                     <label class="text-xs text-gray-600">Margin</label>
-                                    <input type="text" class="property-input" value="${element.style.margin || '0'}" onchange="app.updateElementStyle('margin', this.value)">
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('margin') || '0'}" onchange="app.updateElementStyle('margin', this.value)">
+                                    ${this.hasBreakpointSpecificStyle('margin') ? '<span class="responsive-indicator"></span>' : ''}
                                 </div>
-                                <div>
+                                <div class="relative">
                                     <label class="text-xs text-gray-600">Padding</label>
-                                    <input type="text" class="property-input" value="${element.style.padding || '0'}" onchange="app.updateElementStyle('padding', this.value)">
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('padding') || '0'}" onchange="app.updateElementStyle('padding', this.value)">
+                                    ${this.hasBreakpointSpecificStyle('padding') ? '<span class="responsive-indicator"></span>' : ''}
                                 </div>
-                            </div>
-                            <div class="grid grid-cols-2 gap-2">
                                 <div>
                                     <label class="text-xs text-gray-600">Border</label>
-                                    <input type="text" class="property-input" value="${element.style.border || 'none'}" onchange="app.updateElementStyle('border', this.value)">
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('border') || 'none'}" onchange="app.updateElementStyle('border', this.value)">
                                 </div>
                                 <div>
                                     <label class="text-xs text-gray-600">Radius</label>
-                                    <input type="text" class="property-input" value="${element.style.borderRadius || '0'}" onchange="app.updateElementStyle('borderRadius', this.value)">
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('borderRadius') || '0'}" onchange="app.updateElementStyle('borderRadius', this.value)">
                                 </div>
                             </div>
                         </div>
@@ -848,23 +1213,30 @@
                         <!-- Typography -->
                         <div class="sidebar-section pb-4 mb-4">
                             <h4 class="font-medium mb-2">Typography</h4>
+                            <div class="mb-2"> <!-- Wrap it in a div -->
+                                <label class="text-xs text-gray-600">Font Family</label>
+                                <select class="property-input" onchange="app.updateElementStyle('fontFamily', this.value)">
+                                    <option value="">Default</option>
+                                    ${this.googleFonts.map(font => `<option value="'${font}', sans-serif" ${this.getCurrentStyle('fontFamily').includes(font) ? 'selected' : ''}>${font}</option>`).join('')}
+                                </select>
+                            </div>
                             <div class="grid grid-cols-2 gap-2 mb-2">
                                 <div>
                                     <label class="text-xs text-gray-600">Font Size</label>
-                                    <input type="text" class="property-input" value="${element.style.fontSize || '16px'}" onchange="app.updateElementStyle('fontSize', this.value)">
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('fontSize') || '16px'}" onchange="app.updateElementStyle('fontSize', this.value)">
                                 </div>
                                 <div>
                                     <label class="text-xs text-gray-600">Font Weight</label>
                                     <select class="property-input" onchange="app.updateElementStyle('fontWeight', this.value)">
-                                        <option value="normal" ${element.style.fontWeight === 'normal' ? 'selected' : ''}>Normal</option>
-                                        <option value="bold" ${element.style.fontWeight === 'bold' ? 'selected' : ''}>Bold</option>
-                                        <option value="lighter" ${element.style.fontWeight === 'lighter' ? 'selected' : ''}>Lighter</option>
+                                        <option value="normal" ${this.getCurrentStyle('fontWeight') === 'normal' ? 'selected' : ''}>Normal</option>
+                                        <option value="bold" ${this.getCurrentStyle('fontWeight') === 'bold' ? 'selected' : ''}>Bold</option>
+                                        <option value="lighter" ${this.getCurrentStyle('fontWeight') === 'lighter' ? 'selected' : ''}>Lighter</option>
                                     </select>
                                 </div>
                             </div>
                             <div class="mb-2">
                                 <label class="text-xs text-gray-600">Color</label>
-                                <input type="color" class="property-input" value="${this.rgbToHex(element.style.color) || '#333333'}" onchange="app.updateElementStyle('color', this.value)">
+                                <input type="color" class="property-input" value="${this.rgbToHex(this.getCurrentStyle('color')) || '#333333'}" onchange="app.updateElementStyle('color', this.value)">
                             </div>
                         </div>
 
@@ -873,7 +1245,21 @@
                             <h4 class="font-medium mb-2">Background</h4>
                             <div class="mb-2">
                                 <label class="text-xs text-gray-600">Background Color</label>
-                                <input type="color" class="property-input" value="${this.rgbToHex(element.style.backgroundColor) || '#ffffff'}" onchange="app.updateElementStyle('backgroundColor', this.value)">
+                                <input type="color" class="property-input" value="${this.rgbToHex(this.getCurrentStyle('backgroundColor')) || '#ffffff'}" onchange="app.updateElementStyle('backgroundColor', this.value)">
+                            </div>
+                            <div class="mb-2">
+                                <label class="text-xs text-gray-600">Background Image (URL or Gradient)</label>
+                                <input type="text" class="property-input" placeholder="url(...) or linear-gradient(...)" value="${this.getCurrentStyle('backgroundImage') || ''}" onchange="app.updateElementStyle('backgroundImage', this.value)">
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="text-xs text-gray-600">Size</label>
+                                    <input type="text" class="property-input" placeholder="cover, contain, 100%" value="${this.getCurrentStyle('backgroundSize') || 'auto'}" onchange="app.updateElementStyle('backgroundSize', this.value)">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-600">Position</label>
+                                    <input type="text" class="property-input" placeholder="center, top left" value="${this.getCurrentStyle('backgroundPosition') || 'center'}" onchange="app.updateElementStyle('backgroundPosition', this.value)">
+                                </div>
                             </div>
                         </div>
 
@@ -885,6 +1271,62 @@
 
                         <!-- This is where the new properties will be injected -->
                         ${specificProperties}
+
+                        <!-- Flexbox section (only if display: flex) -->
+                        ${this.getCurrentStyle('display') === 'flex' ? `
+                        <div class="sidebar-section pb-4 mb-4">
+                            <h4 class="font-medium mb-2">Flexbox</h4>
+                            <div class="grid grid-cols-2 gap-2 mb-2">
+                                <div>
+                                    <label class="text-xs text-gray-600">Direction</label>
+                                    <select class="property-input" onchange="app.updateElementStyle('flexDirection', this.value)">
+                                        <option value="row" ${this.getCurrentStyle('flexDirection') === 'row' ? 'selected' : ''}>Row</option>
+                                        <option value="column" ${this.getCurrentStyle('flexDirection') === 'column' ? 'selected' : ''}>Column</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-600">Justify Content</label>
+                                    <select class="property-input" onchange="app.updateElementStyle('justifyContent', this.value)">
+                                        <option value="flex-start" ${this.getCurrentStyle('justifyContent') === 'flex-start' ? 'selected' : ''}>Start</option>
+                                        <option value="center" ${this.getCurrentStyle('justifyContent') === 'center' ? 'selected' : ''}>Center</option>
+                                        <option value="flex-end" ${this.getCurrentStyle('justifyContent') === 'flex-end' ? 'selected' : ''}>End</option>
+                                        <option value="space-between" ${this.getCurrentStyle('justifyContent') === 'space-between' ? 'selected' : ''}>Space Between</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-600">Align Items</label>
+                                    <select class="property-input" onchange="app.updateElementStyle('alignItems', this.value)">
+                                        <option value="stretch" ${this.getCurrentStyle('alignItems') === 'stretch' ? 'selected' : ''}>Stretch</option>
+                                        <option value="flex-start" ${this.getCurrentStyle('alignItems') === 'flex-start' ? 'selected' : ''}>Start</option>
+                                        <option value="center" ${this.getCurrentStyle('alignItems') === 'center' ? 'selected' : ''}>Center</option>
+                                        <option value="flex-end" ${this.getCurrentStyle('alignItems') === 'flex-end' ? 'selected' : ''}>End</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-600">Gap</label>
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('gap') || '0px'}" onchange="app.updateElementStyle('gap', this.value)">
+                                </div>
+                            </div>
+                        </div>
+                        ` : ''}
+                        <div class="sidebar-section pb-4 mb-4">
+                            <h4 class="font-medium mb-2">Effects</h4>
+                            <div class="mb-2">
+                                <label class="text-xs text-gray-600">Box Shadow</label>
+                                <input type="text" class="property-input" placeholder="e.g., 0px 10px 15px rgba(0,0,0,0.1)" value="${this.getCurrentStyle('boxShadow') || ''}" onchange="app.updateElementStyle('boxShadow', this.value)">
+                            </div>
+                        </div>
+                        <div class="sidebar-section pb-4 mb-4">
+                            <h4 class="font-medium mb-2">Transitions & Transforms</h4>
+                            <div class="mb-2">
+                                <label class="text-xs text-gray-600">Transition</label>
+                                <input type="text" class="property-input" placeholder="e.g., all 0.3s ease" value="${this.getCurrentStyle('transition') || ''}" onchange="app.updateElementStyle('transition', this.value)">
+                            </div>
+                            <div class="mb-2">
+                                <label class="text-xs text-gray-600">Transform</label>
+                                <input type="text" class="property-input" placeholder="e.g., scale(1.1) rotate(5deg)" value="${this.getCurrentStyle('transform') || ''}" onchange="app.updateElementStyle('transform', this.value)">
+                            </div>
+                        </div>
                     </div>
                 `;
 
@@ -905,11 +1347,15 @@
                     styles[this.currentBreakpoint] = {};
                 }
 
+                if (property === 'fontFamily' && value) {
+                    this.loadGoogleFont(value.split(',')[0].replace(/'/g, ''));
+                }
+
                 styles[this.currentBreakpoint][property] = value;
                 this.selectedElement.dataset.styles = JSON.stringify(styles);
 
                 this.applyAllStyles(this.selectedElement);
-                this.saveToHistory();
+                this.repositionSelectionWrapper();
             }
 
             applyAllStyles(element) {
@@ -1174,6 +1620,14 @@
 
             extractStyles() {
                 let css = '';
+                for (const className in this.globalStyles) {
+                    const styleObj = this.globalStyles[className];
+                    const styleString = Object.entries(styleObj).map(([prop, val]) => `${this.camelToKebab(prop)}: ${val};`).join(' ');
+                    if (styleString) {
+                        css += `.${className} { ${styleString} }\n`;
+                    }
+                }
+
                 const elements = document.querySelectorAll('.canvas-element');
                 const desktopStyles = new Map();
                 const tabletStyles = new Map();
@@ -1331,6 +1785,26 @@
                 });
             }
 
+            reattachEventListenersToElement(element) {
+                const elements = [element, ...element.querySelectorAll('.canvas-element')];
+                elements.forEach(el => {
+                    el.draggable = true;
+                    el.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.selectElement(el);
+                    });
+
+                    const controls = el.querySelector('.element-controls');
+                    if (controls) {
+                        const editBtn = controls.querySelector('.fa-edit');
+                        if (editBtn) editBtn.addEventListener('click', (e) => { e.stopPropagation(); this.editElement(el); });
+                        
+                        const deleteBtn = controls.querySelector('.fa-trash');
+                        if (deleteBtn) deleteBtn.addEventListener('click', (e) => { e.stopPropagation(); this.deleteElement(el); });
+                    }
+                });
+            }
+
             export() {
                 const html = this.generatePreviewHTML();
                 const blob = new Blob([html], { type: 'text/html' });
@@ -1384,6 +1858,22 @@
                     this.reattachEventListeners();
                     this.updateLayersTree();
                 }
+            }
+
+            renderStyleManager() {
+                const list = document.getElementById('class-manager-list');
+                let html = '';
+                for (const className in this.globalStyles) {
+                    // Simple display for now; could be expanded to show rules
+                    html += `<div class="p-2 border rounded text-sm cursor-pointer hover:bg-gray-100">${className}</div>`;
+                }
+                list.innerHTML = html;
+            }
+
+            addNewGlobalClass(className) {
+                if (!className || this.globalStyles[className]) return;
+                this.globalStyles[className] = {}; // Initialize empty style object
+                this.renderStyleManager();
             }
         }
 
