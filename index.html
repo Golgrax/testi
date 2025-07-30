@@ -54,24 +54,7 @@
             border: 2px solid #3b82f6;
             box-sizing: border-box;
         }
-        .resizer {
-            position: absolute;
-            width: 10px;
-            height: 10px;
-            background: #3b82f6;
-            border: 1px solid white;
-            border-radius: 50%;
-            pointer-events: all;
-        }
-        .resizer.top-left { top: 0; left: 0; cursor: nwse-resize; transform: translate(-50%, -50%); }
-        .resizer.top-right { top: 0; right: 0; cursor: nesw-resize; transform: translate(50%, -50%); }
-        .resizer.bottom-left { bottom: 0; left: 0; cursor: nesw-resize; transform: translate(-50%, 50%); }
-        .resizer.bottom-right { bottom: 0; right: 0; cursor: nwse-resize; transform: translate(50%, 50%); }
-        .resizer.top-center { top: 0; left: 50%; cursor: ns-resize; transform: translate(-50%, -50%); }
-        .resizer.bottom-center { bottom: 0; left: 50%; cursor: ns-resize; transform: translate(-50%, 50%); }
-        .resizer.left-center { top: 50%; left: 0; cursor: ew-resize; transform: translate(-50%, -50%); }
-        .resizer.right-center { top: 50%; right: 0; cursor: ew-resize; transform: translate(50%, -50%); }
-        
+       
         .component-item {
             transition: all 0.2s ease;
         }
@@ -554,7 +537,7 @@
                 selectionWrapper.classList.remove('hidden');
             }
 
-                setupResizing() {
+            setupResizing() {
                 const selectionWrapper = document.getElementById('selection-wrapper');
                 selectionWrapper.querySelectorAll('.resizer').forEach(resizer => {
                     resizer.addEventListener('mousedown', (e) => {
@@ -572,7 +555,6 @@
                         const scrollContainer = document.getElementById('scroll-area');
                         const scrollRect = scrollContainer.getBoundingClientRect();
 
-                        // Store initial properties for calculation
                         this.elementInitialSize = {
                             width: parseFloat(computedStyle.width),
                             height: parseFloat(computedStyle.height),
@@ -595,30 +577,28 @@
 
                             const direction = resizer.dataset.resizer;
 
-                            // Adjust width and left position
                             if (direction.includes('right')) {
                                 newWidth += dx;
                             } else if (direction.includes('left')) {
                                 newWidth -= dx;
-                                newLeft += dx; // Move left edge as it resizes
+                                newLeft += dx;
                             }
 
-                            // Adjust height and top position
                             if (direction.includes('bottom')) {
                                 newHeight += dy;
                             } else if (direction.includes('top')) {
                                 newHeight -= dy;
-                                newTop += dy; // Move top edge as it resizes
+                                newTop += dy;
                             }
 
-                            // Apply the new styles
-                            this.updateElementStyle('width', `${Math.max(10, newWidth).toFixed(0)}px`);
-                            this.updateElementStyle('height', `${Math.max(10, newHeight).toFixed(0)}px`);
-                            this.updateElementStyle('top', `${newTop.toFixed(0)}px`);
-                            this.updateElementStyle('left', `${newLeft.toFixed(0)}px`);
+                            // Apply styles WITHOUT repositioning the wrapper
+                            this.updateElementStyle('width', `${Math.max(10, newWidth).toFixed(0)}px`, false);
+                            this.updateElementStyle('height', `${Math.max(10, newHeight).toFixed(0)}px`, false);
+                            this.updateElementStyle('top', `${newTop.toFixed(0)}px`, false);
+                            this.updateElementStyle('left', `${newLeft.toFixed(0)}px`, false);
 
-                            // ADD THIS LINE: Update the wrapper's position just once.
-                            this.repositionSelectionWrapper(); 
+                            // Manually reposition the wrapper once after all styles are set
+                            this.repositionSelectionWrapper();
                         };
 
                         const handleMouseUp = () => {
@@ -636,7 +616,8 @@
                     });
                 });
             }
-                init() {
+
+            init() {
                 this.setupEventListeners();
                 this.setupDragAndDrop();
                 this.loadComponents();
@@ -898,7 +879,6 @@
                 const canvas = document.getElementById('canvas');
                 const dropIndicator = document.getElementById('drop-indicator');
 
-
                 canvas.addEventListener('dragover', (e) => {
                     e.preventDefault();
                     const targetContainer = e.target.closest('.drop-zone');
@@ -913,12 +893,12 @@
                         
                         dropIndicator.classList.remove('hidden');
                         if (position === 'before') {
-                            dropIndicator.style.top = rect.top + 'px';
+                            dropIndicator.style.top = `${rect.top}px`;
                         } else {
-                            dropIndicator.style.top = rect.bottom + 'px';
+                            dropIndicator.style.top = `${rect.bottom}px`;
                         }
-                        dropIndicator.style.left = rect.left + 'px';
-                        dropIndicator.style.width = rect.width + 'px';
+                        dropIndicator.style.left = `${rect.left}px`;
+                        dropIndicator.style.width = `${rect.width}px`;
                     } else {
                         dropIndicator.classList.add('hidden');
                     }
@@ -937,7 +917,6 @@
 
                     if (!this.draggedElement) return;
 
-                    
                     if (this.draggedElement.type === 'asset') {
                         const asset = this.assets.find(a => a.id === this.draggedElement.assetId);
                         if (!asset) return;
@@ -1544,7 +1523,7 @@
             }
 
             // MODIFY this entire function
-            updateElementStyle(property, value) {
+            updateElementStyle(property, value, reposition = true) {
                 if (!this.selectedElement) return;
 
                 let styles = {};
@@ -1564,9 +1543,13 @@
                 this.selectedElement.dataset.styles = JSON.stringify(styles);
 
                 this.applyAllStyles(this.selectedElement);
-                // this.repositionSelectionWrapper(); // <-- DELETE THIS LINE
+                
+                if (reposition) {
+                    this.repositionSelectionWrapper();
+                }
             }
-            
+
+
             applyAllStyles(element) {
                 // Clear all previous inline styles to start fresh
                 element.style.cssText = '';
