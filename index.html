@@ -580,38 +580,32 @@
                 const selectionWrapper = document.getElementById('selection-wrapper');
                 selectionWrapper.querySelectorAll('.resizer').forEach(resizer => {
                     resizer.addEventListener('mousedown', (e) => {
-                        // FIX: Prevents the click from bubbling up to the element,
-                        // which would toggle off the edit mode we need for resizing.
                         e.stopPropagation(); 
                         e.preventDefault();
 
-                        if (this.selectedElement) {
-                            this.selectedElement.draggable = false;
-                        }
-
+                        // We are now resizing, so the element itself should not be draggable.
+                        if (this.selectedElement) this.selectedElement.draggable = false;
                         this.isResizing = true;
                         
+                        // ... (rest of the initial position calculation code is the same)
                         const computedStyle = window.getComputedStyle(this.selectedElement);
                         const initialRect = this.selectedElement.getBoundingClientRect();
                         const scrollContainer = document.getElementById('scroll-area');
                         const scrollRect = scrollContainer.getBoundingClientRect();
-
                         this.elementInitialSize = {
-                            width: parseFloat(computedStyle.width),
-                            height: parseFloat(computedStyle.height),
+                            width: parseFloat(computedStyle.width), height: parseFloat(computedStyle.height),
                             top: initialRect.top - scrollRect.top + scrollContainer.scrollTop,
                             left: initialRect.left - scrollRect.left + scrollContainer.scrollLeft
                         };
                         this.resizerInitialPos = { x: e.clientX, y: e.clientY };
 
                         const handleMouseMove = (moveEvent) => {
-                            if (!this.isResizing || !this.selectedElement) return;
-                            
+                            if (!this.isResizing) return;
                             const zoom = parseFloat(document.getElementById('zoom-slider').value) / 100;
                             const dx = (moveEvent.clientX - this.resizerInitialPos.x) / zoom;
                             const dy = (moveEvent.clientY - this.resizerInitialPos.y) / zoom;
-                            let newWidth = this.elementInitialSize.width, newHeight = this.elementInitialSize.height;
-                            let newTop = this.elementInitialSize.top, newLeft = this.elementInitialSize.left;
+                            let newWidth = this.elementInitialSize.width, newHeight = this.elementInitialSize.height,
+                                newTop = this.elementInitialSize.top, newLeft = this.elementInitialSize.left;
                             const direction = resizer.dataset.resizer;
 
                             if (direction.includes('right')) newWidth += dx;
@@ -627,8 +621,12 @@
                         };
 
                         const handleMouseUp = () => {
-                            if (this.selectedElement) this.selectedElement.draggable = true;
+                            // --- CRITICAL: Reset state after resizing is done ---
                             this.isResizing = false;
+                            // The element is still in edit mode, so it should remain NOT draggable
+                            // until the user explicitly exits edit mode or starts a move.
+                            // So, we DO NOT set draggable back to true here.
+                            
                             window.removeEventListener('mousemove', handleMouseMove);
                             window.removeEventListener('mouseup', handleMouseUp);
                             this.saveToHistory();
@@ -639,7 +637,7 @@
                     });
                 });
             }
-
+            
             init() {
                 this.setupEventListeners();
                 this.setupDragAndDrop();
@@ -1233,13 +1231,14 @@
             }
 
             selectElement(element) {
-                if (this.selectedElement === element) return; // If clicking the same element, do nothing. Edit mode is handled separately.
+                if (this.selectedElement === element) return; 
 
                 const selectionWrapper = document.getElementById('selection-wrapper');
 
                 // --- CRITICAL: Fully reset the PREVIOUSLY selected element ---
                 if (this.selectedElement) {
                     this.selectedElement.classList.remove('selected', 'is-editing');
+                    this.selectedElement.draggable = true; // Ensure it's always draggable when not selected
                     const oldEditIcon = this.selectedElement.querySelector('.fa-check');
                     if (oldEditIcon) oldEditIcon.classList.replace('fa-check', 'fa-edit');
                 }
@@ -1249,10 +1248,9 @@
                 element.classList.add('selected');
                 this.selectedElement = element;
                 
-                // Update all UI elements based on this new, clean state
                 this.showProperties(element);
                 this.repositionSelectionWrapper();
-                selectionWrapper.classList.add('hidden'); // Wrapper is ALWAYS hidden on a fresh select
+                selectionWrapper.classList.add('hidden'); 
                 this.updateBreadcrumbs();
                 
                 document.querySelectorAll('.layer-item.active-layer').forEach(item => item.classList.remove('active-layer'));
@@ -1674,21 +1672,22 @@
             editElement(element) {
                 if (!element) return;
                 
-                // First, ensure the element is the currently selected one.
                 this.selectElement(element); 
-                
-                // Now, toggle the editing state
                 element.classList.toggle('is-editing');
                 
                 const selectionWrapper = document.getElementById('selection-wrapper');
                 const editIcon = element.querySelector('.fa-edit, .fa-check');
 
                 if (element.classList.contains('is-editing')) {
+                    // --- ENTERING EDIT MODE ---
                     selectionWrapper.classList.remove('hidden');
-                    if (editIcon) editIcon.classList.replace('fa-edit', 'fa-check'); // Visual feedback: ON
+                    element.draggable = false; // Disable native dragging
+                    if (editIcon) editIcon.classList.replace('fa-edit', 'fa-check');
                 } else {
+                    // --- EXITING EDIT MODE ---
                     selectionWrapper.classList.add('hidden');
-                    if (editIcon) editIcon.classList.replace('fa-check', 'fa-edit'); // Visual feedback: OFF
+                    element.draggable = true; // Re-enable native dragging
+                    if (editIcon) editIcon.classList.replace('fa-check', 'fa-edit');
                 }
                 this.repositionSelectionWrapper();
             }
