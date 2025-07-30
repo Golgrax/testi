@@ -62,8 +62,17 @@
             border: 1px solid white;
             border-radius: 50%;
             pointer-events: all;
-            transform: translate(-50%, -50%);
+            /* The transform is gone, we position manually */
         }
+        .resizer.top-left { top: -5px; left: -5px; cursor: nwse-resize; }
+        .resizer.top-right { top: -5px; right: -5px; cursor: nesw-resize; }
+        .resizer.bottom-left { bottom: -5px; left: -5px; cursor: nesw-resize; }
+        .resizer.bottom-right { bottom: -5px; right: -5px; cursor: nwse-resize; }
+        .resizer.top-center { top: -5px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
+        .resizer.bottom-center { bottom: -5px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
+        .resizer.left-center { top: 50%; left: -5px; transform: translateY(-50%); cursor: ew-resize; }
+        .resizer.right-center { top: 50%; right: -5px; transform: translateY(-50%); cursor: ew-resize; }
+        
         .resizer.top-left { top: 0; left: 0; cursor: nwse-resize; }
         .resizer.top-right { top: 0; right: 0; cursor: nesw-resize; }
         .resizer.bottom-left { bottom: 0; left: 0; cursor: nesw-resize; }
@@ -648,7 +657,16 @@
                 
                 const positionType = window.getComputedStyle(element).position;
                 if (positionType === 'static') {
+                    // When switching to relative, we must calculate its current visual position
+                    // to prevent it from "jumping" to top:0, left:0.
+                    const initialRect = element.getBoundingClientRect();
+                    const parentRect = element.parentElement.getBoundingClientRect();
+                    const initialTop = initialRect.top - parentRect.top;
+                    const initialLeft = initialRect.left - parentRect.left;
+
                     this.updateElementStyle('position', 'relative');
+                    this.updateElementStyle('top', `${initialTop}px`);
+                    this.updateElementStyle('left', `${initialLeft}px`);
                 }
 
                 const initialMouse = { x: e.clientX, y: e.clientY };
@@ -673,7 +691,6 @@
 
                 const handleMouseUp = () => {
                     window.removeEventListener('mousemove', handleMouseMove);
-                    window.removeEventListener('mouseup', handleMouseUp);
                     
                     this.updateElementStyle('left', element.style.left);
                     this.updateElementStyle('top', element.style.top);
@@ -683,7 +700,6 @@
                 window.addEventListener('mousemove', handleMouseMove);
                 window.addEventListener('mouseup', handleMouseUp, { once: true });
             }
-
             setupEventListeners() {
                 this.clipboard = null;
                 // Tab switching
