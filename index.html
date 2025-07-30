@@ -11,6 +11,10 @@
     <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
     <style>
 
+        #scroll-area {
+            position: relative;
+        }
+
         .responsive-indicator {
             position: absolute;
             left: -12px;
@@ -32,7 +36,8 @@
         }
 
         #selection-wrapper {
-            border: 2px dashed #ef4444;
+            border: 2px solid #3b82f6;
+            box-sizing: border-box;
         }
         .resizer {
             position: absolute;
@@ -69,8 +74,8 @@
             border-color: #3b82f6;
         }
         .canvas-element.selected {
-            border-color: transparent; /* <-- CHANGE THIS to 'transparent' */
-            background: rgba(239, 68, 68, 0.1);
+            border-color: transparent;
+            background: rgba(59, 130, 246, 0.1);
         }
         .element-controls {
             position: absolute;
@@ -320,7 +325,7 @@
             <!-- Canvas Area -->
             <div class="flex-1 flex overflow-hidden">
                 <!-- Canvas Container -->
-                <div class="flex-1 p-4 overflow-auto bg-gray-50">
+                <div id="scroll-area" class="flex-1 p-4 overflow-auto bg-gray-50">
 
                     <div id="selection-wrapper" class="hidden absolute pointer-events-none" style="z-index: 100;">
                         <div class="resizer top-left" data-resizer="top-left"></div>
@@ -504,13 +509,13 @@
             }
 
             repositionSelectionWrapper() {
-    if (!this.selectedElement) {
-        document.getElementById('selection-wrapper').classList.add('hidden');
-        return;
-    }
+            if (!this.selectedElement) {
+                document.getElementById('selection-wrapper').classList.add('hidden');
+                return;
+            }
 
     const selectionWrapper = document.getElementById('selection-wrapper');
-    const scrollContainer = document.querySelector('.flex-1.p-4.overflow-auto');
+    const scrollContainer = document.getElementById('scroll-area');
     
     const elementRect = this.selectedElement.getBoundingClientRect();
     const scrollRect = scrollContainer.getBoundingClientRect();
