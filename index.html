@@ -253,7 +253,7 @@
                     <div class="p-4">
                         <h3 class="font-semibold mb-3">Media Library</h3>
                         <div class="mb-4">
-                            <input type="file" id="upload-asset" class="hidden" accept="image/*,video/*" multiple>
+                            <input type="file" id="upload-asset" class="hidden" accept="image/*,video/*">
                             <button onclick="document.getElementById('upload-asset').click()" class="w-full py-2 px-4 border-2 border-dashed border-gray-300 rounded hover:border-blue-500 hover:bg-blue-50">
                                 <i class="fas fa-cloud-upload-alt mr-2"></i>Upload Assets
                             </button>
@@ -315,21 +315,22 @@
                 </div>
             </div>
 
-            <div id="selection-wrapper" class="hidden absolute pointer-events-none" style="z-index: 100;">
-                <div class="resizer top-left" data-resizer="top-left"></div>
-                <div class="resizer top-right" data-resizer="top-right"></div>
-                <div class="resizer bottom-left" data-resizer="bottom-left"></div>
-                <div class="resizer bottom-right" data-resizer="bottom-right"></div>
-                <div class="resizer top-center" data-resizer="top-center"></div>
-                <div class="resizer bottom-center" data-resizer="bottom-center"></div>
-                <div class="resizer left-center" data-resizer="left-center"></div>
-                <div class="resizer right-center" data-resizer="right-center"></div>
-            </div>
-
             <!-- Canvas Area -->
             <div class="flex-1 flex overflow-hidden">
                 <!-- Canvas Container -->
                 <div class="flex-1 p-4 overflow-auto bg-gray-50">
+
+                    <div id="selection-wrapper" class="hidden absolute pointer-events-none" style="z-index: 100;">
+                        <div class="resizer top-left" data-resizer="top-left"></div>
+                        <div class="resizer top-right" data-resizer="top-right"></div>
+                        <div class="resizer bottom-left" data-resizer="bottom-left"></div>
+                        <div class="resizer bottom-right" data-resizer="bottom-right"></div>
+                        <div class="resizer top-center" data-resizer="top-center"></div>
+                        <div class="resizer bottom-center" data-resizer="bottom-center"></div>
+                        <div class="resizer left-center" data-resizer="left-center"></div>
+                        <div class="resizer right-center" data-resizer="right-center"></div>
+                    </div>
+
                     <div class="mx-auto bg-white shadow-lg" id="canvas-container" style="width: 1024px; min-height: 600px;">
                         <div id="canvas" class="drop-zone relative" style="min-height: 600px;">
                             <!-- Canvas content will be dynamically added here -->
@@ -417,6 +418,7 @@
                     "Roboto", "Open Sans", "Lato", "Montserrat", "Oswald", "Source Sans Pro", "Raleway"
                 ];
                 this.globalStyles = {};
+                this.currentState = 'base';
                 this.init();
             }
 
@@ -502,13 +504,13 @@
                 }
 
                 const selectionWrapper = document.getElementById('selection-wrapper');
-                const mainContentArea = document.querySelector('.flex-1.flex.flex-col'); // The wrapper's direct parent
+                const scrollContainer = document.querySelector('.flex-1.p-4.overflow-auto');
                 
                 const elementRect = this.selectedElement.getBoundingClientRect();
-                const parentRect = mainContentArea.getBoundingClientRect();
+                const scrollRect = scrollContainer.getBoundingClientRect();
 
-                selectionWrapper.style.top = (elementRect.top - parentRect.top) + 'px';
-                selectionWrapper.style.left = (elementRect.left - parentRect.left) + 'px';
+                selectionWrapper.style.top = (elementRect.top - scrollRect.top + scrollContainer.scrollTop) + 'px';
+                selectionWrapper.style.left = (elementRect.left - scrollRect.left + scrollContainer.scrollLeft) + 'px';
                 selectionWrapper.style.width = elementRect.width + 'px';
                 selectionWrapper.style.height = elementRect.height + 'px';
                 selectionWrapper.classList.remove('hidden');
@@ -1144,11 +1146,7 @@
                                     <input type="text" class="property-input" value="${element.querySelector('img')?.alt || ''}" onchange="app.updateElementAttribute('alt', this.value, 'img')">
                                 </div>
                             </div>
-                            <div class="relative"> <!-- Add this wrapper -->
-                                <label class="text-xs text-gray-600">Width</label>
-                                <input type="text" class="property-input" value="${this.getCurrentStyle('width') || 'auto'}" onchange="app.updateElementStyle('width', this.value)">
-                                ${this.hasBreakpointSpecificStyle('width') ? '<span class="responsive-indicator"></span>' : ''} <!-- Add this indicator -->
-                            </div>`;
+                        `;
                         break;
                     case 'button':
                         // The content editor already handles the button text, but we could add button-specific things here later.
@@ -1157,6 +1155,14 @@
 
                 let propertiesHTML = `
                     <div class="p-4">
+                        <div class="mb-4">
+                            <label class="text-sm font-medium">State</label>
+                            <select id="state-selector" class="property-input mt-1">
+                                <option value="base">Base</option>
+                                <option value="hover">Hover</option>
+                            </select>
+                        </div>
+                        
                         <div class="sidebar-section pb-4 mb-4">
                             <h4 class="font-medium mb-2">CSS Classes</h4>
                             <input type="text" id="class-input" class="property-input" placeholder="e.g. btn btn-primary" 
@@ -1206,6 +1212,41 @@
                                 <div>
                                     <label class="text-xs text-gray-600">Radius</label>
                                     <input type="text" class="property-input" value="${this.getCurrentStyle('borderRadius') || '0'}" onchange="app.updateElementStyle('borderRadius', this.value)">
+                                </div>
+                            </div>
+                            <div class="border-t pt-2 mt-2">
+                                <h5 class="text-xs font-bold mb-1">Positioning</h5>
+                                <div class="mb-2">
+                                    <label class="text-xs text-gray-600">Position</label>
+                                    <select class="property-input" onchange="app.updateElementStyle('position', this.value)">
+                                        <option value="static" ${this.getCurrentStyle('position') === 'static' ? 'selected' : ''}>Static</option>
+                                        <option value="relative" ${this.getCurrentStyle('position') === 'relative' ? 'selected' : ''}>Relative</option>
+                                        <option value="absolute" ${this.getCurrentStyle('position') === 'absolute' ? 'selected' : ''}>Absolute</option>
+                                        <option value="fixed" ${this.getCurrentStyle('position') === 'fixed' ? 'selected' : ''}>Fixed</option>
+                                        <option value="sticky" ${this.getCurrentStyle('position') === 'sticky' ? 'selected' : ''}>Sticky</option>
+                                    </select>
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="text-xs text-gray-600">Top</label>
+                                        <input type="text" class="property-input" value="${this.getCurrentStyle('top') || ''}" onchange="app.updateElementStyle('top', this.value)">
+                                    </div>
+                                    <div>
+                                        <label class="text-xs text-gray-600">Left</label>
+                                        <input type="text" class="property-input" value="${this.getCurrentStyle('left') || ''}" onchange="app.updateElementStyle('left', this.value)">
+                                    </div>
+                                    <div>
+                                        <label class="text-xs text-gray-600">Right</label>
+                                        <input type="text" class="property-input" value="${this.getCurrentStyle('right') || ''}" onchange="app.updateElementStyle('right', this.value)">
+                                    </div>
+                                    <div>
+                                        <label class="text-xs text-gray-600">Bottom</label>
+                                        <input type="text" class="property-input" value="${this.getCurrentStyle('bottom') || ''}" onchange="app.updateElementStyle('bottom', this.value)">
+                                    </div>
+                                    <div>
+                                        <label class="text-xs text-gray-600">Z-Index</label>
+                                        <input type="number" class="property-input" value="${this.getCurrentStyle('zIndex') || ''}" onchange="app.updateElementStyle('zIndex', this.value)">
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1339,19 +1380,18 @@
                 let styles = {};
                 try {
                     styles = JSON.parse(this.selectedElement.dataset.styles || '{}');
-                } catch (e) {
-                    styles = {};
-                }
+                } catch (e) { styles = {}; }
 
-                if (!styles[this.currentBreakpoint]) {
-                    styles[this.currentBreakpoint] = {};
-                }
+                // Make sure our objects exist
+                if (!styles[this.currentState]) styles[this.currentState] = {};
+                if (!styles[this.currentState][this.currentBreakpoint]) styles[this.currentState][this.currentBreakpoint] = {};
+
+                styles[this.currentState][this.currentBreakpoint][property] = value;
 
                 if (property === 'fontFamily' && value) {
                     this.loadGoogleFont(value.split(',')[0].replace(/'/g, ''));
                 }
 
-                styles[this.currentBreakpoint][property] = value;
                 this.selectedElement.dataset.styles = JSON.stringify(styles);
 
                 this.applyAllStyles(this.selectedElement);
@@ -1640,9 +1680,22 @@
                         styles = JSON.parse(element.dataset.styles || '{}');
                     } catch (e) { return; }
                     
-                    if (styles.desktop) desktopStyles.set(elementId, styles.desktop);
-                    if (styles.tablet) tabletStyles.set(elementId, styles.tablet);
-                    if (styles.mobile) mobileStyles.set(elementId, styles.mobile);
+                    // Add styles for the BASE state
+                    if (styles.base?.desktop) desktopStyles.set(elementId, styles.base.desktop);
+                    if (styles.base?.tablet) tabletStyles.set(elementId, styles.base.tablet);
+                    if (styles.base?.mobile) mobileStyles.set(elementId, styles.base.mobile);
+
+                    // --- ADD THIS NEW BLOCK FOR HOVER STATE ---
+                    if (styles.hover) {
+                        // We'll generate a separate hover CSS string
+                        let hoverCss = '';
+                        const hoverStyleString = Object.entries(styles.hover.desktop || {}).map(([prop, val]) => `${this.camelToKebab(prop)}: ${val};`).join(' ');
+                        if (hoverStyleString) {
+                            hoverCss += `[data-element-id="${elementId}"]:hover { ${hoverStyleString} }\n`;
+                        }
+                        // You can expand this with media queries for responsive hover states
+                        css += hoverCss;
+                    }
                 });
 
                 desktopStyles.forEach((styleObj, id) => {
