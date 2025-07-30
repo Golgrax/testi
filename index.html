@@ -686,20 +686,21 @@
             }
 
             initiateDrag(e, element) {
-                if (!element) return;
+                if (!element || this.isResizing) return; // Safety check: Do not allow dragging while resizing.
                 e.preventDefault();
                 e.stopPropagation();
 
                 // --- CRITICAL FIX: Force exit from Edit Mode on drag ---
                 if (element.classList.contains('is-editing')) {
                     element.classList.remove('is-editing');
+                    const editIcon = element.querySelector('.fa-check');
+                    if(editIcon) editIcon.classList.replace('fa-check', 'fa-edit');
                 }
                 document.getElementById('selection-wrapper').classList.add('hidden');
                 // --- END FIX ---
 
                 let needsPositionChange = false;
                 const positionType = window.getComputedStyle(element).position;
-
                 if (positionType === 'static') {
                     element.style.position = 'relative';
                     needsPositionChange = true;
@@ -715,10 +716,8 @@
                 const handleMouseMove = (moveEvent) => {
                     const dx = moveEvent.clientX - initialMouse.x;
                     const dy = moveEvent.clientY - initialMouse.y;
-                    const newLeft = initialElementPos.left + (dx / zoom);
-                    const newTop = initialElementPos.top + (dy / zoom);
-                    element.style.left = `${newLeft.toFixed(1)}px`;
-                    element.style.top = `${newTop.toFixed(1)}px`;
+                    element.style.left = `${initialElementPos.left + (dx / zoom)}px`;
+                    element.style.top = `${initialElementPos.top + (dy / zoom)}px`;
                 };
 
                 const handleMouseUp = () => {
@@ -1223,50 +1222,54 @@
 
                 // Find drop position and append
                 let targetContainer = event.target.closest('.drop-zone') || document.getElementById('canvas');
-                targetContainer.appendChild(element);
+                targetContainer.appendChild(element); // This MUST be before selectElement
 
-                this.selectElement(element);
+                this.selectElement(element); // This will select it in a clean "Selected" state
                 this.saveToHistory();
                 this.updateLayersTree();
             }
 
             selectElement(element) {
-                if (this.selectedElement === element) return; // Do nothing if it's already selected
+                if (this.selectedElement === element) return; // Already selected, do nothing.
 
                 const selectionWrapper = document.getElementById('selection-wrapper');
 
-                // Deselect the previous element
+                // --- CRITICAL: Fully reset the PREVIOUSLY selected element ---
                 if (this.selectedElement) {
                     this.selectedElement.classList.remove('selected', 'is-editing');
+                    const oldEditIcon = this.selectedElement.querySelector('.fa-check');
+                    if(oldEditIcon) oldEditIcon.classList.replace('fa-check', 'fa-edit');
                 }
+                // --- END RESET ---
 
-                // Select the new element
+                // Select the new element in a clean state
                 element.classList.add('selected');
                 this.selectedElement = element;
                 
-                // Update UI
+                // Update all UI elements based on this new, clean state
                 this.showProperties(element);
                 this.repositionSelectionWrapper();
-                selectionWrapper.classList.add('hidden'); // Always hide wrapper on initial select
+                selectionWrapper.classList.add('hidden'); // Always start hidden
                 this.updateBreadcrumbs();
                 
-                // Highlight in layers panel
                 document.querySelectorAll('.layer-item.active-layer').forEach(item => item.classList.remove('active-layer'));
                 const activeLayer = document.querySelector(`.layer-item[data-element-id="${element.dataset.elementId}"]`);
                 if (activeLayer) activeLayer.classList.add('active-layer');
             }
 
             handleCanvasClick(e) {
-                // This ensures we only deselect if the click is truly on the canvas background
-                // and not on any element or its controls.
+                // If the click is on any element or its controls, do nothing.
                 if (e.target.closest('.canvas-element')) return;
 
                 if (this.selectedElement) {
+                    // Fully reset the element's state when deselecting.
                     this.selectedElement.classList.remove('selected', 'is-editing');
+                    const oldEditIcon = this.selectedElement.querySelector('.fa-check');
+                    if(oldEditIcon) oldEditIcon.classList.replace('fa-check', 'fa-edit');
                     this.selectedElement = null;
                 }
                 
-                // Reset the UI
+                // Reset the entire UI to its default state.
                 document.getElementById('properties-panel').innerHTML = `<div class="p-4 text-center text-gray-500"><i class="fas fa-mouse-pointer text-3xl mb-2 block"></i><p>Select an element to edit its properties</p></div>`;
                 document.getElementById('selection-wrapper').classList.add('hidden');
                 this.updateBreadcrumbs();
@@ -1685,16 +1688,18 @@
             }
 
             handleCanvasClick(e) {
-                // This ensures we only deselect if the click is truly on the canvas background
-                // and not on any element or its controls.
+                // If the click is on any element or its controls, do nothing.
                 if (e.target.closest('.canvas-element')) return;
 
                 if (this.selectedElement) {
+                    // Fully reset the element's state when deselecting.
                     this.selectedElement.classList.remove('selected', 'is-editing');
+                    const oldEditIcon = this.selectedElement.querySelector('.fa-check');
+                    if(oldEditIcon) oldEditIcon.classList.replace('fa-check', 'fa-edit');
                     this.selectedElement = null;
                 }
                 
-                // Reset the UI
+                // Reset the entire UI to its default state.
                 document.getElementById('properties-panel').innerHTML = `<div class="p-4 text-center text-gray-500"><i class="fas fa-mouse-pointer text-3xl mb-2 block"></i><p>Select an element to edit its properties</p></div>`;
                 document.getElementById('selection-wrapper').classList.add('hidden');
                 this.updateBreadcrumbs();
