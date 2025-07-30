@@ -531,7 +531,7 @@
                 selectionWrapper.classList.remove('hidden');
             }
 
-                        setupResizing() {
+                setupResizing() {
                 const selectionWrapper = document.getElementById('selection-wrapper');
                 selectionWrapper.querySelectorAll('.resizer').forEach(resizer => {
                     resizer.addEventListener('mousedown', (e) => {
@@ -543,16 +543,23 @@
                         }
 
                         this.isResizing = true;
-                        this.resizerInitialPos = { x: e.clientX, y: e.clientY };
-
+                        
                         const computedStyle = window.getComputedStyle(this.selectedElement);
+                        const initialRect = this.selectedElement.getBoundingClientRect();
+                        const scrollContainer = document.getElementById('scroll-area');
+                        const scrollRect = scrollContainer.getBoundingClientRect();
+
+                        // Store initial properties for calculation
                         this.elementInitialSize = {
                             width: parseFloat(computedStyle.width),
-                            height: parseFloat(computedStyle.height)
+                            height: parseFloat(computedStyle.height),
+                            top: initialRect.top - scrollRect.top + scrollContainer.scrollTop,
+                            left: initialRect.left - scrollRect.left + scrollContainer.scrollLeft
                         };
+                        this.resizerInitialPos = { x: e.clientX, y: e.clientY };
 
                         const handleMouseMove = (moveEvent) => {
-                            if (!this.isResizing) return;
+                            if (!this.isResizing || !this.selectedElement) return;
                             
                             const zoom = parseFloat(document.getElementById('zoom-slider').value) / 100;
                             const dx = (moveEvent.clientX - this.resizerInitialPos.x) / zoom;
@@ -560,23 +567,38 @@
 
                             let newWidth = this.elementInitialSize.width;
                             let newHeight = this.elementInitialSize.height;
+                            let newTop = this.elementInitialSize.top;
+                            let newLeft = this.elementInitialSize.left;
 
                             const direction = resizer.dataset.resizer;
 
-                            if (direction.includes('right')) newWidth += dx;
-                            if (direction.includes('left')) newWidth -= dx;
-                            if (direction.includes('bottom')) newHeight += dy;
-                            if (direction.includes('top')) newHeight -= dy;
-                            
-                            this.updateElementStyle('width', `${newWidth.toFixed(0)}px`);
-                            this.updateElementStyle('height', `${newHeight.toFixed(0)}px`);
+                            // Adjust width and left position
+                            if (direction.includes('right')) {
+                                newWidth += dx;
+                            } else if (direction.includes('left')) {
+                                newWidth -= dx;
+                                newLeft += dx; // Move left edge as it resizes
+                            }
+
+                            // Adjust height and top position
+                            if (direction.includes('bottom')) {
+                                newHeight += dy;
+                            } else if (direction.includes('top')) {
+                                newHeight -= dy;
+                                newTop += dy; // Move top edge as it resizes
+                            }
+
+                            // Apply the new styles
+                            this.updateElementStyle('width', `${Math.max(10, newWidth).toFixed(0)}px`);
+                            this.updateElementStyle('height', `${Math.max(10, newHeight).toFixed(0)}px`);
+                            this.updateElementStyle('top', `${newTop.toFixed(0)}px`);
+                            this.updateElementStyle('left', `${newLeft.toFixed(0)}px`);
                         };
 
                         const handleMouseUp = () => {
                             if (this.selectedElement) {
                                 this.selectedElement.draggable = true;
                             }
-
                             this.isResizing = false;
                             window.removeEventListener('mousemove', handleMouseMove);
                             window.removeEventListener('mouseup', handleMouseUp);
@@ -587,8 +609,8 @@
                         window.addEventListener('mouseup', handleMouseUp);
                     });
                 });
-            }           
-            init() {
+            }
+                init() {
                 this.setupEventListeners();
                 this.setupDragAndDrop();
                 this.loadComponents();
