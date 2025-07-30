@@ -629,10 +629,13 @@
                             }
 
                             // Apply the new styles
-                            this.updateElementStyle('width', `${Math.max(10, newWidth).toFixed(0)}px`);
-                            this.updateElementStyle('height', `${Math.max(10, newHeight).toFixed(0)}px`);
-                            this.updateElementStyle('top', `${newTop.toFixed(0)}px`);
-                            this.updateElementStyle('left', `${newLeft.toFixed(0)}px`);
+                            this.updateElementStyle('width', `${Math.max(10, newWidth).toFixed(0)}px`, false);
+                            this.updateElementStyle('height', `${Math.max(10, newHeight).toFixed(0)}px`, false);
+                            this.updateElementStyle('top', `${newTop.toFixed(0)}px`, false);
+                            this.updateElementStyle('left', `${newLeft.toFixed(0)}px`, false);
+
+                            // Now, update the wrapper just ONCE after all styles are applied
+                            this.repositionSelectionWrapper();
                         };
 
                         const handleMouseUp = () => {
@@ -708,8 +711,7 @@
                 // Add the listeners to the entire window, so the drag continues even if the mouse leaves the element.
                 window.addEventListener('mousemove', handleMouseMove);
                 window.addEventListener('mouseup', handleMouseUp, { once: true }); // Automatically cleans itself up.
-            }           
-            setupEventListeners() {
+            }            setupEventListeners() {
                 this.clipboard = null;
                 // Tab switching
                 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -1561,7 +1563,8 @@
                 }
             }
 
-            updateElementStyle(property, value) {
+            // MODIFY this entire function
+            updateElementStyle(property, value, reposition = true) {
                 if (!this.selectedElement) return;
 
                 let styles = {};
@@ -1569,7 +1572,6 @@
                     styles = JSON.parse(this.selectedElement.dataset.styles || '{}');
                 } catch (e) { styles = {}; }
 
-                // Make sure our objects exist
                 if (!styles[this.currentState]) styles[this.currentState] = {};
                 if (!styles[this.currentState][this.currentBreakpoint]) styles[this.currentState][this.currentBreakpoint] = {};
 
@@ -1582,9 +1584,12 @@
                 this.selectedElement.dataset.styles = JSON.stringify(styles);
 
                 this.applyAllStyles(this.selectedElement);
-                this.repositionSelectionWrapper();
+                
+                // Only reposition if the flag is true
+                if (reposition) {
+                    this.repositionSelectionWrapper();
+                }
             }
-
             applyAllStyles(element) {
                 // Clear all previous inline styles to start fresh
                 element.style.cssText = '';
