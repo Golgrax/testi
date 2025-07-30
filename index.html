@@ -1457,23 +1457,33 @@
             }
 
             applyAllStyles(element) {
+                // Clear all previous inline styles to start fresh
                 element.style.cssText = '';
 
-                let styles = {};
+                let allStylesData = {};
                 try {
-                    styles = JSON.parse(element.dataset.styles || '{}');
+                    // Load the entire style object (which includes 'base', 'hover', etc.)
+                    allStylesData = JSON.parse(element.dataset.styles || '{}');
                 } catch (e) { return; }
 
-                Object.assign(element.style, styles['desktop'] || {});
+                // Specifically get the 'base' styles, which are the default
+                const baseStyles = allStylesData['base'] || {};
+
+                // Apply styles in the correct cascading order
+                // 1. Always start with desktop base styles
+                Object.assign(element.style, baseStyles['desktop'] || {});
+
+                // 2. If on tablet, apply tablet styles over desktop ones
                 if (this.currentBreakpoint === 'tablet') {
-                    Object.assign(element.style, styles['tablet'] || {});
+                    Object.assign(element.style, baseStyles['tablet'] || {});
                 }
+                
+                // 3. If on mobile, apply tablet styles, then mobile styles to override
                 if (this.currentBreakpoint === 'mobile') {
-                    Object.assign(element.style, styles['tablet'] || {});
-                    Object.assign(element.style, styles['mobile'] || {});
+                    Object.assign(element.style, baseStyles['tablet'] || {});
+                    Object.assign(element.style, baseStyles['mobile'] || {});
                 }
             }
-
             updateElementContent(content) {
                 if (this.selectedElement) {
                     const textElement = this.selectedElement.querySelector('p, h1, h2, h3, h4, h5, h6, button, label');
