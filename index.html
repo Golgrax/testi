@@ -538,6 +538,8 @@
                         e.preventDefault();
                         e.stopPropagation();
 
+                        if (this.selectedElement) this.selectedElement.draggable = false; // <-- ADD THIS LINE
+
                         this.isResizing = true;
                         this.resizerInitialPos = { x: e.clientX, y: e.clientY };
 
@@ -569,6 +571,8 @@
                         };
 
                         const handleMouseUp = () => {
+                            if (this.selectedElement) this.selectedElement.draggable = true; // <-- ADD THIS LINE
+                            
                             this.isResizing = false;
                             window.removeEventListener('mousemove', handleMouseMove);
                             window.removeEventListener('mouseup', handleMouseUp);
@@ -579,8 +583,7 @@
                         window.addEventListener('mouseup', handleMouseUp);
                     });
                 });
-            }
-            
+            }           
             init() {
                 this.setupEventListeners();
                 this.setupDragAndDrop();
