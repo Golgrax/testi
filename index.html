@@ -162,6 +162,9 @@
                 <button class="tab-btn flex-1 py-2 px-4 text-sm font-medium" data-tab="assets">
                     <i class="fas fa-images mr-1"></i>Assets
                 </button>
+                <button class="tab-btn flex-1 py-2 px-4 text-sm font-medium" data-tab="styles">
+                    <i class="fas fa-palette mr-1"></i>Styles
+                </button>
             </div>
 
             <!-- Tab Content -->
@@ -257,6 +260,19 @@
                         </div>
                         <div id="assets-grid" class="grid grid-cols-2 gap-2">
                             <!-- Dynamic assets will be shown here -->
+                        </div>
+                    </div>
+                </div>
+
+                <div id="styles-tab" class="tab-content hidden">
+                    <div class="p-4">
+                        <h3 class="font-semibold mb-3">Class Manager</h3>
+                        <div class="mb-4">
+                            <input type="text" id="new-class-name" class="property-input" placeholder="Enter new class name...">
+                            <button id="add-class-btn" class="w-full mt-2 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Add Class</button>
+                        </div>
+                        <div id="class-manager-list" class="space-y-2">
+                            <!-- Saved classes will be listed here -->
                         </div>
                     </div>
                 </div>
@@ -400,6 +416,7 @@
                 this.googleFonts = [
                     "Roboto", "Open Sans", "Lato", "Montserrat", "Oswald", "Source Sans Pro", "Raleway"
                 ];
+                this.globalStyles = {};
                 this.init();
             }
 
@@ -485,15 +502,15 @@
                 }
 
                 const selectionWrapper = document.getElementById('selection-wrapper');
-                const canvasContainer = document.querySelector('.flex-1.p-4.overflow-auto');
-                const rect = this.selectedElement.getBoundingClientRect();
-                const parentRect = canvasContainer.getBoundingClientRect();
-                const zoom = parseFloat(document.getElementById('zoom-slider').value) / 100;
+                const mainContentArea = document.querySelector('.flex-1.flex.flex-col'); // The wrapper's direct parent
+                
+                const elementRect = this.selectedElement.getBoundingClientRect();
+                const parentRect = mainContentArea.getBoundingClientRect();
 
-                selectionWrapper.style.top = (rect.top - parentRect.top + canvasContainer.scrollTop) + 'px';
-                selectionWrapper.style.left = (rect.left - parentRect.left + canvasContainer.scrollLeft) + 'px';
-                selectionWrapper.style.width = rect.width + 'px';
-                selectionWrapper.style.height = rect.height + 'px';
+                selectionWrapper.style.top = (elementRect.top - parentRect.top) + 'px';
+                selectionWrapper.style.left = (elementRect.left - parentRect.left) + 'px';
+                selectionWrapper.style.width = elementRect.width + 'px';
+                selectionWrapper.style.height = elementRect.height + 'px';
                 selectionWrapper.classList.remove('hidden');
             }
 
@@ -564,6 +581,7 @@
                         const tab = e.target.dataset.tab;
                         this.switchTab(tab);
                     });
+                });
 
                 document.getElementById('page-settings-btn').addEventListener('click', () => {
                     const canvasBody = document.getElementById('canvas-container');
@@ -572,8 +590,6 @@
                         canvasBody.dataset.elementId = this.generateId();
                     }
                     this.selectElement(canvasBody);
-                });
-
                 });
 
                 // Breakpoint switching
@@ -712,6 +728,15 @@
                     }
                     if (e.key === 'Delete' && this.selectedElement) {
                         this.deleteElement(this.selectedElement);
+                    }
+                });
+
+                document.getElementById('add-class-btn').addEventListener('click', () => {
+                    const classNameInput = document.getElementById('new-class-name');
+                    const className = classNameInput.value.trim();
+                    if (className) {
+                        this.addNewGlobalClass(className);
+                        classNameInput.value = '';
                     }
                 });
             }
@@ -1291,6 +1316,17 @@
                                 <input type="text" class="property-input" placeholder="e.g., 0px 10px 15px rgba(0,0,0,0.1)" value="${this.getCurrentStyle('boxShadow') || ''}" onchange="app.updateElementStyle('boxShadow', this.value)">
                             </div>
                         </div>
+                        <div class="sidebar-section pb-4 mb-4">
+                            <h4 class="font-medium mb-2">Transitions & Transforms</h4>
+                            <div class="mb-2">
+                                <label class="text-xs text-gray-600">Transition</label>
+                                <input type="text" class="property-input" placeholder="e.g., all 0.3s ease" value="${this.getCurrentStyle('transition') || ''}" onchange="app.updateElementStyle('transition', this.value)">
+                            </div>
+                            <div class="mb-2">
+                                <label class="text-xs text-gray-600">Transform</label>
+                                <input type="text" class="property-input" placeholder="e.g., scale(1.1) rotate(5deg)" value="${this.getCurrentStyle('transform') || ''}" onchange="app.updateElementStyle('transform', this.value)">
+                            </div>
+                        </div>
                     </div>
                 `;
 
@@ -1584,6 +1620,14 @@
 
             extractStyles() {
                 let css = '';
+                for (const className in this.globalStyles) {
+                    const styleObj = this.globalStyles[className];
+                    const styleString = Object.entries(styleObj).map(([prop, val]) => `${this.camelToKebab(prop)}: ${val};`).join(' ');
+                    if (styleString) {
+                        css += `.${className} { ${styleString} }\n`;
+                    }
+                }
+
                 const elements = document.querySelectorAll('.canvas-element');
                 const desktopStyles = new Map();
                 const tabletStyles = new Map();
@@ -1814,6 +1858,22 @@
                     this.reattachEventListeners();
                     this.updateLayersTree();
                 }
+            }
+
+            renderStyleManager() {
+                const list = document.getElementById('class-manager-list');
+                let html = '';
+                for (const className in this.globalStyles) {
+                    // Simple display for now; could be expanded to show rules
+                    html += `<div class="p-2 border rounded text-sm cursor-pointer hover:bg-gray-100">${className}</div>`;
+                }
+                list.innerHTML = html;
+            }
+
+            addNewGlobalClass(className) {
+                if (!className || this.globalStyles[className]) return;
+                this.globalStyles[className] = {}; // Initialize empty style object
+                this.renderStyleManager();
             }
         }
 
