@@ -521,7 +521,6 @@
                 const elementRect = this.selectedElement.getBoundingClientRect();
                 const scrollRect = scrollContainer.getBoundingClientRect();
 
-                // This is the correct calculation that accounts for scrolling
                 const top = elementRect.top - scrollRect.top + scrollContainer.scrollTop;
                 const left = elementRect.left - scrollRect.left + scrollContainer.scrollLeft;
 
@@ -532,14 +531,16 @@
                 selectionWrapper.classList.remove('hidden');
             }
 
-            setupResizing() {
+                        setupResizing() {
                 const selectionWrapper = document.getElementById('selection-wrapper');
                 selectionWrapper.querySelectorAll('.resizer').forEach(resizer => {
                     resizer.addEventListener('mousedown', (e) => {
                         e.preventDefault();
                         e.stopPropagation();
 
-                        if (this.selectedElement) this.selectedElement.draggable = false; // <-- ADD THIS LINE
+                        if (this.selectedElement) {
+                            this.selectedElement.draggable = false;
+                        }
 
                         this.isResizing = true;
                         this.resizerInitialPos = { x: e.clientX, y: e.clientY };
@@ -572,8 +573,10 @@
                         };
 
                         const handleMouseUp = () => {
-                            if (this.selectedElement) this.selectedElement.draggable = true; // <-- ADD THIS LINE
-                            
+                            if (this.selectedElement) {
+                                this.selectedElement.draggable = true;
+                            }
+
                             this.isResizing = false;
                             window.removeEventListener('mousemove', handleMouseMove);
                             window.removeEventListener('mouseup', handleMouseUp);
