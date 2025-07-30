@@ -549,12 +549,12 @@
             }
 
             repositionSelectionWrapper() {
+                const selectionWrapper = document.getElementById('selection-wrapper');
                 if (!this.selectedElement) {
-                    document.getElementById('selection-wrapper').classList.add('hidden');
+                    selectionWrapper.classList.add('hidden');
                     return;
                 }
 
-                const selectionWrapper = document.getElementById('selection-wrapper');
                 // Use the correct scroll area we identified earlier
                 const scrollContainer = document.getElementById('scroll-area'); 
                 
@@ -568,7 +568,8 @@
                 selectionWrapper.style.left = `${left}px`;
                 selectionWrapper.style.width = `${elementRect.width}px`;
                 selectionWrapper.style.height = `${elementRect.height}px`;
-                selectionWrapper.classList.remove('hidden');
+
+                // The line that forced it to be visible has been removed.
             }
 
                 setupResizing() {
@@ -642,10 +643,16 @@
                             if (this.selectedElement) {
                                 this.selectedElement.draggable = true;
                             }
-                            this.isResizing = false;
+                            this.isResizing = false; // Set resizing to false FIRST
                             window.removeEventListener('mousemove', handleMouseMove);
                             window.removeEventListener('mouseup', handleMouseUp);
                             this.saveToHistory();
+
+                            // Check if the mouse is still hovering the element. If not, hide the wrapper.
+                            const isHovering = this.selectedElement && this.selectedElement.matches(':hover');
+                            if (!isHovering) {
+                                document.getElementById('selection-wrapper').classList.add('hidden');
+                            }
                         };
 
                         window.addEventListener('mousemove', handleMouseMove);
@@ -1228,9 +1235,17 @@
                 element.appendChild(controls);
 
                 // Add event listeners
-                element.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.selectElement(element);
+                // --- HOVER LOGIC TO SHOW/HIDE RESIZERS ---
+                element.addEventListener('mouseenter', () => {
+                    if (element.classList.contains('selected')) {
+                        document.getElementById('selection-wrapper').classList.remove('hidden');
+                    }
+                });
+
+                element.addEventListener('mouseleave', () => {
+                    if (!this.isResizing) { // Don't hide if we are in the middle of resizing
+                        document.getElementById('selection-wrapper').classList.add('hidden');
+                    }
                 });
 
                 // Find drop position
@@ -2064,9 +2079,17 @@
                 const elements = [element, ...element.querySelectorAll('.canvas-element')];
                 elements.forEach(el => {
                     el.draggable = true;
-                    el.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        this.selectElement(el);
+                    // --- HOVER LOGIC TO SHOW/HIDE RESIZERS ---
+                    el.addEventListener('mouseenter', () => {
+                        if (el.classList.contains('selected')) {
+                            document.getElementById('selection-wrapper').classList.remove('hidden');
+                        }
+                    });
+
+                    el.addEventListener('mouseleave', () => {
+                        if (!this.isResizing) { // Don't hide if we are in the middle of resizing
+                            document.getElementById('selection-wrapper').classList.add('hidden');
+                        }
                     });
 
                     const controls = el.querySelector('.element-controls');
