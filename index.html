@@ -642,10 +642,23 @@
                 // Add controls
                 const controls = document.createElement('div');
                 controls.className = 'element-controls';
-                controls.innerHTML = `
-                    <i class="fas fa-edit mr-1 cursor-pointer" onclick="app.editElement(this.parentElement.parentElement)"></i>
-                    <i class="fas fa-trash cursor-pointer" onclick="app.deleteElement(this.parentElement.parentElement)"></i>
-                `;
+
+                const editBtn = document.createElement('i');
+                editBtn.className = 'fas fa-edit mr-1 cursor-pointer';
+                editBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.editElement(element);
+                });
+
+                const deleteBtn = document.createElement('i');
+                deleteBtn.className = 'fas fa-trash cursor-pointer';
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.deleteElement(element);
+                });
+
+                controls.appendChild(editBtn);
+                controls.appendChild(deleteBtn);
                 element.appendChild(controls);
 
                 // Add event listeners
@@ -1147,6 +1160,22 @@
                         e.stopPropagation();
                         this.selectElement(element);
                     });
+
+                    const editBtn = element.querySelector('.fa-edit');
+                    if (editBtn) {
+                        editBtn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            this.editElement(element);
+                        });
+                    }
+                    
+                    const deleteBtn = element.querySelector('.fa-trash');
+                    if (deleteBtn) {
+                        deleteBtn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            this.deleteElement(element);
+                        });
+                    }
                 });
             }
 
