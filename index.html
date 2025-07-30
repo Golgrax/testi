@@ -664,24 +664,24 @@
 
             initiateDrag(e, element) {
                 if (!element) return;
-                e.preventDefault(); // Prevent other browser actions
+                e.preventDefault();
                 e.stopPropagation();
+
+                // --- FIX: Hide the selection wrapper on drag start ---
+                const selectionWrapper = document.getElementById('selection-wrapper');
+                selectionWrapper.classList.add('hidden');
 
                 let needsPositionChange = false;
                 const positionType = window.getComputedStyle(element).position;
 
-                // If the element is part of the normal document flow,
-                // we need to switch it to 'relative' to allow top/left positioning.
                 if (positionType === 'static') {
-                    element.style.position = 'relative'; // Apply style directly for an immediate effect
+                    element.style.position = 'relative';
                     needsPositionChange = true;
                 }
 
                 const initialMouse = { x: e.clientX, y: e.clientY };
                 const zoom = parseFloat(document.getElementById('zoom-slider').value) / 100;
 
-                // Get the element's starting top/left from its inline style.
-                // If it was static, these will be empty and correctly default to 0.
                 const initialElementPos = {
                     left: parseFloat(element.style.left) || 0,
                     top: parseFloat(element.style.top) || 0
@@ -691,20 +691,23 @@
                     const dx = moveEvent.clientX - initialMouse.x;
                     const dy = moveEvent.clientY - initialMouse.y;
 
-                    // Calculate the new position based on the initial position plus the SCALED mouse movement.
                     const newLeft = initialElementPos.left + (dx / zoom);
                     const newTop = initialElementPos.top + (dy / zoom);
 
-                    // Update the live style and the selection wrapper
                     element.style.left = `${newLeft.toFixed(1)}px`;
                     element.style.top = `${newTop.toFixed(1)}px`;
-                    this.repositionSelectionWrapper();
+                    
+                    // We call this to update the wrapper's position in memory,
+                    // even though it's hidden. This prevents a jump when it reappears.
+                    this.repositionSelectionWrapper(); 
                 };
 
                 const handleMouseUp = () => {
                     window.removeEventListener('mousemove', handleMouseMove);
                     
-                    // Now we commit the changes to our data model for saving and history.
+                    // --- FIX: Show the wrapper again after drag ends ---
+                    selectionWrapper.classList.remove('hidden');
+
                     if (needsPositionChange) {
                         this.updateElementStyle('position', 'relative');
                     }
@@ -2085,7 +2088,7 @@
                     }
                 });
             }
-            
+
             export() {
                 const html = this.generatePreviewHTML();
                 const blob = new Blob([html], { type: 'text/html' });
