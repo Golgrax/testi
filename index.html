@@ -11,6 +11,13 @@
     <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
     <style>
 
+        /* Add this to your <style> block */
+        .layer-item.active-layer {
+            background-color: #dbeafe; /* A light blue color */
+            font-weight: 600;
+            color: #1e40af; /* A dark blue color */
+        }
+
         .canvas-element > img,
         .canvas-element > video {
             width: 100%;
@@ -89,7 +96,7 @@
             position: absolute;
             top: -30px;
             right: 0;
-            background: #ef4444;
+            background: #3b82f6;
             color: white;
             padding: 4px 8px;
             border-radius: 4px;
@@ -437,6 +444,15 @@
                 this.init();
             }
 
+            updateChildElementStyle(selector, property, value) {
+                if (!this.selectedElement) return;
+                const child = this.selectedElement.querySelector(selector);
+                if (child) {
+                    child.style[property] = value;
+                    this.saveToHistory();
+                }
+            }
+
             updateElementClasses(classString) {
                 if (!this.selectedElement) return;
                 // Keep our essential classes, but replace all user-defined ones
@@ -614,7 +630,7 @@
                         };
 
                         window.addEventListener('mousemove', handleMouseMove);
-                        window.addEventListener('mouseup', handleMouseUp);
+                        window.addEventListener('mouseup', handleMouseUp, { once: true });
                     });
                 });
             }
@@ -1226,6 +1242,11 @@
 
                 this.repositionSelectionWrapper();
                 this.updateBreadcrumbs();
+                document.querySelectorAll('.layer-item.active-layer').forEach(item => item.classList.remove('active-layer'));
+                const activeLayer = document.querySelector(`.layer-item[data-element-id="${element.dataset.elementId}"]`);
+                if (activeLayer) {
+                    activeLayer.classList.add('active-layer');
+                }
             }
 
             handleCanvasClick(e) {
@@ -1239,6 +1260,9 @@
                     document.getElementById('properties-panel').innerHTML = `...`;
                     this.repositionSelectionWrapper();
                     this.updateBreadcrumbs();
+                    // In the handleCanvasClick function, when deselecting...
+                    // ADD this line:
+                    document.querySelectorAll('.layer-item.active-layer').forEach(item => item.classList.remove('active-layer'));
                 }
             }
 
@@ -1249,16 +1273,45 @@
                 let specificProperties = '';
                 switch(componentType) {
                     case 'image':
+                    case 'video': // We can combine them since the properties are similar
+                        const elementContent = element.querySelector('img, video');
+                        const currentFit = elementContent ? elementContent.style.objectFit : 'cover';
+                        
                         specificProperties = `
+                                <div class="sidebar-section pb-4 mb-4">
+                                    <h4 class="font-medium mb-2">Effects</h4>
+                                    <div class="mb-2">
+                                        <label class="text-xs text-gray-600">Opacity</label>
+                                        <input type="range" min="0" max="1" step="0.01" class="w-full" 
+                                            value="${this.getCurrentStyle('opacity') || '1'}" 
+                                            oninput="app.updateElementStyle('opacity', this.value)">
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="text-xs text-gray-600">Box Shadow</label>
+                                        <input type="text" class="property-input" placeholder="e.g., 0px 10px 15px rgba(0,0,0,0.1)" value="${this.getCurrentStyle('boxShadow') || ''}" onchange="app.updateElementStyle('boxShadow', this.value)">
+                                    </div>
+                                </div>
                             <div class="sidebar-section pb-4 mb-4">
-                                <h4 class="font-medium mb-2">Image Settings</h4>
+                                <h4 class="font-medium mb-2">Media Settings</h4>
+                                ${componentType === 'image' ? `
                                 <div class="mb-2">
                                     <label class="text-xs text-gray-600">Image Source (URL)</label>
-                                    <input type="text" class="property-input" value="${element.querySelector('img')?.src || ''}" onchange="app.updateElementAttribute('src', this.value, 'img')">
+                                    <input type="text" class="property-input" value="${elementContent?.src || ''}" onchange="app.updateElementAttribute('src', this.value, 'img')">
                                 </div>
                                 <div>
                                     <label class="text-xs text-gray-600">Alt Text</label>
-                                    <input type="text" class="property-input" value="${element.querySelector('img')?.alt || ''}" onchange="app.updateElementAttribute('alt', this.value, 'img')">
+                                    <input type="text" class="property-input" value="${elementContent?.alt || ''}" onchange="app.updateElementAttribute('alt', this.value, 'img')">
+                                </div>
+                                ` : ''}
+
+                                <div class="mt-2">
+                                    <label class="text-xs text-gray-600">Content Fit</label>
+                                    <select class="property-input" onchange="app.updateChildElementStyle('img, video', 'objectFit', this.value)">
+                                        <option value="cover" ${currentFit === 'cover' ? 'selected' : ''}>Cover (No Distortion)</option>
+                                        <option value="contain" ${currentFit === 'contain' ? 'selected' : ''}>Contain (Show All)</option>
+                                        <option value="fill" ${currentFit === 'fill' ? 'selected' : ''}>Fill (Stretch)</option>
+                                        <option value="none" ${currentFit === 'none' ? 'selected' : ''}>None (Original Size)</option>
+                                    </select>
                                 </div>
                             </div>
                         `;
@@ -1624,18 +1677,24 @@
             }
 
             updateLayersTree() {
-                const tree = document.getElementById('layers-tree');
-                const canvas = document.getElementById('canvas');
-                tree.innerHTML = this.generateLayersHTML(canvas, 0);
+            const tree = document.getElementById('layers-tree');
+            const canvas = document.getElementById('canvas');
+            tree.innerHTML = this.generateLayersHTML(canvas, 0);
 
-                tree.querySelectorAll('.layer-item').forEach(item => {
-                    item.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        const elementId = item.dataset.elementId;
-                        this.selectElementById(elementId);
-                    });
+            // Add event listeners AFTER generating the HTML
+            tree.querySelectorAll('.layer-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const elementId = item.dataset.elementId;
+                    const elementToSelect = document.querySelector(`[data-element-id="${elementId}"]`);
+                    if (elementToSelect) {
+                        this.selectElement(elementToSelect);
+                        // Optional: scroll the element into view on the canvas
+                        elementToSelect.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
                 });
-            }
+            });
+        }
 
             generateLayersHTML(container, depth) {
                 let html = '';
