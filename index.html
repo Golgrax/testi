@@ -930,26 +930,8 @@
 
                     if (!this.draggedElement) return;
 
-                    if (this.draggedElement.type === 'reorder') {
-                        const dragged = this.draggedElement.element;
-                        const closestElement = e.target.closest('.canvas-element');
-                        const targetContainer = e.target.closest('.drop-zone') || canvas;
-
-                        if (closestElement && closestElement !== dragged) {
-                            const rect = closestElement.getBoundingClientRect();
-                            const position = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
-                            if (position === 'before') {
-                                closestElement.parentNode.insertBefore(dragged, closestElement);
-                            }
-                            else {
-                                closestElement.parentNode.insertBefore(dragged, closestElement.nextSibling);
-                            }
-                        } else if (targetContainer) {
-                            targetContainer.appendChild(dragged);
-                        }
-                        this.saveToHistory();
-                    } 
-                    else if (this.draggedElement.type === 'asset') {
+                    
+                    if (this.draggedElement.type === 'asset') {
                         const asset = this.assets.find(a => a.id === this.draggedElement.assetId);
                         if (!asset) return;
                         const targetEl = e.target.closest('.canvas-element');
@@ -1278,19 +1260,7 @@
                         const currentFit = elementContent ? elementContent.style.objectFit : 'cover';
                         
                         specificProperties = `
-                                <div class="sidebar-section pb-4 mb-4">
-                                    <h4 class="font-medium mb-2">Effects</h4>
-                                    <div class="mb-2">
-                                        <label class="text-xs text-gray-600">Opacity</label>
-                                        <input type="range" min="0" max="1" step="0.01" class="w-full" 
-                                            value="${this.getCurrentStyle('opacity') || '1'}" 
-                                            oninput="app.updateElementStyle('opacity', this.value)">
-                                    </div>
-                                    <div class="mb-2">
-                                        <label class="text-xs text-gray-600">Box Shadow</label>
-                                        <input type="text" class="property-input" placeholder="e.g., 0px 10px 15px rgba(0,0,0,0.1)" value="${this.getCurrentStyle('boxShadow') || ''}" onchange="app.updateElementStyle('boxShadow', this.value)">
-                                    </div>
-                                </div>
+                                
                             <div class="sidebar-section pb-4 mb-4">
                                 <h4 class="font-medium mb-2">Media Settings</h4>
                                 ${componentType === 'image' ? `
@@ -1516,7 +1486,21 @@
                                     <input type="text" class="property-input" value="${this.getCurrentStyle('gap') || '0px'}" onchange="app.updateElementStyle('gap', this.value)">
                                 </div>
                             </div>
+                            <div class="sidebar-section pb-4 mb-4">
+                            <h4 class="font-medium mb-2">Effects</h4>
+                             <div class="mb-2">
+                                <label class="text-xs text-gray-600">Opacity</label>
+                                <input type="range" min="0" max="1" step="0.01" class="w-full" 
+                                       value="${this.getCurrentStyle('opacity') || '1'}" 
+                                       oninput="app.updateElementStyle('opacity', this.value)">
+                            </div>
+                            <div class="mb-2">
+                                <label class="text-xs text-gray-600">Box Shadow</label>
+                                <input type="text" class="property-input" placeholder="e.g., 0px 10px 15px rgba(0,0,0,0.1)" value="${this.getCurrentStyle('boxShadow') || ''}" onchange="app.updateElementStyle('boxShadow', this.value)">
+                            </div>
                         </div>
+                        </div>
+                        
                         ` : ''}
                         <div class="sidebar-section pb-4 mb-4">
                             <h4 class="font-medium mb-2">Effects</h4>
