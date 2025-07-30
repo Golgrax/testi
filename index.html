@@ -133,6 +133,9 @@
             <div class="p-4 border-b">
                 <h1 class="text-xl font-bold text-gray-800">WebBuilder Pro</h1>
                 <div class="flex gap-2 mt-2">
+                    <button id="page-settings-btn" class="w-full text-left mt-3 text-sm text-gray-600 hover:text-blue-500">
+                        <i class="fas fa-cog mr-1"></i>Page Settings
+                    </button>
                     <button id="save-btn" class="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">
                         <i class="fas fa-save mr-1"></i>Save
                     </button>
@@ -400,6 +403,21 @@
                 this.init();
             }
 
+            updateElementClasses(classString) {
+                if (!this.selectedElement) return;
+                // Keep our essential classes, but replace all user-defined ones
+                this.selectedElement.className = 'canvas-element selected ' + classString.trim();
+                this.saveToHistory();
+            }
+
+            showNotification(message) {
+                const notification = document.createElement('div');
+                notification.className = 'fixed top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded shadow-lg z-50';
+                notification.textContent = message;
+                document.body.appendChild(notification);
+                return notification;
+            }
+
             hasBreakpointSpecificStyle(property) {
                 if (!this.selectedElement || this.currentBreakpoint === 'desktop') return false;
                 let styles = {};
@@ -546,6 +564,16 @@
                         const tab = e.target.dataset.tab;
                         this.switchTab(tab);
                     });
+
+                document.getElementById('page-settings-btn').addEventListener('click', () => {
+                    const canvasBody = document.getElementById('canvas-container');
+                    canvasBody.dataset.componentType = 'Page Body';
+                    if (!canvasBody.dataset.elementId) {
+                        canvasBody.dataset.elementId = this.generateId();
+                    }
+                    this.selectElement(canvasBody);
+                });
+
                 });
 
                 // Breakpoint switching
@@ -628,6 +656,32 @@
                         this.reattachEventListenersToElement(clone);
                         this.selectedElement.after(clone);
                         this.saveToHistory();
+                    };
+                    document.getElementById('context-copy').onclick = () => {
+                        if(this.selectedElement) {
+                            this.clipboard = {
+                                html: this.selectedElement.innerHTML,
+                                styles: this.selectedElement.dataset.styles,
+                                componentType: this.selectedElement.dataset.componentType
+                            };
+                            // Optional: give user feedback
+                            const notification = this.showNotification('Copied to clipboard!');
+                            setTimeout(() => notification.remove(), 2000);
+                        }
+                    };
+                    document.getElementById('context-paste').onclick = () => {
+                        if(this.clipboard && this.selectedElement) {
+                            const newElement = document.createElement('div');
+                            newElement.className = 'canvas-element';
+                            newElement.innerHTML = this.clipboard.html;
+                            newElement.dataset.styles = this.clipboard.styles;
+                            newElement.dataset.componentType = this.clipboard.componentType;
+                            newElement.dataset.elementId = this.generateId();
+                            
+                            this.reattachEventListenersToElement(newElement);
+                            this.selectedElement.after(newElement);
+                            this.saveToHistory();
+                        }
                     };
                     document.getElementById('context-delete').onclick = () => this.deleteElement(this.selectedElement);
                     // Copy/Paste actions can be added here later
@@ -1078,6 +1132,12 @@
 
                 let propertiesHTML = `
                     <div class="p-4">
+                        <div class="sidebar-section pb-4 mb-4">
+                            <h4 class="font-medium mb-2">CSS Classes</h4>
+                            <input type="text" id="class-input" class="property-input" placeholder="e.g. btn btn-primary" 
+                                value="${this.selectedElement.className.replace('canvas-element','').replace('selected','').trim()}"
+                                onchange="app.updateElementClasses(this.value)">
+                        </div>
                         <h3 class="font-semibold mb-4">${componentType.charAt(0).toUpperCase() + componentType.slice(1)} Properties</h3>
                         
                         <!-- Basic Properties -->
@@ -1094,23 +1154,25 @@
                                 </select>
                             </div>
                             <div class="grid grid-cols-2 gap-2 mb-2">
-                                <div>
+                                <div class="relative">
                                     <label class="text-xs text-gray-600">Width</label>
                                     <input type="text" class="property-input" value="${this.getCurrentStyle('width') || 'auto'}" onchange="app.updateElementStyle('width', this.value)">
+                                    ${this.hasBreakpointSpecificStyle('width') ? '<span class="responsive-indicator"></span>' : ''}
                                 </div>
-                                <div>
+                                <div class="relative">
                                     <label class="text-xs text-gray-600">Height</label>
                                     <input type="text" class="property-input" value="${this.getCurrentStyle('height') || 'auto'}" onchange="app.updateElementStyle('height', this.value)">
+                                    ${this.hasBreakpointSpecificStyle('height') ? '<span class="responsive-indicator"></span>' : ''}
                                 </div>
-                            </div>
-                            <div class="grid grid-cols-2 gap-2 mb-2">
-                                <div>
+                                <div class="relative">
                                     <label class="text-xs text-gray-600">Margin</label>
                                     <input type="text" class="property-input" value="${this.getCurrentStyle('margin') || '0'}" onchange="app.updateElementStyle('margin', this.value)">
+                                    ${this.hasBreakpointSpecificStyle('margin') ? '<span class="responsive-indicator"></span>' : ''}
                                 </div>
-                                <div>
+                                <div class="relative">
                                     <label class="text-xs text-gray-600">Padding</label>
                                     <input type="text" class="property-input" value="${this.getCurrentStyle('padding') || '0'}" onchange="app.updateElementStyle('padding', this.value)">
+                                    ${this.hasBreakpointSpecificStyle('padding') ? '<span class="responsive-indicator"></span>' : ''}
                                 </div>
                                 <div>
                                     <label class="text-xs text-gray-600">Border</label>
@@ -1124,15 +1186,15 @@
                         </div>
 
                         <!-- Typography -->
-                        <div class="mb-2"> <!-- Wrap it in a div -->
-                            <label class="text-xs text-gray-600">Font Family</label>
-                            <select class="property-input" onchange="app.updateElementStyle('fontFamily', this.value)">
-                                <option value="">Default</option>
-                                ${this.googleFonts.map(font => `<option value="'${font}', sans-serif" ${this.getCurrentStyle('fontFamily').includes(font) ? 'selected' : ''}>${font}</option>`).join('')}
-                            </select>
-                        </div>
                         <div class="sidebar-section pb-4 mb-4">
                             <h4 class="font-medium mb-2">Typography</h4>
+                            <div class="mb-2"> <!-- Wrap it in a div -->
+                                <label class="text-xs text-gray-600">Font Family</label>
+                                <select class="property-input" onchange="app.updateElementStyle('fontFamily', this.value)">
+                                    <option value="">Default</option>
+                                    ${this.googleFonts.map(font => `<option value="'${font}', sans-serif" ${this.getCurrentStyle('fontFamily').includes(font) ? 'selected' : ''}>${font}</option>`).join('')}
+                                </select>
+                            </div>
                             <div class="grid grid-cols-2 gap-2 mb-2">
                                 <div>
                                     <label class="text-xs text-gray-600">Font Size</label>
