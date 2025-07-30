@@ -679,14 +679,17 @@
                     top: parseFloat(element.style.top) || 0
                 };
 
+                // Get the zoom factor at the start of the drag
+                const zoom = parseFloat(document.getElementById('zoom-slider').value) / 100;
+
                 const handleMouseMove = (moveEvent) => {
                     // Calculate how far the mouse has moved from the starting point.
                     const dx = moveEvent.clientX - initialMouse.x;
                     const dy = moveEvent.clientY - initialMouse.y;
 
-                    // The new position is simply the original position plus the mouse's movement.
-                    const newLeft = initialElementPos.left + dx;
-                    const newTop = initialElementPos.top + dy;
+                    // The new position is the original position plus the SCALED mouse movement.
+                    const newLeft = initialElementPos.left + (dx / zoom);
+                    const newTop = initialElementPos.top + (dy / zoom);
                     
                     // Directly update the element's inline style for a live preview.
                     element.style.left = `${newLeft}px`;
@@ -708,7 +711,8 @@
                 window.addEventListener('mousemove', handleMouseMove);
                 window.addEventListener('mouseup', handleMouseUp, { once: true });
             }
-                setupEventListeners() {
+
+            setupEventListeners() {
                 this.clipboard = null;
                 // Tab switching
                 document.querySelectorAll('.tab-btn').forEach(btn => {
