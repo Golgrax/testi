@@ -8,6 +8,29 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
     <style>
+
+        #selection-wrapper {
+            border: 2px solid #3b82f6;
+        }
+        .resizer {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #3b82f6;
+            border: 1px solid white;
+            border-radius: 50%;
+            pointer-events: all;
+            transform: translate(-50%, -50%);
+        }
+        .resizer.top-left { top: 0; left: 0; cursor: nwse-resize; }
+        .resizer.top-right { top: 0; right: 0; cursor: nesw-resize; }
+        .resizer.bottom-left { bottom: 0; left: 0; cursor: nesw-resize; }
+        .resizer.bottom-right { bottom: 0; right: 0; cursor: nwse-resize; }
+        .resizer.top-center { top: 0; left: 50%; cursor: ns-resize; }
+        .resizer.bottom-center { bottom: 0; left: 50%; cursor: ns-resize; }
+        .resizer.left-center { top: 50%; left: 0; cursor: ew-resize; }
+        .resizer.right-center { top: 50%; right: 0; cursor: ew-resize; }
+
         .component-item {
             transition: all 0.2s ease;
         }
@@ -250,6 +273,17 @@
                 </div>
             </div>
 
+            <div id="selection-wrapper" class="hidden absolute pointer-events-none" style="z-index: 100;">
+                <div class="resizer top-left" data-resizer="top-left"></div>
+                <div class="resizer top-right" data-resizer="top-right"></div>
+                <div class="resizer bottom-left" data-resizer="bottom-left"></div>
+                <div class="resizer bottom-right" data-resizer="bottom-right"></div>
+                <div class="resizer top-center" data-resizer="top-center"></div>
+                <div class="resizer bottom-center" data-resizer="bottom-center"></div>
+                <div class="resizer left-center" data-resizer="left-center"></div>
+                <div class="resizer right-center" data-resizer="right-center"></div>
+            </div>
+
             <!-- Canvas Area -->
             <div class="flex-1 flex overflow-hidden">
                 <!-- Canvas Container -->
@@ -326,8 +360,56 @@
                 this.draggedElement = null;
                 this.codeEditor = null;
                 this.currentCodeTab = 'html';
-                
+                this.isResizing = false;
+                this.resizerInitialPos = {};
+                this.elementInitialSize = {};
                 this.init();
+            }
+
+            setupResizing() {
+                const selectionWrapper = document.getElementById('selection-wrapper');
+                selectionWrapper.querySelectorAll('.resizer').forEach(resizer => {
+                    resizer.addEventListener('mousedown', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        this.isResizing = true;
+                        this.resizerInitialPos = { x: e.clientX, y: e.clientY };
+                        
+                        const rect = this.selectedElement.getBoundingClientRect();
+                        this.elementInitialSize = { width: rect.width, height: rect.height };
+
+                        const handleMouseMove = (moveEvent) => {
+                            if (!this.isResizing) return;
+                            
+                            const dx = moveEvent.clientX - this.resizerInitialPos.x;
+                            const dy = moveEvent.clientY - this.resizerInitialPos.y;
+
+                            let newWidth = this.elementInitialSize.width;
+                            let newHeight = this.elementInitialSize.height;
+
+                            const direction = resizer.dataset.resizer;
+
+                            if (direction.includes('right')) newWidth += dx;
+                            if (direction.includes('left')) newWidth -= dx;
+                            if (direction.includes('bottom')) newHeight += dy;
+                            if (direction.includes('top')) newHeight -= dy;
+                            
+                            this.updateElementStyle('width', `${newWidth.toFixed(0)}px`);
+                            this.updateElementStyle('height', `${newHeight.toFixed(0)}px`);
+                        };
+
+                        const handleMouseUp = () => {
+                            this.isResizing = false;
+                            window.removeEventListener('mousemove', handleMouseMove);
+                            window.removeEventListener('mouseup', handleMouseUp);
+                            this.saveToHistory();
+                        };
+
+                        window.addEventListener('mousemove', handleMouseMove);
+                        window.addEventListener('mouseup', handleMouseUp);
+                    });
+                });
             }
 
             init() {
@@ -335,6 +417,7 @@
                 this.setupDragAndDrop();
                 this.loadComponents();
                 this.setupMonacoEditor();
+                this.setupResizing();
                 this.loadFromLocalStorage();
             }
 
@@ -386,6 +469,26 @@
                 // Canvas click
                 document.getElementById('canvas').addEventListener('click', (e) => {
                     this.handleCanvasClick(e);
+                });
+
+                document.getElementById('canvas').addEventListener('dblclick', (e) => {
+                    const target = e.target.closest('.canvas-element');
+                    if (!target) return;
+
+                    const textElement = target.querySelector('p, h1, h2, h3, h4, h5, h6, button, a, span');
+                    if (textElement && !textElement.isContentEditable) {
+                        e.stopPropagation();
+                        this.selectElement(target);
+
+                        textElement.contentEditable = true;
+                        textElement.focus();
+                        
+                        textElement.addEventListener('blur', () => {
+                            textElement.contentEditable = false;
+                            this.saveToHistory();
+                            this.showProperties(target);
+                        }, { once: true });
+                    }
                 });
 
                 // Keyboard shortcuts
@@ -768,22 +871,43 @@
             }
 
             selectElement(element) {
-                // Remove previous selection
-                document.querySelectorAll('.canvas-element.selected').forEach(el => {
-                    el.classList.remove('selected');
-                });
+                if (this.selectedElement === element) return;
 
-                // Select new element
+                if (this.selectedElement) {
+                    this.selectedElement.classList.remove('selected');
+                }
+
                 element.classList.add('selected');
                 this.selectedElement = element;
                 this.showProperties(element);
+
+                const selectionWrapper = document.getElementById('selection-wrapper');
+                const canvasContainer = document.querySelector('.flex-1.p-4.overflow-auto');
+                const rect = element.getBoundingClientRect();
+                const parentRect = canvasContainer.getBoundingClientRect();
+
+                selectionWrapper.style.top = (rect.top - parentRect.top + canvasContainer.scrollTop) + 'px';
+                selectionWrapper.style.left = (rect.left - parentRect.left + canvasContainer.scrollLeft) + 'px';
+                selectionWrapper.style.width = rect.width + 'px';
+                selectionWrapper.style.height = rect.height + 'px';
+                selectionWrapper.classList.remove('hidden');
+            }
+
+            handleCanvasClick(e) {
+                if (e.target.id === 'canvas' || e.target.closest('.mx-auto.bg-white')) {
+                    if (this.selectedElement) {
+                        this.selectedElement.classList.remove('selected');
+                    }
+                    this.selectedElement = null;
+                    document.getElementById('properties-panel').innerHTML = `...`;
+                    document.getElementById('selection-wrapper').classList.add('hidden');
+                }
             }
 
             showProperties(element) {
                 const panel = document.getElementById('properties-panel');
                 const componentType = element.dataset.componentType;
                 
-                // --- THIS BLOCK IS NEW ---
                 let specificProperties = '';
                 switch(componentType) {
                     case 'image':
@@ -813,6 +937,16 @@
                         <!-- Basic Properties -->
                         <div class="sidebar-section pb-4 mb-4">
                             <h4 class="font-medium mb-2">Layout</h4>
+                            <!-- Display property -->
+                            <div class="mb-2">
+                                <label class="text-xs text-gray-600">Display</label>
+                                <select class="property-input" onchange="app.updateElementStyle('display', this.value)">
+                                    <option value="block" ${element.style.display === 'block' ? 'selected' : ''}>Block</option>
+                                    <option value="flex" ${element.style.display === 'flex' ? 'selected' : ''}>Flex</option>
+                                    <option value="inline-block" ${element.style.display === 'inline-block' ? 'selected' : ''}>Inline Block</option>
+                                    <option value="none" ${element.style.display === 'none' ? 'selected' : ''}>None</option>
+                                </select>
+                            </div>
                             <div class="grid grid-cols-2 gap-2 mb-2">
                                 <div>
                                     <label class="text-xs text-gray-600">Width</label>
@@ -885,6 +1019,44 @@
 
                         <!-- This is where the new properties will be injected -->
                         ${specificProperties}
+
+                        <!-- Flexbox section (only if display: flex) -->
+                        ${element.style.display === 'flex' ? `
+                        <div class="sidebar-section pb-4 mb-4">
+                            <h4 class="font-medium mb-2">Flexbox</h4>
+                            <div class="grid grid-cols-2 gap-2 mb-2">
+                                <div>
+                                    <label class="text-xs text-gray-600">Direction</label>
+                                    <select class="property-input" onchange="app.updateElementStyle('flexDirection', this.value)">
+                                        <option value="row" ${element.style.flexDirection === 'row' ? 'selected' : ''}>Row</option>
+                                        <option value="column" ${element.style.flexDirection === 'column' ? 'selected' : ''}>Column</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-600">Justify Content</label>
+                                    <select class="property-input" onchange="app.updateElementStyle('justifyContent', this.value)">
+                                        <option value="flex-start" ${element.style.justifyContent === 'flex-start' ? 'selected' : ''}>Start</option>
+                                        <option value="center" ${element.style.justifyContent === 'center' ? 'selected' : ''}>Center</option>
+                                        <option value="flex-end" ${element.style.justifyContent === 'flex-end' ? 'selected' : ''}>End</option>
+                                        <option value="space-between" ${element.style.justifyContent === 'space-between' ? 'selected' : ''}>Space Between</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-600">Align Items</label>
+                                    <select class="property-input" onchange="app.updateElementStyle('alignItems', this.value)">
+                                        <option value="stretch" ${element.style.alignItems === 'stretch' ? 'selected' : ''}>Stretch</option>
+                                        <option value="flex-start" ${element.style.alignItems === 'flex-start' ? 'selected' : ''}>Start</option>
+                                        <option value="center" ${element.style.alignItems === 'center' ? 'selected' : ''}>Center</option>
+                                        <option value="flex-end" ${element.style.alignItems === 'flex-end' ? 'selected' : ''}>End</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-600">Gap</label>
+                                    <input type="text" class="property-input" value="${element.style.gap || '0px'}" onchange="app.updateElementStyle('gap', this.value)">
+                                </div>
+                            </div>
+                        </div>
+                        ` : ''}
                     </div>
                 `;
 
