@@ -627,6 +627,47 @@
                 this.loadFromLocalStorage();
             }
 
+            initiateDrag(e, element) {
+                if (!element) return;
+                
+                const positionType = window.getComputedStyle(element).position;
+                if (positionType === 'static') {
+                    this.updateElementStyle('position', 'relative');
+                }
+
+                const initialMouse = { x: e.clientX, y: e.clientY };
+                
+                const initialElementPos = {
+                    left: parseFloat(element.style.left) || 0,
+                    top: parseFloat(element.style.top) || 0
+                };
+
+                const handleMouseMove = (moveEvent) => {
+                    const dx = moveEvent.clientX - initialMouse.x;
+                    const dy = moveEvent.clientY - initialMouse.y;
+
+                    const newLeft = initialElementPos.left + dx;
+                    const newTop = initialElementPos.top + dy;
+                    
+                    element.style.left = `${newLeft}px`;
+                    element.style.top = `${newTop}px`;
+                    
+                    this.repositionSelectionWrapper();
+                };
+
+                const handleMouseUp = () => {
+                    window.removeEventListener('mousemove', handleMouseMove);
+                    window.removeEventListener('mouseup', handleMouseUp);
+                    
+                    this.updateElementStyle('left', element.style.left);
+                    this.updateElementStyle('top', element.style.top);
+                    this.saveToHistory();
+                };
+
+                window.addEventListener('mousemove', handleMouseMove);
+                window.addEventListener('mouseup', handleMouseUp, { once: true });
+            }
+
             setupEventListeners() {
                 this.clipboard = null;
                 // Tab switching
@@ -834,18 +875,6 @@
                 const canvas = document.getElementById('canvas');
                 const dropIndicator = document.getElementById('drop-indicator');
 
-                canvas.addEventListener('dragstart', (e) => {
-                    const target = e.target.closest('.canvas-element');
-                    if (target) {
-                        e.stopPropagation();
-                        this.draggedElement = {
-                            type: 'reorder',
-                            element: target
-                        };
-                        e.dataTransfer.effectAllowed = 'move';
-                        setTimeout(() => target.classList.add('opacity-50'), 0);
-                    }
-                });
 
                 canvas.addEventListener('dragover', (e) => {
                     e.preventDefault();
@@ -1137,6 +1166,13 @@
                 const controls = document.createElement('div');
                 controls.className = 'element-controls';
 
+                const moveBtn = document.createElement('i');
+                moveBtn.className = 'fas fa-arrows-alt mr-2 cursor-move'; // Adds the icon and move cursor
+                moveBtn.addEventListener('mousedown', (e) => {
+                    e.stopPropagation();
+                    this.initiateDrag(e, element); // This will be our new drag function
+                });
+
                 const editBtn = document.createElement('i');
                 editBtn.className = 'fas fa-edit mr-1 cursor-pointer';
                 editBtn.addEventListener('click', (e) => {
@@ -1151,6 +1187,7 @@
                     this.deleteElement(element);
                 });
 
+                controls.appendChild(moveBtn);
                 controls.appendChild(editBtn);
                 controls.appendChild(deleteBtn);
                 element.appendChild(controls);
