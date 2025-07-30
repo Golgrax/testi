@@ -718,6 +718,7 @@
                     const dy = moveEvent.clientY - initialMouse.y;
                     element.style.left = `${initialElementPos.left + (dx / zoom)}px`;
                     element.style.top = `${initialElementPos.top + (dy / zoom)}px`;
+                    // While dragging, we don't need to reposition the (hidden) wrapper
                 };
 
                 const handleMouseUp = () => {
@@ -726,12 +727,14 @@
                     this.updateElementStyle('left', element.style.left);
                     this.updateElementStyle('top', element.style.top);
                     this.saveToHistory();
+                    // After dropping, reposition the wrapper for the next selection
+                    this.repositionSelectionWrapper();
                 };
 
                 window.addEventListener('mousemove', handleMouseMove);
                 window.addEventListener('mouseup', handleMouseUp, { once: true });
             }
-
+            
             setupEventListeners() {
                 this.clipboard = null;
                 // Tab switching
@@ -1230,7 +1233,7 @@
             }
 
             selectElement(element) {
-                if (this.selectedElement === element) return; // Already selected, do nothing.
+                if (this.selectedElement === element) return; // If clicking the same element, do nothing. Edit mode is handled separately.
 
                 const selectionWrapper = document.getElementById('selection-wrapper');
 
@@ -1238,7 +1241,7 @@
                 if (this.selectedElement) {
                     this.selectedElement.classList.remove('selected', 'is-editing');
                     const oldEditIcon = this.selectedElement.querySelector('.fa-check');
-                    if(oldEditIcon) oldEditIcon.classList.replace('fa-check', 'fa-edit');
+                    if (oldEditIcon) oldEditIcon.classList.replace('fa-check', 'fa-edit');
                 }
                 // --- END RESET ---
 
@@ -1249,7 +1252,7 @@
                 // Update all UI elements based on this new, clean state
                 this.showProperties(element);
                 this.repositionSelectionWrapper();
-                selectionWrapper.classList.add('hidden'); // Always start hidden
+                selectionWrapper.classList.add('hidden'); // Wrapper is ALWAYS hidden on a fresh select
                 this.updateBreadcrumbs();
                 
                 document.querySelectorAll('.layer-item.active-layer').forEach(item => item.classList.remove('active-layer'));
@@ -1670,19 +1673,22 @@
 
             editElement(element) {
                 if (!element) return;
-                this.selectElement(element);
                 
+                // First, ensure the element is the currently selected one.
+                this.selectElement(element); 
+                
+                // Now, toggle the editing state
                 element.classList.toggle('is-editing');
                 
                 const selectionWrapper = document.getElementById('selection-wrapper');
-                const editIcon = element.querySelector('.fa-edit');
+                const editIcon = element.querySelector('.fa-edit, .fa-check');
 
                 if (element.classList.contains('is-editing')) {
                     selectionWrapper.classList.remove('hidden');
-                    if(editIcon) editIcon.classList.replace('fa-edit', 'fa-check'); // UI Feedback
+                    if (editIcon) editIcon.classList.replace('fa-edit', 'fa-check'); // Visual feedback: ON
                 } else {
                     selectionWrapper.classList.add('hidden');
-                    if(editIcon) editIcon.classList.replace('fa-check', 'fa-edit'); // UI Feedback
+                    if (editIcon) editIcon.classList.replace('fa-check', 'fa-edit'); // Visual feedback: OFF
                 }
                 this.repositionSelectionWrapper();
             }
