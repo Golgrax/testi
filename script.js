@@ -10,7 +10,8 @@ document.addEventListener('DOMContentLoaded', () => {
             'gjs-blocks-basic',
             'grapesjs-plugin-forms',
             'grapesjs-plugin-export',
-            'grapesjs-component-code-editor' // <-- ADD THIS
+            'grapesjs-component-code-editor', // <-- ADD THIS
+            'grapesjs-component-toolbar'
         ],
         pluginsOpts: {
             'grapesjs-preset-webpage': {
