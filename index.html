@@ -458,140 +458,6 @@
                 this.init();
             }
 
-            getInnermostTextElement(element) {
-                if (!element) return null;
-                return element.querySelector('p, h1, h2, h3, h4, h5, h6, button, a, span');
-            }
-
-            // ADD THIS ENTIRE NEW METHOD
-            // REPLACE the entire old method with this one.
-            bindInteractiveEvents(el) {
-                el.addEventListener('mousedown', (e) => {
-                    // Ignore clicks on resizers or controls
-                    if (e.button !== 0 || e.target.classList.contains('resizer') || e.target.closest('.element-controls')) {
-                        return;
-                    }
-                    e.stopPropagation();
-                    
-                    // First, select the element
-                    this.selectElement(el);
-
-                    // Then, prepare for dragging
-                    e.preventDefault();
-                    const zoom = parseFloat(document.getElementById('zoom-slider').value) / 100;
-                    const initialMouseX = e.clientX;
-                    const initialMouseY = e.clientY;
-                    const initialStyleTop = parseFloat(el.style.top) || 0;
-                    const initialStyleLeft = parseFloat(el.style.left) || 0;
-
-                    const onDragMove = (moveEvent) => {
-                        const dx = (moveEvent.clientX - initialMouseX) / zoom;
-                        const dy = (moveEvent.clientY - initialMouseY) / zoom;
-                        el.style.top = (initialStyleTop + dy) + 'px';
-                        el.style.left = (initialStyleLeft + dx) + 'px';
-                        this.updateSelectionBox();
-                    };
-
-                    const onDragEnd = () => {
-                        document.removeEventListener('mousemove', onDragMove);
-                        document.removeEventListener('mouseup', onDragEnd);
-                        this.updateElementStyle('top', el.style.top);
-                        this.updateElementStyle('left', el.style.left);
-                        this.saveToHistory();
-                    };
-
-                    document.addEventListener('mousemove', onDragMove);
-                    document.addEventListener('mouseup', onDragEnd);
-                });
-            }
-            
-            setupResizing() {
-                const selectionBox = document.getElementById('selection-box');
-                const resizers = selectionBox.querySelectorAll('.resizer');
-                let initialRect;
-                let currentResizer;
-
-                const onResizeMouseDown = (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    currentResizer = e.target;
-                    this.isResizing = true;
-                    initialRect = this.selectedElement.getBoundingClientRect();
-
-                    document.addEventListener('mousemove', onResizeMouseMove);
-                    document.addEventListener('mouseup', onResizeMouseUp);
-                };
-
-                const onResizeMouseMove = (e) => {
-                    if (!this.isResizing || !this.selectedElement) return;
-
-                    const style = this.selectedElement.style;
-                    const zoom = parseFloat(document.getElementById('zoom-slider').value) / 100;
-
-                    const deltaX = (e.clientX - initialRect.left) / zoom;
-                    const deltaY = (e.clientY - initialRect.top) / zoom;
-                    const startX = e.clientX;
-                    const startY = e.clientY;
-
-
-                    if (currentResizer.classList.contains('bottom-right')) {
-                        style.width = initialRect.width / zoom + (e.clientX - initialRect.right) / zoom + 'px';
-                        style.height = initialRect.height / zoom + (e.clientY - initialRect.bottom) / zoom + 'px';
-                    } else if (currentResizer.classList.contains('bottom-left')) {
-                        style.width = initialRect.width / zoom - (e.clientX - initialRect.left) / zoom + 'px';
-                        style.height = initialRect.height / zoom + (e.clientY - initialRect.bottom) / zoom + 'px';
-                        style.left = initialRect.left + (e.clientX - initialRect.left) + 'px';
-                    } else if (currentResizer.classList.contains('top-right')) {
-                        style.width = initialRect.width / zoom + (e.clientX - initialRect.right) / zoom + 'px';
-                        style.height = initialRect.height / zoom - (e.clientY - initialRect.top) / zoom + 'px';
-                        style.top = initialRect.top + (e.clientY - initialRect.top) + 'px';
-                    } else if (currentResizer.classList.contains('top-left')) {
-                        style.width = initialRect.width / zoom - (e.clientX - initialRect.left) / zoom + 'px';
-                        style.height = initialRect.height / zoom - (e.clientY - initialRect.top) / zoom + 'px';
-                        style.left = initialRect.left + (e.clientX - initialRect.left) + 'px';
-                        style.top = initialRect.top + (e.clientY - initialRect.top) + 'px';
-                    } else if (currentResizer.classList.contains('top-center')) {
-                        style.height = initialRect.height / zoom - (e.clientY - initialRect.top) / zoom + 'px';
-                        style.top = initialRect.top + (e.clientY - initialRect.top) + 'px';
-                    } else if (currentResizer.classList.contains('bottom-center')) {
-                        style.height = initialRect.height / zoom + (e.clientY - initialRect.bottom) / zoom + 'px';
-                    } else if (currentResizer.classList.contains('middle-left')) {
-                        style.width = initialRect.width / zoom - (e.clientX - initialRect.left) / zoom + 'px';
-                        style.left = initialRect.left + (e.clientX - initialRect.left) + 'px';
-                    } else if (currentResizer.classList.contains('middle-right')) {
-                        style.width = initialRect.width / zoom + (e.clientX - initialRect.right) / zoom + 'px';
-                    }
-                    this.updateSelectionBox(); // Update the box position as we resize
-                };
-
-                const onResizeMouseUp = () => {
-                    this.isResizing = false;
-                    document.removeEventListener('mousemove', onResizeMouseMove);
-                    document.removeEventListener('mouseup', onResizeMouseUp);
-                    this.saveToHistory();
-                };
-
-                resizers.forEach(resizer => {
-                    resizer.addEventListener('mousedown', onResizeMouseDown);
-                });
-            }
-
-            updateSelectionBox() {
-                const selectionBox = document.getElementById('selection-box');
-                if (!this.selectedElement) {
-                    selectionBox.classList.remove('active');
-                    return;
-                }
-                const rect = this.selectedElement.getBoundingClientRect();
-                const canvasRect = document.getElementById('scroll-area').getBoundingClientRect();
-
-                selectionBox.style.left = (rect.left - canvasRect.left + document.getElementById('scroll-area').scrollLeft) + 'px';
-                selectionBox.style.top = (rect.top - canvasRect.top + document.getElementById('scroll-area').scrollTop) + 'px';
-                selectionBox.style.width = rect.width + 'px';
-                selectionBox.style.height = rect.height + 'px';
-                selectionBox.classList.add('active');
-            }
-
             updateChildElementStyle(selector, property, value) {
                 if (!this.selectedElement) return;
                 const child = this.selectedElement.querySelector(selector);
@@ -687,9 +553,79 @@
                 this.setupDragAndDrop();
                 this.loadComponents();
                 this.setupMonacoEditor();
-                this.setupResizing();
+            //    this.setupResizing();
                 this.loadFromLocalStorage();
             }
+
+            _bindElementEvents(el){
+                // add 4 corner handles
+                ['nw','ne','sw','se'].forEach(pos=>{
+                    const h=document.createElement('div');
+                    h.className=`gjs-resizer ${pos}`;
+                    el.appendChild(h);
+                });
+
+                // click-to-select
+                el.addEventListener('click', e=>{
+                    e.stopPropagation();
+                    document.querySelectorAll('.canvas-element').forEach(x=>x.classList.remove('selected'));
+                    el.classList.add('selected');
+                    this.selectedElement = el;
+                    this.showProperties(el);
+                });
+
+                // instant grab-and-move
+                el.addEventListener('mousedown', e=>{
+                    if (e.target.classList.contains('gjs-resizer')) return;
+                    e.preventDefault();
+                    const sx=e.clientX, sy=e.clientY;
+                    const sl=parseFloat(el.style.left)||0, st=parseFloat(el.style.top)||0;
+                    const z=parseFloat(document.getElementById('zoom-slider').value)/100;
+                    const onMove = ev=>{
+                    el.style.left = sl+(ev.clientX-sx)/z+'px';
+                    el.style.top  = st+(ev.clientY-sy)/z+'px';
+                    };
+                    const onUp = ()=>{
+                    document.removeEventListener('mousemove',onMove);
+                    document.removeEventListener('mouseup',onUp);
+                    this.saveToHistory();
+                    };
+                    document.addEventListener('mousemove',onMove);
+                    document.addEventListener('mouseup',onUp);
+                });
+
+                // live corner resize
+                el.querySelectorAll('.gjs-resizer').forEach(h=>{
+                    h.addEventListener('mousedown', e=>{
+                    e.stopPropagation();
+                    const sx=e.clientX, sy=e.clientY;
+                    const rect=el.getBoundingClientRect();
+                    const z=parseFloat(document.getElementById('zoom-slider').value)/100;
+                    const w0=rect.width/z, h0=rect.height/z;
+                    const l0=parseFloat(el.style.left)||0, t0=parseFloat(el.style.top)||0;
+
+                    const onMove = ev=>{
+                        const dx=(ev.clientX-sx)/z, dy=(ev.clientY-sy)/z;
+                        let w=w0, h=h0, l=l0, t=t0;
+                        if(h.classList.contains('se')){ w=w0+dx; h=h0+dy; }
+                        if(h.classList.contains('sw')){ w=w0-dx; h=h0+dy; l=l0+dx; }
+                        if(h.classList.contains('ne')){ w=w0+dx; h=h0-dy; t=t0+dy; }
+                        if(h.classList.contains('nw')){ w=w0-dx; h=h0-dy; l=l0+dx; t=t0+dy; }
+                        el.style.width  = Math.max(10,w)+'px';
+                        el.style.height = Math.max(10,h)+'px';
+                        el.style.left   = l+'px';
+                        el.style.top    = t+'px';
+                    };
+                    const onUp = ()=>{
+                        document.removeEventListener('mousemove',onMove);
+                        document.removeEventListener('mouseup',onUp);
+                        this.saveToHistory();
+                    };
+                    document.addEventListener('mousemove',onMove);
+                    document.addEventListener('mouseup',onUp);
+                    });
+                });
+                }
             
             setupEventListeners() {
                 this.clipboard = null;
@@ -859,42 +795,8 @@
 
                 // Keyboard shortcuts
                 document.addEventListener('keydown', (e) => {
-                    // --- START ADDING/MODIFYING HERE ---
-
-                    // 1. Check for a selected element first
-                    if (this.selectedElement && !e.target.matches('input, textarea')) {
-                        // Prevent browser default action for arrow keys when an element is selected
-                        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-                             e.preventDefault();
-                        }
-
-                        // Arrow Key Movement
-                        const moveAmount = e.shiftKey ? 10 : 1; // Move by 10px if Shift is held
-                        switch(e.key) {
-                            case 'ArrowUp':
-                                this.selectedElement.style.top = (parseFloat(this.selectedElement.style.top) || 0) - moveAmount + 'px';
-                                break;
-                            case 'ArrowDown':
-                                this.selectedElement.style.top = (parseFloat(this.selectedElement.style.top) || 0) + moveAmount + 'px';
-                                break;
-                            case 'ArrowLeft':
-                                this.selectedElement.style.left = (parseFloat(this.selectedElement.style.left) || 0) - moveAmount + 'px';
-                                break;
-                            case 'ArrowRight':
-                                this.selectedElement.style.left = (parseFloat(this.selectedElement.style.left) || 0) + moveAmount + 'px';
-                                break;
-                        }
-                        // Update the selection box after moving
-                        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-                            this.updateSelectionBox();
-                            // We can choose to save on every move, or on mouseup after moving. For simplicity, we save now.
-                            this.saveToHistory();
-                        }
-                    }
-
-                    // 2. Handle Ctrl/Meta key combinations
                     if (e.ctrlKey || e.metaKey) {
-                        switch(e.key.toLowerCase()) { // Use toLowerCase to catch 'd' and 'D'
+                        switch(e.key) {
                             case 'z':
                                 e.preventDefault();
                                 if (e.shiftKey) {
@@ -907,30 +809,11 @@
                                 e.preventDefault();
                                 this.save();
                                 break;
-                            // Add new case for Duplication
-                            // Replace this entire case block
-                            case 'd':
-                                e.preventDefault();
-                                if (this.selectedElement) {
-                                    const clone = this.selectedElement.cloneNode(true);
-                                    clone.dataset.elementId = this.generateId();
-                                    
-                                    // Apply styles AND BIND EVENTS to the new clone
-                                    this.applyAllStyles(clone); 
-                                    this.bindInteractiveEvents(clone);
-
-                                    this.selectedElement.after(clone);
-                                    this.selectElement(clone); // Select the new element
-                                    this.saveToHistory();
-                                }
-                                break;
-
                         }
                     }
                     if (e.key === 'Delete' && this.selectedElement) {
                         this.deleteElement(this.selectedElement);
                     }
-                    // --- END ADDING/MODIFYING HERE ---
                 });
 
                 document.getElementById('add-class-btn').addEventListener('click', () => {
@@ -1210,36 +1093,21 @@
                 document.getElementById('zoom-display').textContent = `${zoom}%`;
             }
 
-                        // REPLACE the entire old method with this one.
             addComponent(componentType, event) {
                 const component = this.components.get(componentType);
                 if (!component) return;
 
+
                 const element = document.createElement('div');
                 element.className = 'canvas-element';
+                element.style.position = 'absolute';
                 element.innerHTML = component.html;
                 element.dataset.componentType = componentType;
                 element.dataset.elementId = this.generateId();
-
-                // --- NEW POSITIONING LOGIC STARTS HERE ---
-                const canvasRect = document.getElementById('canvas').getBoundingClientRect();
-                const scrollArea = document.getElementById('scroll-area');
-                const zoom = parseFloat(document.getElementById('zoom-slider').value) / 100;
-
-                // Calculate drop position relative to the canvas
-                const dropX = (event.clientX - canvasRect.left) / zoom;
-                const dropY = (event.clientY - canvasRect.top) / zoom;
-
-                element.style.position = 'absolute';
-                element.style.left = dropX + 'px';
-                element.style.top = dropY + 'px';
-                // --- NEW POSITIONING LOGIC ENDS HERE ---
+                element.draggable = true;
 
                 if (component.defaultStyles) {
-                    // Apply default styles, but don't override our new position
                     Object.assign(element.style, component.defaultStyles);
-                    element.style.left = dropX + 'px';
-                    element.style.top = dropY + 'px';
                 }
 
                 const controls = document.createElement('div');
@@ -1247,50 +1115,65 @@
                 controls.innerHTML = `<i class="fas fa-trash cursor-pointer" onclick="event.stopPropagation(); app.deleteElement(this.closest('.canvas-element'))"></i>`;
                 element.appendChild(controls);
 
-                this.bindInteractiveEvents(element);
+                // Use our new central function to add all events
+                this._bindElementEvents(element);
 
+                // Find drop position and append
                 let targetContainer = event.target.closest('.drop-zone') || document.getElementById('canvas');
-                targetContainer.appendChild(element);
-                
-                // Select the new element immediately after adding it
-                this.selectElement(element);
+                targetContainer.appendChild(element); // This MUST be before selectElement
 
                 this.saveToHistory();
                 this.updateLayersTree();
             }
-            
 
             selectElement(element) {
-                if (this.isResizing) return;
-                if (this.selectedElement) {
-                    this.selectedElement.classList.remove('selected');
-                }
+                if (this.selectedElement === element) return; 
 
+                const selectionWrapper = document.getElementById('selection-wrapper');
+
+                // --- CRITICAL: Fully reset the PREVIOUSLY selected element ---
+                if (this.selectedElement) {
+                    this.selectedElement.classList.remove('selected', 'is-editing');
+                    this.selectedElement.draggable = true; // Ensure it's always draggable when not selected
+                    const oldEditIcon = this.selectedElement.querySelector('.fa-check');
+                    if (oldEditIcon) oldEditIcon.classList.replace('fa-check', 'fa-edit');
+                }
+                // --- END RESET ---
+
+                // Select the new element in a clean state
+                element.classList.add('selected');
+                document.getElementById('selection-wrapper').classList.add('hidden');
                 this.selectedElement = element;
-                this.selectedElement.classList.add('selected');
                 
                 this.showProperties(element);
+                selectionWrapper.classList.add('hidden'); 
                 this.updateBreadcrumbs();
-                this.updateSelectionBox();
-
+                
                 document.querySelectorAll('.layer-item.active-layer').forEach(item => item.classList.remove('active-layer'));
                 const activeLayer = document.querySelector(`.layer-item[data-element-id="${element.dataset.elementId}"]`);
                 if (activeLayer) activeLayer.classList.add('active-layer');
             }
-            
+
             handleCanvasClick(e) {
-                if (e.target.closest('.canvas-element')) return;
+                // If the click is on any element or its controls, do nothing.
+                if (e.target.closest('.canvas-element, .element-controls')) return;
+                selectionWrapper.classList.remove('hidden');
 
                 if (this.selectedElement) {
-                    this.selectedElement.classList.remove('selected');
+                    // Fully reset the element's state when deselecting.
+                    this.selectedElement.classList.remove('selected', 'is-editing');
+                    const oldEditIcon = this.selectedElement.querySelector('.fa-check');
+                    if(oldEditIcon) oldEditIcon.classList.replace('fa-check', 'fa-edit');
                     this.selectedElement = null;
                 }
                 
+                // Reset the entire UI to its default state.
                 document.getElementById('properties-panel').innerHTML = `<div class="p-4 text-center text-gray-500"><i class="fas fa-mouse-pointer text-3xl mb-2 block"></i><p>Select an element to edit its properties</p></div>`;
-                this.updateSelectionBox(); // This will hide the box
+                document.getElementById('selection-wrapper').classList.add('hidden');
                 this.updateBreadcrumbs();
                 document.querySelectorAll('.layer-item.active-layer').forEach(item => item.classList.remove('active-layer'));
-            }            
+            }
+            
             showProperties(element) {
                 const panel = document.getElementById('properties-panel');
                 const componentType = element.dataset.componentType;
@@ -1358,7 +1241,7 @@
                             <!-- Display property -->
                             <div class="mb-2">
                                 <label class="text-xs text-gray-600">Display</label>
-                                <select class="property-input" oninput="app.updateElementStyle('display', this.value)">
+                                <select class="property-input" onchange="app.updateElementStyle('display', this.value)">
                                     <option value="block" ${this.getCurrentStyle('display') === 'block' ? 'selected' : ''}>Block</option>
                                     <option value="flex" ${this.getCurrentStyle('display') === 'flex' ? 'selected' : ''}>Flex</option>
                                     <option value="inline-block" ${this.getCurrentStyle('display') === 'inline-block' ? 'selected' : ''}>Inline Block</option>
@@ -1368,38 +1251,38 @@
                             <div class="grid grid-cols-2 gap-2 mb-2">
                                 <div class="relative">
                                     <label class="text-xs text-gray-600">Width</label>
-                                    <input type="text" class="property-input" value="${this.getCurrentStyle('width') || 'auto'}" oninput="app.updateElementStyle('width', this.value)">
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('width') || 'auto'}" onchange="app.updateElementStyle('width', this.value)">
                                     ${this.hasBreakpointSpecificStyle('width') ? '<span class="responsive-indicator"></span>' : ''}
                                 </div>
                                 <div class="relative">
                                     <label class="text-xs text-gray-600">Height</label>
-                                    <input type="text" class="property-input" value="${this.getCurrentStyle('height') || 'auto'}" oninput="app.updateElementStyle('height', this.value)">
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('height') || 'auto'}" onchange="app.updateElementStyle('height', this.value)">
                                     ${this.hasBreakpointSpecificStyle('height') ? '<span class="responsive-indicator"></span>' : ''}
                                 </div>
                                 <div class="relative">
                                     <label class="text-xs text-gray-600">Margin</label>
-                                    <input type="text" class="property-input" value="${this.getCurrentStyle('margin') || '0'}" oninput="app.updateElementStyle('margin', this.value)">
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('margin') || '0'}" onchange="app.updateElementStyle('margin', this.value)">
                                     ${this.hasBreakpointSpecificStyle('margin') ? '<span class="responsive-indicator"></span>' : ''}
                                 </div>
                                 <div class="relative">
                                     <label class="text-xs text-gray-600">Padding</label>
-                                    <input type="text" class="property-input" value="${this.getCurrentStyle('padding') || '0'}" oninput="app.updateElementStyle('padding', this.value)">
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('padding') || '0'}" onchange="app.updateElementStyle('padding', this.value)">
                                     ${this.hasBreakpointSpecificStyle('padding') ? '<span class="responsive-indicator"></span>' : ''}
                                 </div>
                                 <div>
                                     <label class="text-xs text-gray-600">Border</label>
-                                    <input type="text" class="property-input" value="${this.getCurrentStyle('border') || 'none'}" oninput="app.updateElementStyle('border', this.value)">
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('border') || 'none'}" onchange="app.updateElementStyle('border', this.value)">
                                 </div>
                                 <div>
                                     <label class="text-xs text-gray-600">Radius</label>
-                                    <input type="text" class="property-input" value="${this.getCurrentStyle('borderRadius') || '0'}" oninput="app.updateElementStyle('borderRadius', this.value)">
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('borderRadius') || '0'}" onchange="app.updateElementStyle('borderRadius', this.value)">
                                 </div>
                             </div>
                             <div class="border-t pt-2 mt-2">
                                 <h5 class="text-xs font-bold mb-1">Positioning</h5>
                                 <div class="mb-2">
                                     <label class="text-xs text-gray-600">Position</label>
-                                    <select class="property-input" oninput="app.updateElementStyle('position', this.value)">
+                                    <select class="property-input" onchange="app.updateElementStyle('position', this.value)">
                                         <option value="static" ${this.getCurrentStyle('position') === 'static' ? 'selected' : ''}>Static</option>
                                         <option value="relative" ${this.getCurrentStyle('position') === 'relative' ? 'selected' : ''}>Relative</option>
                                         <option value="absolute" ${this.getCurrentStyle('position') === 'absolute' ? 'selected' : ''}>Absolute</option>
@@ -1410,23 +1293,23 @@
                                 <div class="grid grid-cols-2 gap-2">
                                     <div>
                                         <label class="text-xs text-gray-600">Top</label>
-                                        <input type="text" class="property-input" value="${this.getCurrentStyle('top') || ''}" oninput="app.updateElementStyle('top', this.value)">
+                                        <input type="text" class="property-input" value="${this.getCurrentStyle('top') || ''}" onchange="app.updateElementStyle('top', this.value)">
                                     </div>
                                     <div>
                                         <label class="text-xs text-gray-600">Left</label>
-                                        <input type="text" class="property-input" value="${this.getCurrentStyle('left') || ''}" oninput="app.updateElementStyle('left', this.value)">
+                                        <input type="text" class="property-input" value="${this.getCurrentStyle('left') || ''}" onchange="app.updateElementStyle('left', this.value)">
                                     </div>
                                     <div>
                                         <label class="text-xs text-gray-600">Right</label>
-                                        <input type="text" class="property-input" value="${this.getCurrentStyle('right') || ''}" oninput="app.updateElementStyle('right', this.value)">
+                                        <input type="text" class="property-input" value="${this.getCurrentStyle('right') || ''}" onchange="app.updateElementStyle('right', this.value)">
                                     </div>
                                     <div>
                                         <label class="text-xs text-gray-600">Bottom</label>
-                                        <input type="text" class="property-input" value="${this.getCurrentStyle('bottom') || ''}" oninput="app.updateElementStyle('bottom', this.value)">
+                                        <input type="text" class="property-input" value="${this.getCurrentStyle('bottom') || ''}" onchange="app.updateElementStyle('bottom', this.value)">
                                     </div>
                                     <div>
                                         <label class="text-xs text-gray-600">Z-Index</label>
-                                        <input type="number" class="property-input" value="${this.getCurrentStyle('zIndex') || ''}" oninput="app.updateElementStyle('zIndex', this.value)">
+                                        <input type="number" class="property-input" value="${this.getCurrentStyle('zIndex') || ''}" onchange="app.updateElementStyle('zIndex', this.value)">
                                     </div>
                                 </div>
                             </div>
@@ -1437,7 +1320,7 @@
                             <h4 class="font-medium mb-2">Typography</h4>
                             <div class="mb-2"> <!-- Wrap it in a div -->
                                 <label class="text-xs text-gray-600">Font Family</label>
-                                <select class="property-input" oninput="app.updateElementStyle('fontFamily', this.value)">
+                                <select class="property-input" onchange="app.updateElementStyle('fontFamily', this.value)">
                                     <option value="">Default</option>
                                     ${this.googleFonts.map(font => `<option value="'${font}', sans-serif" ${this.getCurrentStyle('fontFamily').includes(font) ? 'selected' : ''}>${font}</option>`).join('')}
                                 </select>
@@ -1445,11 +1328,11 @@
                             <div class="grid grid-cols-2 gap-2 mb-2">
                                 <div>
                                     <label class="text-xs text-gray-600">Font Size</label>
-                                    <input type="text" class="property-input" value="${this.getCurrentStyle('fontSize') || '16px'}" oninput="app.updateElementStyle('fontSize', this.value)">
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('fontSize') || '16px'}" onchange="app.updateElementStyle('fontSize', this.value)">
                                 </div>
                                 <div>
                                     <label class="text-xs text-gray-600">Font Weight</label>
-                                    <select class="property-input" oninput="app.updateElementStyle('fontWeight', this.value)">
+                                    <select class="property-input" onchange="app.updateElementStyle('fontWeight', this.value)">
                                         <option value="normal" ${this.getCurrentStyle('fontWeight') === 'normal' ? 'selected' : ''}>Normal</option>
                                         <option value="bold" ${this.getCurrentStyle('fontWeight') === 'bold' ? 'selected' : ''}>Bold</option>
                                         <option value="lighter" ${this.getCurrentStyle('fontWeight') === 'lighter' ? 'selected' : ''}>Lighter</option>
@@ -1458,7 +1341,7 @@
                             </div>
                             <div class="mb-2">
                                 <label class="text-xs text-gray-600">Color</label>
-                                <input type="color" class="property-input" value="${this.rgbToHex(this.getCurrentStyle('color')) || '#333333'}" oninput="app.updateElementStyle('color', this.value)">
+                                <input type="color" class="property-input" value="${this.rgbToHex(this.getCurrentStyle('color')) || '#333333'}" onchange="app.updateElementStyle('color', this.value)">
                             </div>
                         </div>
 
@@ -1467,20 +1350,20 @@
                             <h4 class="font-medium mb-2">Background</h4>
                             <div class="mb-2">
                                 <label class="text-xs text-gray-600">Background Color</label>
-                                <input type="color" class="property-input" value="${this.rgbToHex(this.getCurrentStyle('backgroundColor')) || '#ffffff'}" oninput="app.updateElementStyle('backgroundColor', this.value)">
+                                <input type="color" class="property-input" value="${this.rgbToHex(this.getCurrentStyle('backgroundColor')) || '#ffffff'}" onchange="app.updateElementStyle('backgroundColor', this.value)">
                             </div>
                             <div class="mb-2">
                                 <label class="text-xs text-gray-600">Background Image (URL or Gradient)</label>
-                                <input type="text" class="property-input" placeholder="url(...) or linear-gradient(...)" value="${this.getCurrentStyle('backgroundImage') || ''}" oninput="app.updateElementStyle('backgroundImage', this.value)">
+                                <input type="text" class="property-input" placeholder="url(...) or linear-gradient(...)" value="${this.getCurrentStyle('backgroundImage') || ''}" onchange="app.updateElementStyle('backgroundImage', this.value)">
                             </div>
                             <div class="grid grid-cols-2 gap-2">
                                 <div>
                                     <label class="text-xs text-gray-600">Size</label>
-                                    <input type="text" class="property-input" placeholder="cover, contain, 100%" value="${this.getCurrentStyle('backgroundSize') || 'auto'}" oninput="app.updateElementStyle('backgroundSize', this.value)">
+                                    <input type="text" class="property-input" placeholder="cover, contain, 100%" value="${this.getCurrentStyle('backgroundSize') || 'auto'}" onchange="app.updateElementStyle('backgroundSize', this.value)">
                                 </div>
                                 <div>
                                     <label class="text-xs text-gray-600">Position</label>
-                                    <input type="text" class="property-input" placeholder="center, top left" value="${this.getCurrentStyle('backgroundPosition') || 'center'}" oninput="app.updateElementStyle('backgroundPosition', this.value)">
+                                    <input type="text" class="property-input" placeholder="center, top left" value="${this.getCurrentStyle('backgroundPosition') || 'center'}" onchange="app.updateElementStyle('backgroundPosition', this.value)">
                                 </div>
                             </div>
                         </div>
@@ -1488,7 +1371,7 @@
                         <!-- Content Editing -->
                         <div class="sidebar-section pb-4 mb-4">
                             <h4 class="font-medium mb-2">Content</h4>
-                            <textarea class="property-input h-20" placeholder="Edit content..." oninput="app.updateElementContent(this.value)">${this.getElementText(element)}</textarea>
+                            <textarea class="property-input h-20" placeholder="Edit content..." onchange="app.updateElementContent(this.value)">${this.getElementText(element)}</textarea>
                         </div>
 
                         <!-- This is where the new properties will be injected -->
@@ -1501,14 +1384,14 @@
                             <div class="grid grid-cols-2 gap-2 mb-2">
                                 <div>
                                     <label class="text-xs text-gray-600">Direction</label>
-                                    <select class="property-input" oninput="app.updateElementStyle('flexDirection', this.value)">
+                                    <select class="property-input" onchange="app.updateElementStyle('flexDirection', this.value)">
                                         <option value="row" ${this.getCurrentStyle('flexDirection') === 'row' ? 'selected' : ''}>Row</option>
                                         <option value="column" ${this.getCurrentStyle('flexDirection') === 'column' ? 'selected' : ''}>Column</option>
                                     </select>
                                 </div>
                                 <div>
                                     <label class="text-xs text-gray-600">Justify Content</label>
-                                    <select class="property-input" oninput="app.updateElementStyle('justifyContent', this.value)">
+                                    <select class="property-input" onchange="app.updateElementStyle('justifyContent', this.value)">
                                         <option value="flex-start" ${this.getCurrentStyle('justifyContent') === 'flex-start' ? 'selected' : ''}>Start</option>
                                         <option value="center" ${this.getCurrentStyle('justifyContent') === 'center' ? 'selected' : ''}>Center</option>
                                         <option value="flex-end" ${this.getCurrentStyle('justifyContent') === 'flex-end' ? 'selected' : ''}>End</option>
@@ -1517,7 +1400,7 @@
                                 </div>
                                 <div>
                                     <label class="text-xs text-gray-600">Align Items</label>
-                                    <select class="property-input" oninput="app.updateElementStyle('alignItems', this.value)">
+                                    <select class="property-input" onchange="app.updateElementStyle('alignItems', this.value)">
                                         <option value="stretch" ${this.getCurrentStyle('alignItems') === 'stretch' ? 'selected' : ''}>Stretch</option>
                                         <option value="flex-start" ${this.getCurrentStyle('alignItems') === 'flex-start' ? 'selected' : ''}>Start</option>
                                         <option value="center" ${this.getCurrentStyle('alignItems') === 'center' ? 'selected' : ''}>Center</option>
@@ -1526,7 +1409,7 @@
                                 </div>
                                 <div>
                                     <label class="text-xs text-gray-600">Gap</label>
-                                    <input type="text" class="property-input" value="${this.getCurrentStyle('gap') || '0px'}" oninput="app.updateElementStyle('gap', this.value)">
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('gap') || '0px'}" onchange="app.updateElementStyle('gap', this.value)">
                                 </div>
                             </div>
                             <div class="sidebar-section pb-4 mb-4">
@@ -1539,7 +1422,7 @@
                             </div>
                             <div class="mb-2">
                                 <label class="text-xs text-gray-600">Box Shadow</label>
-                                <input type="text" class="property-input" placeholder="e.g., 0px 10px 15px rgba(0,0,0,0.1)" value="${this.getCurrentStyle('boxShadow') || ''}" oninput="app.updateElementStyle('boxShadow', this.value)">
+                                <input type="text" class="property-input" placeholder="e.g., 0px 10px 15px rgba(0,0,0,0.1)" value="${this.getCurrentStyle('boxShadow') || ''}" onchange="app.updateElementStyle('boxShadow', this.value)">
                             </div>
                         </div>
                         </div>
@@ -1549,18 +1432,18 @@
                             <h4 class="font-medium mb-2">Effects</h4>
                             <div class="mb-2">
                                 <label class="text-xs text-gray-600">Box Shadow</label>
-                                <input type="text" class="property-input" placeholder="e.g., 0px 10px 15px rgba(0,0,0,0.1)" value="${this.getCurrentStyle('boxShadow') || ''}" oninput="app.updateElementStyle('boxShadow', this.value)">
+                                <input type="text" class="property-input" placeholder="e.g., 0px 10px 15px rgba(0,0,0,0.1)" value="${this.getCurrentStyle('boxShadow') || ''}" onchange="app.updateElementStyle('boxShadow', this.value)">
                             </div>
                         </div>
                         <div class="sidebar-section pb-4 mb-4">
                             <h4 class="font-medium mb-2">Transitions & Transforms</h4>
                             <div class="mb-2">
                                 <label class="text-xs text-gray-600">Transition</label>
-                                <input type="text" class="property-input" placeholder="e.g., all 0.3s ease" value="${this.getCurrentStyle('transition') || ''}" oninput="app.updateElementStyle('transition', this.value)">
+                                <input type="text" class="property-input" placeholder="e.g., all 0.3s ease" value="${this.getCurrentStyle('transition') || ''}" onchange="app.updateElementStyle('transition', this.value)">
                             </div>
                             <div class="mb-2">
                                 <label class="text-xs text-gray-600">Transform</label>
-                                <input type="text" class="property-input" placeholder="e.g., scale(1.1) rotate(5deg)" value="${this.getCurrentStyle('transform') || ''}" oninput="app.updateElementStyle('transform', this.value)">
+                                <input type="text" class="property-input" placeholder="e.g., scale(1.1) rotate(5deg)" value="${this.getCurrentStyle('transform') || ''}" onchange="app.updateElementStyle('transform', this.value)">
                             </div>
                         </div>
                     </div>
@@ -1579,106 +1462,57 @@
                 }
             }
 
-            // REPLACE the entire old method with this one.
+            // MODIFY this entire function
             updateElementStyle(property, value) {
                 if (!this.selectedElement) return;
 
-                const typographyProps = ['color', 'fontFamily', 'fontSize', 'fontWeight', 'textAlign', 'lineHeight'];
                 let styles = {};
                 try {
                     styles = JSON.parse(this.selectedElement.dataset.styles || '{}');
                 } catch (e) { styles = {}; }
 
-                // Ensure state and breakpoint objects exist
                 if (!styles[this.currentState]) styles[this.currentState] = {};
                 if (!styles[this.currentState][this.currentBreakpoint]) styles[this.currentState][this.currentBreakpoint] = {};
 
                 styles[this.currentState][this.currentBreakpoint][property] = value;
-                
+
                 if (property === 'fontFamily' && value) {
                     this.loadGoogleFont(value.split(',')[0].replace(/'/g, ''));
                 }
 
                 this.selectedElement.dataset.styles = JSON.stringify(styles);
-                
-                // --- INTELLIGENT STYLE APPLICATION ---
-                const targetTextElement = this.getInnermostTextElement(this.selectedElement);
-                if (typographyProps.includes(property) && targetTextElement) {
-                    // If it's a typography property, apply it to the inner text element
-                    targetTextElement.style[property] = value;
-                } else {
-                    // Otherwise, apply it to the main container
-                    this.selectedElement.style[property] = value;
-                }
-                
-                this.applyAllStyles(this.selectedElement); // Re-apply all styles for consistency
-                this.updateSelectionBox(); // Update box in case width/height changed
-                this.saveToHistory();
+
+                this.applyAllStyles(this.selectedElement);
             }
             
-            // REPLACE the entire old method with this one.
             applyAllStyles(element) {
-                if (!element || !element.dataset.styles) return;
-
-                const typographyProps = ['color', 'fontFamily', 'fontSize', 'fontWeight', 'textAlign', 'lineHeight'];
-
-                // Get the main container and the inner text element
-                const mainContainer = element;
-                const textElement = this.getInnermostTextElement(element);
-
-                // Clear previous inline styles to start fresh
-                mainContainer.style.cssText = '';
-                if (textElement) {
-                    textElement.style.cssText = '';
-                }
+                // Clear all previous inline styles to start fresh
+                element.style.cssText = '';
 
                 let allStylesData = {};
                 try {
+                    // Load the entire style object (which includes 'base', 'hover', etc.)
                     allStylesData = JSON.parse(element.dataset.styles || '{}');
                 } catch (e) { return; }
 
+                // Specifically get the 'base' styles, which are the default
                 const baseStyles = allStylesData['base'] || {};
-                const hoverStyles = allStylesData['hover'] || {};
 
-                // Function to apply a set of styles (base or hover)
-                const applySet = (styleSet) => {
-                    const desktop = styleSet['desktop'] || {};
-                    const tablet = styleSet['tablet'] || {};
-                    const mobile = styleSet['mobile'] || {};
+                // Apply styles in the correct cascading order
+                // 1. Always start with desktop base styles
+                Object.assign(element.style, baseStyles['desktop'] || {});
 
-                    let styleObjects = [desktop];
-                    if (this.currentBreakpoint === 'tablet' || this.currentBreakpoint === 'mobile') {
-                        styleObjects.push(tablet);
-                    }
-                    if (this.currentBreakpoint === 'mobile') {
-                        styleObjects.push(mobile);
-                    }
-
-                    for (const styles of styleObjects) {
-                        for (const prop in styles) {
-                            if (typographyProps.includes(prop) && textElement) {
-                                textElement.style[prop] = styles[prop];
-                            } else {
-                                mainContainer.style[prop] = styles[prop];
-                            }
-                        }
-                    }
-                };
-
-                // 1. Apply base styles
-                applySet(baseStyles);
+                // 2. If on tablet, apply tablet styles over desktop ones
+                if (this.currentBreakpoint === 'tablet') {
+                    Object.assign(element.style, baseStyles['tablet'] || {});
+                }
                 
-                // 2. Setup live hover preview
-                mainContainer.removeEventListener('mouseenter', mainContainer.applyHoverStyles);
-                mainContainer.removeEventListener('mouseleave', mainContainer.revertToBaseStyles);
-
-                mainContainer.applyHoverStyles = () => applySet(hoverStyles);
-                mainContainer.revertToBaseStyles = () => applySet(baseStyles);
-                
-                mainContainer.addEventListener('mouseenter', mainContainer.applyHoverStyles);
-                mainContainer.addEventListener('mouseleave', mainContainer.revertToBaseStyles);
+                // 3. If on mobile, apply tablet styles, then mobile styles to override
+                if (this.currentBreakpoint === 'mobile') {
+                    Object.assign(element.style, baseStyles['tablet'] || {});
+                    Object.assign(element.style, baseStyles['mobile'] || {});
+                }
             }
-
             updateElementContent(content) {
                 if (this.selectedElement) {
                     const textElement = this.selectedElement.querySelector('p, h1, h2, h3, h4, h5, h6, button, label');
