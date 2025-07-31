@@ -13,10 +13,35 @@
 
         .selection-box {
             position: absolute;
-            border: 2px solid #3b82f6;
-            pointer-events: none; /* The box itself shouldn't be interactive */
+            border: 2px solid #3b82f6; /* This is now the EDITING border */
+            pointer-events: none;
             z-index: 100;
-            display: none; /* Initially hidden */
+            display: none;
+        }
+        
+        .selection-box.active {
+            display: block;
+        }
+
+        /* Hide the main border when NOT editing, it will just be a container for resizers */
+        .selection-box:not(.is-editing) {
+            border-color: transparent;
+        }
+        
+        /* Hide resizer handles by default */
+        .resizer {
+            display: none;
+        }
+        
+        /* Show resizer handles ONLY when in edit mode */
+        .selection-box.is-editing .resizer {
+            display: block;
+        }
+
+        /* Show a simple outline for a selected element */
+        .canvas-element.selected {
+            outline: 2px solid #3b82f6;
+            outline-offset: 2px;
         }
 
         .selection-box.active {
