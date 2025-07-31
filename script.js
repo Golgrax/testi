@@ -1758,8 +1758,7 @@ class WebBuilderPro {
     }
 }
 
-// Initialize the application
-const app = new WebBuilderPro();
-
-// Make app globally accessible for onclick handlers
-window.app = app;
+document.addEventListener('DOMContentLoaded', () => {
+    const app = new WebBuilderPro();
+    window.app = app;
+});
