@@ -476,36 +476,48 @@
                 });
 
                 // 2. Drag to Move
-                el.addEventListener('mousedown', (e) => {
-                    if (e.button !== 0 || e.target.classList.contains('resizer')) {
-                        return;
-                    }
-                    e.preventDefault();
-                    e.stopPropagation();
+                            // REPLACE the entire "Drag to Move" event listener with this corrected version.
+            // 2. Drag to Move
+            el.addEventListener('mousedown', (e) => {
+                if (e.button !== 0 || e.target.classList.contains('resizer') || e.target.closest('.element-controls')) {
+                    return;
+                }
+                e.preventDefault();
+                e.stopPropagation();
 
-                    const initialX = e.clientX;
-                    const initialY = e.clientY;
-                    const initialTop = el.offsetTop;
-                    const initialLeft = el.offsetLeft;
-                    const zoom = parseFloat(document.getElementById('zoom-slider').value) / 100;
+                const zoom = parseFloat(document.getElementById('zoom-slider').value) / 100;
+                
+                // --- CORRECTION STARTS HERE ---
+                const initialMouseX = e.clientX;
+                const initialMouseY = e.clientY;
+                // We MUST get the position from the element's inline style, not offsetTop/Left,
+                // because offsetTop/Left can be relative to a positioned parent, causing jumps.
+                const initialStyleTop = parseFloat(el.style.top) || 0;
+                const initialStyleLeft = parseFloat(el.style.left) || 0;
+                // --- CORRECTION ENDS HERE ---
 
-                    const onDragMove = (moveEvent) => {
-                        const dx = (moveEvent.clientX - initialX) / zoom;
-                        const dy = (moveEvent.clientY - initialY) / zoom;
-                        el.style.top = (initialTop + dy) + 'px';
-                        el.style.left = (initialLeft + dx) + 'px';
-                        this.updateSelectionBox();
-                    };
+                const onDragMove = (moveEvent) => {
+                    // --- CORRECTION STARTS HERE ---
+                    const dx = (moveEvent.clientX - initialMouseX) / zoom;
+                    const dy = (moveEvent.clientY - initialMouseY) / zoom;
+                    el.style.top = (initialStyleTop + dy) + 'px';
+                    el.style.left = (initialStyleLeft + dx) + 'px';
+                    // --- CORRECTION ENDS HERE ---
+                    this.updateSelectionBox();
+                };
 
-                    const onDragEnd = () => {
-                        document.removeEventListener('mousemove', onDragMove);
-                        document.removeEventListener('mouseup', onDragEnd);
-                        this.saveToHistory();
-                    };
+                const onDragEnd = () => {
+                    document.removeEventListener('mousemove', onDragMove);
+                    document.removeEventListener('mouseup', onDragEnd);
+                    // Crucially, update the data-styles so the position is saved correctly
+                    this.updateElementStyle('top', el.style.top);
+                    this.updateElementStyle('left', el.style.left);
+                    this.saveToHistory();
+                };
 
-                    document.addEventListener('mousemove', onDragMove);
-                    document.addEventListener('mouseup', onDragEnd);
-                });
+                document.addEventListener('mousemove', onDragMove);
+                document.addEventListener('mouseup', onDragEnd);
+            });
             }
 
             setupResizing() {
@@ -1662,7 +1674,7 @@
                 mainContainer.addEventListener('mouseenter', mainContainer.applyHoverStyles);
                 mainContainer.addEventListener('mouseleave', mainContainer.revertToBaseStyles);
             }
-            
+
             updateElementContent(content) {
                 if (this.selectedElement) {
                     const textElement = this.selectedElement.querySelector('p, h1, h2, h3, h4, h5, h6, button, label');
