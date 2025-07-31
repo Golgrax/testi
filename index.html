@@ -10,22 +10,19 @@
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
     <style>
-        /* --- CORE INTERACTION STYLES --- */
+
         .selection-box {
             position: absolute;
-            border: 2px solid #3b82f6; /* Border for EDIT mode */
-            pointer-events: none;
+            border: 2px solid #3b82f6;
+            pointer-events: none; /* The box itself shouldn't be interactive */
             z-index: 100;
-            display: none;
+            display: none; /* Initially hidden */
         }
+
         .selection-box.active {
             display: block;
         }
-        /* Hide the border when just selecting (not editing) */
-        .selection-box:not(.is-editing) {
-            border-color: transparent;
-        }
-        /* Resizer handles (dots) */
+
         .resizer {
             position: absolute;
             width: 10px;
@@ -33,21 +30,10 @@
             background: #3b82f6;
             border: 1px solid white;
             border-radius: 50%;
-            pointer-events: all;
+            pointer-events: all; /* Resizers MUST be interactive */
             z-index: 101;
-            display: none; /* Hidden by default */
-        }
-        /* Show resizers ONLY when in edit mode */
-        .selection-box.is-editing .resizer {
-            display: block;
-        }
-        /* Simple outline for a selected element */
-        .canvas-element.selected {
-            outline: 2px solid #3b82f6;
-            outline-offset: 1px;
         }
 
-        /* --- Resizer Positions --- */
         .resizer.top-left { top: -5px; left: -5px; cursor: nwse-resize; }
         .resizer.top-center { top: -5px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
         .resizer.top-right { top: -5px; right: -5px; cursor: nesw-resize; }
@@ -57,34 +43,40 @@
         .resizer.bottom-center { bottom: -5px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
         .resizer.bottom-right { bottom: -5px; right: -5px; cursor: nwse-resize; }
 
-        /* --- GENERAL UI STYLES --- */
         .canvas-element .element-controls {
-            position: absolute;
-            top: -25px;
-            right: 0;
-            color: #fff;
-            background: #3b82f6;
-            padding: 2px 5px;
-            border-radius: 3px;
-            font-size: 12px;
-            z-index: 11;
-            display: none; /* Controlled by selection */
-        }
-        .canvas-element.selected .element-controls {
-            display: block;
-        }
+        position: absolute;
+        top: -20px;
+        right: 0;
+        color: #fff;
+        background: #3b82f6;
+        padding: 2px 5px;
+        border-radius: 3px;
+        font-size: 12px;
+        z-index: 11;
+    }
+
+
+        .canvas-element:hover{border-color:#3b82f6;}
+
+        /* Add this to your <style> block */
         .layer-item.active-layer {
-            background-color: #dbeafe;
+            background-color: #dbeafe; /* A light blue color */
             font-weight: 600;
-            color: #1e40af;
+            color: #1e40af; /* A dark blue color */
         }
+
         .canvas-element > img,
         .canvas-element > video {
             width: 100%;
             height: 100%;
-            display: block;
-            object-fit: cover;
+            display: block; /* Removes extra space below the element */
+            object-fit: cover; /* Prevents stretching and distortion */
         }
+
+        #scroll-area {
+            position: relative;
+        }
+
         .responsive-indicator {
             position: absolute;
             left: -12px;
@@ -95,6 +87,7 @@
             background-color: #3b82f6;
             border-radius: 50%;
         }
+
         .context-menu-item {
             padding: 6px 12px;
             cursor: pointer;
@@ -103,6 +96,11 @@
         .context-menu-item:hover {
             background-color: #f3f4f6;
         }
+
+        .canvas-element.selected {
+            background: rgba(59, 130, 246, 0.05);
+        }
+
         .component-item {
             transition: all 0.2s ease;
         }
@@ -111,7 +109,13 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
         .canvas-element {
-            position: relative; /* Must be relative for children, but will be absolute in canvas */
+            position: relative;
+            border: 2px dashed transparent;
+            transition: all 0.2s ease;
+        }
+        .canvas-element.selected {
+            border-color: transparent;
+            background: rgba(59, 130, 246, 0.1);
         }
         .drop-zone {
             min-height: 100px;
@@ -154,556 +158,1983 @@
 <body class="bg-gray-100 font-sans overflow-hidden">
     <!-- Main Container -->
     <div id="app" class="flex h-screen">
-        <!-- Left Sidebar -->
+        <!-- Left Sidebar - Components & Layers -->
         <div class="w-80 bg-white shadow-lg flex flex-col">
             <!-- Header -->
             <div class="p-4 border-b">
                 <h1 class="text-xl font-bold text-gray-800">WebBuilder Pro</h1>
                 <div class="flex gap-2 mt-2">
-                    <button id="page-settings-btn" class="w-full text-left mt-3 text-sm text-gray-600 hover:text-blue-500"><i class="fas fa-cog mr-1"></i>Page Settings</button>
-                    <button id="save-btn" class="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"><i class="fas fa-save mr-1"></i>Save</button>
-                    <button id="export-btn" class="px-3 py-1 bg-green-500 text-white rounded text-sm hover:bg-green-600"><i class="fas fa-download mr-1"></i>Export</button>
-                    <button id="undo-btn" class="px-3 py-1 bg-gray-500 text-white rounded text-sm hover:bg-gray-600"><i class="fas fa-undo mr-1"></i>Undo</button>
-                    <button id="redo-btn" class="px-3 py-1 bg-gray-500 text-white rounded text-sm hover:bg-gray-600"><i class="fas fa-redo mr-1"></i>Redo</button>
+                    <button id="page-settings-btn" class="w-full text-left mt-3 text-sm text-gray-600 hover:text-blue-500">
+                        <i class="fas fa-cog mr-1"></i>Page Settings
+                    </button>
+                    <button id="save-btn" class="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">
+                        <i class="fas fa-save mr-1"></i>Save
+                    </button>
+                    <button id="export-btn" class="px-3 py-1 bg-green-500 text-white rounded text-sm hover:bg-green-600">
+                        <i class="fas fa-download mr-1"></i>Export
+                    </button>
+                    <button id="undo-btn" class="px-3 py-1 bg-gray-500 text-white rounded text-sm hover:bg-gray-600">
+                        <i class="fas fa-undo mr-1"></i>Undo
+                    </button>
+                    <button id="redo-btn" class="px-3 py-1 bg-gray-500 text-white rounded text-sm hover:bg-gray-600">
+                        <i class="fas fa-redo mr-1"></i>Redo
+                    </button>
                 </div>
             </div>
+
             <!-- Tabs -->
             <div class="flex border-b">
-                <button class="tab-btn flex-1 py-2 px-4 text-sm font-medium active" data-tab="components"><i class="fas fa-cubes mr-1"></i>Components</button>
-                <button class="tab-btn flex-1 py-2 px-4 text-sm font-medium" data-tab="layers"><i class="fas fa-layer-group mr-1"></i>Layers</button>
-                <button class="tab-btn flex-1 py-2 px-4 text-sm font-medium" data-tab="assets"><i class="fas fa-images mr-1"></i>Assets</button>
-                <button class="tab-btn flex-1 py-2 px-4 text-sm font-medium" data-tab="styles"><i class="fas fa-palette mr-1"></i>Styles</button>
+                <button class="tab-btn flex-1 py-2 px-4 text-sm font-medium active" data-tab="components">
+                    <i class="fas fa-cubes mr-1"></i>Components
+                </button>
+                <button class="tab-btn flex-1 py-2 px-4 text-sm font-medium" data-tab="layers">
+                    <i class="fas fa-layer-group mr-1"></i>Layers
+                </button>
+                <button class="tab-btn flex-1 py-2 px-4 text-sm font-medium" data-tab="assets">
+                    <i class="fas fa-images mr-1"></i>Assets
+                </button>
+                <button class="tab-btn flex-1 py-2 px-4 text-sm font-medium" data-tab="styles">
+                    <i class="fas fa-palette mr-1"></i>Styles
+                </button>
             </div>
+
             <!-- Tab Content -->
             <div class="flex-1 overflow-y-auto">
-                 <div id="components-tab" class="tab-content">
+                <!-- Components Tab -->
+                <div id="components-tab" class="tab-content">
                     <div class="p-4">
                         <h3 class="font-semibold mb-3">Basic Components</h3>
                         <div class="grid grid-cols-2 gap-2 mb-4">
-                            <div class="component-item p-3 border rounded cursor-pointer hover:bg-gray-50" draggable="true" data-component="text"><i class="fas fa-font text-xl mb-1 block text-center text-blue-500"></i><span class="text-xs block text-center">Text</span></div>
-                            <div class="component-item p-3 border rounded cursor-pointer hover:bg-gray-50" draggable="true" data-component="heading"><i class="fas fa-heading text-xl mb-1 block text-center text-green-500"></i><span class="text-xs block text-center">Heading</span></div>
-                            <div class="component-item p-3 border rounded cursor-pointer hover:bg-gray-50" draggable="true" data-component="button"><i class="fas fa-mouse-pointer text-xl mb-1 block text-center text-purple-500"></i><span class="text-xs block text-center">Button</span></div>
-                            <div class="component-item p-3 border rounded cursor-pointer hover:bg-gray-50" draggable="true" data-component="image"><i class="fas fa-image text-xl mb-1 block text-center text-orange-500"></i><span class="text-xs block text-center">Image</span></div>
-                            <div class="component-item p-3 border rounded cursor-pointer hover:bg-gray-50" draggable="true" data-component="container"><i class="fas fa-square text-xl mb-1 block text-center text-gray-500"></i><span class="text-xs block text-center">Container</span></div>
-                            <div class="component-item p-3 border rounded cursor-pointer hover:bg-gray-50" draggable="true" data-component="video"><i class="fas fa-video text-xl mb-1 block text-center text-pink-500"></i><span class="text-xs block text-center">Video</span></div>
+                            <div class="component-item p-3 border rounded cursor-pointer hover:bg-gray-50" draggable="true" data-component="text">
+                                <i class="fas fa-font text-xl mb-1 block text-center text-blue-500"></i>
+                                <span class="text-xs block text-center">Text</span>
+                            </div>
+                            <div class="component-item p-3 border rounded cursor-pointer hover:bg-gray-50" draggable="true" data-component="heading">
+                                <i class="fas fa-heading text-xl mb-1 block text-center text-green-500"></i>
+                                <span class="text-xs block text-center">Heading</span>
+                            </div>
+                            <div class="component-item p-3 border rounded cursor-pointer hover:bg-gray-50" draggable="true" data-component="button">
+                                <i class="fas fa-mouse-pointer text-xl mb-1 block text-center text-purple-500"></i>
+                                <span class="text-xs block text-center">Button</span>
+                            </div>
+                            <div class="component-item p-3 border rounded cursor-pointer hover:bg-gray-50" draggable="true" data-component="image">
+                                <i class="fas fa-image text-xl mb-1 block text-center text-orange-500"></i>
+                                <span class="text-xs block text-center">Image</span>
+                            </div>
+                            <div class="component-item p-3 border rounded cursor-pointer hover:bg-gray-50" draggable="true" data-component="container">
+                                <i class="fas fa-square text-xl mb-1 block text-center text-gray-500"></i>
+                                <span class="text-xs block text-center">Container</span>
+                            </div>
+                            <div class="component-item p-3 border rounded cursor-pointer hover:bg-gray-50" draggable="true" data-component="row">
+                                <i class="fas fa-columns text-xl mb-1 block text-center text-indigo-500"></i>
+                                <span class="text-xs block text-center">Row</span>
+                            </div>
+                            <div class="component-item p-3 border rounded cursor-pointer hover:bg-gray-50" draggable="true" data-component="form">
+                                <i class="fas fa-wpforms text-xl mb-1 block text-center text-red-500"></i>
+                                <span class="text-xs block text-center">Form</span>
+                            </div>
+                            <div class="component-item p-3 border rounded cursor-pointer hover:bg-gray-50" draggable="true" data-component="video">
+                                <i class="fas fa-video text-xl mb-1 block text-center text-pink-500"></i>
+                                <span class="text-xs block text-center">Video</span>
+                            </div>
+                        </div>
+
+                        <h3 class="font-semibold mb-3">Layout Components</h3>
+                        <div class="grid grid-cols-2 gap-2 mb-4">
+                            <div class="component-item p-3 border rounded cursor-pointer hover:bg-gray-50" draggable="true" data-component="navbar">
+                                <i class="fas fa-bars text-xl mb-1 block text-center text-teal-500"></i>
+                                <span class="text-xs block text-center">Navbar</span>
+                            </div>
+                            <div class="component-item p-3 border rounded cursor-pointer hover:bg-gray-50" draggable="true" data-component="footer">
+                                <i class="fas fa-minus text-xl mb-1 block text-center text-yellow-500"></i>
+                                <span class="text-xs block text-center">Footer</span>
+                            </div>
+                            <div class="component-item p-3 border rounded cursor-pointer hover:bg-gray-50" draggable="true" data-component="card">
+                                <i class="fas fa-id-card text-xl mb-1 block text-center text-cyan-500"></i>
+                                <span class="text-xs block text-center">Card</span>
+                            </div>
+                            <div class="component-item p-3 border rounded cursor-pointer hover:bg-gray-50" draggable="true" data-component="gallery">
+                                <i class="fas fa-th text-xl mb-1 block text-center text-emerald-500"></i>
+                                <span class="text-xs block text-center">Gallery</span>
+                            </div>
+                            <div class="component-item p-3 border rounded cursor-pointer hover:bg-gray-50" draggable="true" data-component="two-columns">
+                                <i class="fas fa-columns text-xl mb-1 block text-center text-lime-500"></i>
+                                <span class="text-xs block text-center">Two Columns</span>
+                            </div>
+                            <div class="component-item p-3 border rounded cursor-pointer hover:bg-gray-50" draggable="true" data-component="hero-section">
+                                <i class="fas fa-star text-xl mb-1 block text-center text-amber-500"></i>
+                                <span class="text-xs block text-center">Hero Section</span>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div id="layers-tab" class="tab-content hidden"><div class="p-4"><h3 class="font-semibold mb-3">Page Structure</h3><div id="layers-tree" class="space-y-1"></div></div></div>
-                <div id="assets-tab" class="tab-content hidden"><div class="p-4"><h3 class="font-semibold mb-3">Media Library</h3><div class="mb-4"><input type="file" id="upload-asset" class="hidden" accept="image/*,video/*"><button onclick="document.getElementById('upload-asset').click()" class="w-full py-2 px-4 border-2 border-dashed border-gray-300 rounded hover:border-blue-500 hover:bg-blue-50"><i class="fas fa-cloud-upload-alt mr-2"></i>Upload Assets</button></div><div id="assets-grid" class="grid grid-cols-2 gap-2"></div></div></div>
-                <div id="styles-tab" class="tab-content hidden"><div class="p-4"><h3 class="font-semibold mb-3">Class Manager</h3><div class="mb-4"><input type="text" id="new-class-name" class="property-input" placeholder="Enter new class name..."><button id="add-class-btn" class="w-full mt-2 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Add Class</button></div><div id="class-manager-list" class="space-y-2"></div></div></div>
+
+                <!-- Layers Tab -->
+                <div id="layers-tab" class="tab-content hidden">
+                    <div class="p-4">
+                        <h3 class="font-semibold mb-3">Page Structure</h3>
+                        <div id="layers-tree" class="space-y-1">
+                            <!-- Dynamic layer tree will be generated here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Assets Tab -->
+                <div id="assets-tab" class="tab-content hidden">
+                    <div class="p-4">
+                        <h3 class="font-semibold mb-3">Media Library</h3>
+                        <div class="mb-4">
+                            <input type="file" id="upload-asset" class="hidden" accept="image/*,video/*">
+                            <button onclick="document.getElementById('upload-asset').click()" class="w-full py-2 px-4 border-2 border-dashed border-gray-300 rounded hover:border-blue-500 hover:bg-blue-50">
+                                <i class="fas fa-cloud-upload-alt mr-2"></i>Upload Assets
+                            </button>
+                        </div>
+                        <div id="assets-grid" class="grid grid-cols-2 gap-2">
+                            <!-- Dynamic assets will be shown here -->
+                        </div>
+                    </div>
+                </div>
+
+                <div id="styles-tab" class="tab-content hidden">
+                    <div class="p-4">
+                        <h3 class="font-semibold mb-3">Class Manager</h3>
+                        <div class="mb-4">
+                            <input type="text" id="new-class-name" class="property-input" placeholder="Enter new class name...">
+                            <button id="add-class-btn" class="w-full mt-2 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Add Class</button>
+                        </div>
+                        <div id="class-manager-list" class="space-y-2">
+                            <!-- Saved classes will be listed here -->
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
         <!-- Main Content Area -->
         <div class="flex-1 flex flex-col">
+            <!-- Top Toolbar -->
             <div class="bg-white shadow-sm border-b p-4 flex justify-between items-center">
-                <div class="flex items-center gap-4"><div id="breadcrumbs" class="flex items-center gap-2 text-sm text-gray-500"></div></div>
+                <div class="flex items-center gap-4">
+                    <!-- Responsive Controls -->
+                    <div class="flex items-center gap-2">
+                        <div id="breadcrumbs" class="flex items-center gap-2 text-sm text-gray-500">
+                        </div>
+                        <span class="text-sm font-medium mr-2">Device:</span>
+                        <button class="breakpoint-button active" data-breakpoint="desktop">
+                            <i class="fas fa-desktop mr-1"></i>Desktop
+                        </button>
+                        <button class="breakpoint-button" data-breakpoint="tablet">
+                            <i class="fas fa-tablet-alt mr-1"></i>Tablet
+                        </button>
+                        <button class="breakpoint-button" data-breakpoint="mobile">
+                            <i class="fas fa-mobile-alt mr-1"></i>Mobile
+                        </button>
+                    </div>
+                </div>
+                <!-- View Controls -->
                 <div class="flex items-center gap-2">
-                    <span class="text-sm font-medium mr-2">Device:</span>
-                    <button class="breakpoint-button active" data-breakpoint="desktop"><i class="fas fa-desktop mr-1"></i></button>
-                    <button class="breakpoint-button" data-breakpoint="tablet"><i class="fas fa-tablet-alt mr-1"></i></button>
-                    <button class="breakpoint-button" data-breakpoint="mobile"><i class="fas fa-mobile-alt mr-1"></i></button>
-                    <button id="preview-btn" class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"><i class="fas fa-eye mr-1"></i>Preview</button>
-                    <button id="code-btn" class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600"><i class="fas fa-code mr-1"></i>Code</button>
-                    <div class="relative"><input type="range" id="zoom-slider" min="25" max="200" value="100" class="w-20"><span id="zoom-display" class="text-sm ml-2">100%</span></div>
+                    <button id="preview-btn" class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">
+                        <i class="fas fa-eye mr-1"></i>Preview
+                    </button>
+                    <button id="code-btn" class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600">
+                        <i class="fas fa-code mr-1"></i>Code
+                    </button>
+                    <div class="relative">
+                        <input type="range" id="zoom-slider" min="25" max="200" value="100" class="w-20">
+                        <span id="zoom-display" class="text-sm ml-2">100%</span>
+                    </div>
                 </div>
             </div>
+
             <!-- Canvas Area -->
-            <div id="scroll-area" class="flex-1 p-4 overflow-auto bg-gray-50">
-                <div class="mx-auto bg-white shadow-lg relative" id="canvas-container" style="width: 1024px; min-height: 800px;">
-                    <div id="canvas" class="drop-zone relative w-full h-full">
-                        <!-- Elements are dropped here -->
-                        <div id="selection-box" class="selection-box">
-                            <div class="resizer top-left"></div><div class="resizer top-center"></div><div class="resizer top-right"></div>
-                            <div class="resizer middle-left"></div><div class="resizer middle-right"></div>
-                            <div class="resizer bottom-left"></div><div class="resizer bottom-center"></div><div class="resizer bottom-right"></div>
+            <div class="flex-1 flex overflow-hidden">
+                <!-- Canvas Container -->
+                <div id="scroll-area" class="flex-1 p-4 overflow-auto bg-gray-50">
+
+
+                    <div class="mx-auto bg-white shadow-lg" id="canvas-container" style="width: 1024px; min-height: 600px;">
+                        <div id="canvas" class="drop-zone relative" style="min-height: 600px;">
+                            <!-- Canvas content will be dynamically added here -->
                         </div>
                     </div>
                 </div>
             </div>
+
+
+
+
         </div>
 
-        <!-- Right Sidebar -->
+        <!-- Right Sidebar - Properties -->
         <div class="w-80 bg-white shadow-lg overflow-y-auto">
-            <div class="p-4 border-b"><h2 class="font-semibold">Properties</h2></div>
-            <div id="properties-panel"><div class="p-4 text-center text-gray-500"><i class="fas fa-mouse-pointer text-3xl mb-2 block"></i><p>Select an element to edit its properties</p></div></div>
+            <div class="p-4 border-b">
+                <h2 class="font-semibold">Properties</h2>
+            </div>
+            
+            <div id="properties-panel">
+                <div class="p-4 text-center text-gray-500">
+                    <i class="fas fa-mouse-pointer text-3xl mb-2 block"></i>
+                    <p>Select an element to edit its properties</p>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Modals and Overlays -->
-    <div id="drop-indicator" class="fixed bg-blue-500 h-1 pointer-events-none hidden" style="z-index: 9999;"></div>
-    <div id="context-menu" class="hidden fixed bg-white shadow-lg rounded-md p-2 text-sm z-50">
-        <div class="context-menu-item" id="context-duplicate">Duplicate</div><div class="context-menu-item" id="context-copy">Copy</div><div class="context-menu-item" id="context-paste">Paste</div><hr class="my-1"><div class="context-menu-item text-red-500" id="context-delete">Delete</div>
-    </div>
-    <div id="preview-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">...</div>
-    <div id="code-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">...</div>
+        <div id="selection-box" class="selection-box">
+            <div class="resizer top-left"></div>
+            <div class="resizer top-center"></div>
+            <div class="resizer top-right"></div>
+            <div class="resizer middle-left"></div>
+            <div class="resizer middle-right"></div>
+            <div class="resizer bottom-left"></div>
+            <div class="resizer bottom-center"></div>
+            <div class="resizer bottom-right"></div>
+        </div>
 
-    <!-- 
-    ================================================================
-    ==                   START OF SCRIPT BLOCK                    ==
-    ================================================================
-    -->
+    <div id="drop-indicator" class="fixed bg-blue-500 h-1 pointer-events-none hidden" style="z-index: 9999;"></div>
+    
+    <div id="context-menu" class="hidden fixed bg-white shadow-lg rounded-md p-2 text-sm z-50">
+        <div class="context-menu-item" id="context-duplicate">Duplicate</div>
+        <div class="context-menu-item" id="context-copy">Copy</div>
+        <div class="context-menu-item" id="context-paste">Paste</div>
+        <hr class="my-1">
+        <div class="context-menu-item text-red-500" id="context-delete">Delete</div>
+    </div>
+
+    <!-- Preview Modal -->
+    <div id="preview-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+        <div class="h-full flex flex-col">
+            <div class="bg-white p-4 flex justify-between items-center">
+                <h3 class="font-semibold">Preview Mode</h3>
+                <button id="close-preview" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="flex-1 p-4">
+                <iframe id="preview-frame" class="w-full h-full border-0 bg-white shadow-lg" sandbox="allow-scripts allow-same-origin"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <!-- Code Editor Modal -->
+    <div id="code-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+        <div class="h-full flex flex-col m-4">
+            <div class="bg-white p-4 flex justify-between items-center rounded-t">
+                <div class="flex gap-2">
+                    <button class="code-tab-btn px-3 py-1 bg-blue-500 text-white rounded text-sm" data-code-tab="html">HTML</button>
+                    <button class="code-tab-btn px-3 py-1 bg-gray-300 text-gray-700 rounded text-sm" data-code-tab="css">CSS</button>
+                    <button class="code-tab-btn px-3 py-1 bg-gray-300 text-gray-700 rounded text-sm" data-code-tab="js">JS</button>
+                </div>
+                <button id="close-code" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="flex-1 bg-white rounded-b">
+                <div id="code-editor" style="height: 100%;"></div>
+            </div>
+        </div>
+    </div>
+
     <script>
         class WebBuilderPro {
             constructor() {
-                // Core state
                 this.selectedElement = null;
-                this.editingElement = null;
-                this.draggedInfo = null;
-                this.clipboard = null;
-
-                // UI/Canvas state
                 this.currentBreakpoint = 'desktop';
-                this.currentState = 'base';
-                this.zoomLevel = 1;
-
-                // Interaction state
-                this.isDragging = false;
-                this.isResizing = false;
-                this.mouseInitialPos = {};
-                this.elementInitialRect = {};
-
-                // Data & History
                 this.history = [];
                 this.historyIndex = -1;
                 this.components = new Map();
                 this.assets = [];
-                this.globalStyles = {};
-
-                // Editor instance
+                this.draggedElement = null;
                 this.codeEditor = null;
                 this.currentCodeTab = 'html';
-                
-                // Static Data
-                this.googleFonts = [ "Roboto", "Open Sans", "Lato", "Montserrat", "Oswald", "Source Sans Pro", "Raleway" ];
-                
+                this.isResizing = false;
+                this.resizerInitialPos = {};
+                this.elementInitialSize = {};
+                this.googleFonts = [
+                    "Roboto", "Open Sans", "Lato", "Montserrat", "Oswald", "Source Sans Pro", "Raleway"
+                ];
+                this.globalStyles = {};
+                this.currentState = 'base';
                 this.init();
             }
 
-            init() {
-                this.canvas = document.getElementById('canvas');
-                this.scrollArea = document.getElementById('scroll-area');
-                this.selectionBox = document.getElementById('selection-box');
-                this.propertiesPanel = document.getElementById('properties-panel');
+            getInnermostTextElement(element) {
+                if (!element) return null;
+                return element.querySelector('p, h1, h2, h3, h4, h5, h6, button, a, span');
+            }
+
+            // ADD THIS ENTIRE NEW METHOD
+            bindInteractiveEvents(el) {
+                // 1. Single Click to Select
+                el.addEventListener('mousedown', (e) => {
+                    // Only trigger selection on a primary button click and not on a resizer handle
+                    if (e.button !== 0 || e.target.classList.contains('resizer')) {
+                        return;
+                    }
+                    e.stopPropagation();
+                    this.selectElement(el);
+                });
+
+                // 2. Drag to Move
+                el.addEventListener('mousedown', (e) => {
+                    if (e.button !== 0 || e.target.classList.contains('resizer')) {
+                        return;
+                    }
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    const initialX = e.clientX;
+                    const initialY = e.clientY;
+                    const initialTop = el.offsetTop;
+                    const initialLeft = el.offsetLeft;
+                    const zoom = parseFloat(document.getElementById('zoom-slider').value) / 100;
+
+                    const onDragMove = (moveEvent) => {
+                        const dx = (moveEvent.clientX - initialX) / zoom;
+                        const dy = (moveEvent.clientY - initialY) / zoom;
+                        el.style.top = (initialTop + dy) + 'px';
+                        el.style.left = (initialLeft + dx) + 'px';
+                        this.updateSelectionBox();
+                    };
+
+                    const onDragEnd = () => {
+                        document.removeEventListener('mousemove', onDragMove);
+                        document.removeEventListener('mouseup', onDragEnd);
+                        this.saveToHistory();
+                    };
+
+                    document.addEventListener('mousemove', onDragMove);
+                    document.addEventListener('mouseup', onDragEnd);
+                });
+            }
+
+            setupResizing() {
+                const selectionBox = document.getElementById('selection-box');
+                const resizers = selectionBox.querySelectorAll('.resizer');
+                let initialRect;
+                let currentResizer;
+
+                const onResizeMouseDown = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    currentResizer = e.target;
+                    this.isResizing = true;
+                    initialRect = this.selectedElement.getBoundingClientRect();
+
+                    document.addEventListener('mousemove', onResizeMouseMove);
+                    document.addEventListener('mouseup', onResizeMouseUp);
+                };
+
+                const onResizeMouseMove = (e) => {
+                    if (!this.isResizing || !this.selectedElement) return;
+
+                    const style = this.selectedElement.style;
+                    const zoom = parseFloat(document.getElementById('zoom-slider').value) / 100;
+
+                    const deltaX = (e.clientX - initialRect.left) / zoom;
+                    const deltaY = (e.clientY - initialRect.top) / zoom;
+                    const startX = e.clientX;
+                    const startY = e.clientY;
+
+
+                    if (currentResizer.classList.contains('bottom-right')) {
+                        style.width = initialRect.width / zoom + (e.clientX - initialRect.right) / zoom + 'px';
+                        style.height = initialRect.height / zoom + (e.clientY - initialRect.bottom) / zoom + 'px';
+                    } else if (currentResizer.classList.contains('bottom-left')) {
+                        style.width = initialRect.width / zoom - (e.clientX - initialRect.left) / zoom + 'px';
+                        style.height = initialRect.height / zoom + (e.clientY - initialRect.bottom) / zoom + 'px';
+                        style.left = initialRect.left + (e.clientX - initialRect.left) + 'px';
+                    } else if (currentResizer.classList.contains('top-right')) {
+                        style.width = initialRect.width / zoom + (e.clientX - initialRect.right) / zoom + 'px';
+                        style.height = initialRect.height / zoom - (e.clientY - initialRect.top) / zoom + 'px';
+                        style.top = initialRect.top + (e.clientY - initialRect.top) + 'px';
+                    } else if (currentResizer.classList.contains('top-left')) {
+                        style.width = initialRect.width / zoom - (e.clientX - initialRect.left) / zoom + 'px';
+                        style.height = initialRect.height / zoom - (e.clientY - initialRect.top) / zoom + 'px';
+                        style.left = initialRect.left + (e.clientX - initialRect.left) + 'px';
+                        style.top = initialRect.top + (e.clientY - initialRect.top) + 'px';
+                    } else if (currentResizer.classList.contains('top-center')) {
+                        style.height = initialRect.height / zoom - (e.clientY - initialRect.top) / zoom + 'px';
+                        style.top = initialRect.top + (e.clientY - initialRect.top) + 'px';
+                    } else if (currentResizer.classList.contains('bottom-center')) {
+                        style.height = initialRect.height / zoom + (e.clientY - initialRect.bottom) / zoom + 'px';
+                    } else if (currentResizer.classList.contains('middle-left')) {
+                        style.width = initialRect.width / zoom - (e.clientX - initialRect.left) / zoom + 'px';
+                        style.left = initialRect.left + (e.clientX - initialRect.left) + 'px';
+                    } else if (currentResizer.classList.contains('middle-right')) {
+                        style.width = initialRect.width / zoom + (e.clientX - initialRect.right) / zoom + 'px';
+                    }
+                    this.updateSelectionBox(); // Update the box position as we resize
+                };
+
+                const onResizeMouseUp = () => {
+                    this.isResizing = false;
+                    document.removeEventListener('mousemove', onResizeMouseMove);
+                    document.removeEventListener('mouseup', onResizeMouseUp);
+                    this.saveToHistory();
+                };
+
+                resizers.forEach(resizer => {
+                    resizer.addEventListener('mousedown', onResizeMouseDown);
+                });
+            }
+
+            updateSelectionBox() {
+                const selectionBox = document.getElementById('selection-box');
+                if (!this.selectedElement) {
+                    selectionBox.classList.remove('active');
+                    return;
+                }
+                const rect = this.selectedElement.getBoundingClientRect();
+                const canvasRect = document.getElementById('scroll-area').getBoundingClientRect();
+
+                selectionBox.style.left = (rect.left - canvasRect.left + document.getElementById('scroll-area').scrollLeft) + 'px';
+                selectionBox.style.top = (rect.top - canvasRect.top + document.getElementById('scroll-area').scrollTop) + 'px';
+                selectionBox.style.width = rect.width + 'px';
+                selectionBox.style.height = rect.height + 'px';
+                selectionBox.classList.add('active');
+            }
+
+            updateChildElementStyle(selector, property, value) {
+                if (!this.selectedElement) return;
+                const child = this.selectedElement.querySelector(selector);
+                if (child) {
+                    child.style[property] = value;
+                    this.saveToHistory();
+                }
+            }
+
+            updateElementClasses(classString) {
+                if (!this.selectedElement) return;
+                // Keep our essential classes, but replace all user-defined ones
+                this.selectedElement.className = 'canvas-element selected ' + classString.trim();
+                this.saveToHistory();
+            }
+
+            showNotification(message) {
+                const notification = document.createElement('div');
+                notification.className = 'fixed top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded shadow-lg z-50';
+                notification.textContent = message;
+                document.body.appendChild(notification);
+                return notification;
+            }
+
+            hasBreakpointSpecificStyle(property) {
+                if (!this.selectedElement || this.currentBreakpoint === 'desktop') return false;
+                let styles = {};
+                try {
+                    styles = JSON.parse(this.selectedElement.dataset.styles || '{}');
+                } catch(e) { return false; }
                 
+                return !!styles[this.currentBreakpoint]?.[property];
+            }
+
+            loadGoogleFont(fontName) {
+                const fontId = `font-${fontName.replace(/\s+/g, '-')}`;
+                if (document.getElementById(fontId)) return; // Don't load the same font twice
+
+                const link = document.createElement('link');
+                link.id = fontId;
+                link.rel = 'stylesheet';
+                link.href = `https://fonts.googleapis.com/css2?family=${fontName.replace(/\s+/g, '+')}:wght@400;700&display=swap`;
+                document.head.appendChild(link);
+            }
+
+            updateBreadcrumbs() {
+                const breadcrumbsContainer = document.getElementById('breadcrumbs');
+                if (!this.selectedElement) {
+                    breadcrumbsContainer.innerHTML = '';
+                    return;
+                }
+
+                let crumbsHTML = '';
+                let current = this.selectedElement;
+                while (current && current.id !== 'canvas') {
+                    if (current.classList.contains('canvas-element')) {
+                        const componentType = current.dataset.componentType || 'element';
+                        const elementId = current.dataset.elementId;
+                        crumbsHTML = `
+                            <span class="hover:text-blue-500 cursor-pointer" onclick="app.selectElementById('${elementId}')">${componentType}</span>
+                            <i class="fas fa-chevron-right text-xs"></i>
+                            ${crumbsHTML}
+                        `;
+                    }
+                    current = current.parentElement;
+                }
+                breadcrumbsContainer.innerHTML = `<span class="hover:text-blue-500 cursor-pointer" onclick="app.handleCanvasClick({target: document.getElementById('canvas')})">body</span> <i class="fas fa-chevron-right text-xs"></i> ${crumbsHTML}`;
+                // Remove the last chevron
+                breadcrumbsContainer.querySelector('i:last-of-type')?.remove();
+            }
+
+            getCurrentStyle(property) {
+                if (!this.selectedElement) return '';
+
+                let styles = {};
+                try {
+                    styles = JSON.parse(this.selectedElement.dataset.styles || '{}');
+                } catch (e) {
+                    return this.selectedElement.style[property] || '';
+                }
+
+                // Correctly get style from the current state and breakpoint
+                return styles[this.currentState]?.[this.currentBreakpoint]?.[property] 
+                    || styles['base']?.[this.currentBreakpoint]?.[property] // Fallback to base style for this breakpoint
+                    || styles['base']?.['desktop']?.[property] // Ultimate fallback to desktop base
+                    || '';
+            }
+
+
+           
+            init() {
                 this.setupEventListeners();
                 this.setupDragAndDrop();
                 this.loadComponents();
                 this.setupMonacoEditor();
                 this.setupResizing();
                 this.loadFromLocalStorage();
-                this.saveToHistory();
             }
-
+            
             setupEventListeners() {
-                document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', e => this.switchTab(e.currentTarget.dataset.tab)));
-                document.querySelectorAll('.breakpoint-button').forEach(btn => btn.addEventListener('click', e => this.switchBreakpoint(e.currentTarget.dataset.breakpoint)));
+                this.clipboard = null;
+                // Tab switching
+                document.querySelectorAll('.tab-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const tab = e.target.dataset.tab;
+                        this.switchTab(tab);
+                    });
+                });
 
+                document.getElementById('canvas').addEventListener('click', (e) => {
+                    if (!e.target.closest('.canvas-element')) {
+                        this.handleCanvasClick(e);
+                    }
+                });
+
+                document.getElementById('page-settings-btn').addEventListener('click', () => {
+                    const canvasBody = document.getElementById('canvas-container');
+                    canvasBody.dataset.componentType = 'Page Body';
+                    if (!canvasBody.dataset.elementId) {
+                        canvasBody.dataset.elementId = this.generateId();
+                    }
+                    this.selectElement(canvasBody);
+                });
+
+                // Breakpoint switching
+                document.querySelectorAll('.breakpoint-button').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        this.switchBreakpoint(e.target.dataset.breakpoint);
+                    });
+                });
+
+                // Buttons
                 document.getElementById('save-btn').addEventListener('click', () => this.save());
                 document.getElementById('export-btn').addEventListener('click', () => this.export());
                 document.getElementById('undo-btn').addEventListener('click', () => this.undo());
                 document.getElementById('redo-btn').addEventListener('click', () => this.redo());
-                
+                document.getElementById('preview-btn').addEventListener('click', () => this.showPreview());
+                document.getElementById('code-btn').addEventListener('click', () => this.showCodeEditor());
+                document.getElementById('close-preview').addEventListener('click', () => this.hidePreview());
+                document.getElementById('close-code').addEventListener('click', () => this.hideCodeEditor());
+
+                // Code tabs
+                document.querySelectorAll('.code-tab-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        this.switchCodeTab(e.target.dataset.codeTab);
+                    });
+                });
+
+                // Zoom
                 const zoomSlider = document.getElementById('zoom-slider');
-                zoomSlider.addEventListener('input', e => this.setZoom(e.target.value));
+                zoomSlider.addEventListener('input', (e) => {
+                    const zoom = e.target.value;
+                    this.setZoom(zoom);
+                });
 
-                this.canvas.addEventListener('click', e => this.handleCanvasClick(e));
+                // Asset upload
+                document.getElementById('upload-asset').addEventListener('change', (e) => {
+                    this.handleAssetUpload(e);
+                });
 
-                document.addEventListener('keydown', e => {
-                    if (e.key === 'Delete' || e.key === 'Backspace') {
-                        if (this.selectedElement && !e.target.matches('input, textarea')) {
-                            e.preventDefault();
-                            this.deleteElement(this.selectedElement);
+                // Canvas click
+                document.getElementById('canvas').addEventListener('click', (e) => {
+                    this.handleCanvasClick(e);
+                });
+
+                document.getElementById('canvas').addEventListener('dblclick', (e) => {
+                    const target = e.target.closest('.canvas-element');
+                    if (!target) return;
+
+                    const textElement = target.querySelector('p, h1, h2, h3, h4, h5, h6, a, span:not([class])');
+                    if (textElement && !target.quill) {
+                        e.stopPropagation();
+                        this.selectElement(target);
+
+                        // Hide the original element and create a temporary editor div
+                        textElement.style.display = 'none';
+                        const editorDiv = document.createElement('div');
+                        editorDiv.innerHTML = textElement.innerHTML;
+                        textElement.after(editorDiv);
+
+                        const quill = new Quill(editorDiv, {
+                            theme: 'snow',
+                            modules: {
+                                toolbar: [
+                                    ['bold', 'italic', 'underline', 'strike'],
+                                    ['link'],
+                                    [{ 'list': 'ordered'}, { 'list': 'bullet' }]
+                                ]
+                            }
+                        });
+                        target.quill = quill; // Store instance to prevent re-initialization
+
+                        quill.focus();
+
+                        quill.on('text-change', () => {
+                            // Live update the original element
+                            textElement.innerHTML = quill.root.innerHTML;
+                        });
+
+                        // When the editor loses focus, clean up
+                        quill.root.addEventListener('blur', () => {
+                            textElement.innerHTML = quill.root.innerHTML;
+                            textElement.style.display = '';
+                            editorDiv.remove();
+                            delete target.quill;
+                            this.saveToHistory();
+                        }, { once: true });
+                    }
+                });
+
+                // --- CONTEXT MENU LOGIC ---
+                document.getElementById('canvas').addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    const targetElement = e.target.closest('.canvas-element');
+                    if (!targetElement) return;
+
+                    this.selectElement(targetElement);
+
+                    const menu = document.getElementById('context-menu');
+                    menu.classList.remove('hidden');
+                    menu.style.top = `${e.clientY}px`;
+                    menu.style.left = `${e.clientX}px`;
+
+                    document.getElementById('context-duplicate').onclick = () => {
+                        const clone = this.selectedElement.cloneNode(true);
+                        clone.dataset.elementId = this.generateId();
+                        this.reattachEventListenersToElement(clone);
+                        this.selectedElement.after(clone);
+                        this.saveToHistory();
+                    };
+                    document.getElementById('context-copy').onclick = () => {
+                        if(this.selectedElement) {
+                            this.clipboard = {
+                                html: this.selectedElement.innerHTML,
+                                styles: this.selectedElement.dataset.styles,
+                                componentType: this.selectedElement.dataset.componentType
+                            };
+                            // Optional: give user feedback
+                            const notification = this.showNotification('Copied to clipboard!');
+                            setTimeout(() => notification.remove(), 2000);
+                        }
+                    };
+                    document.getElementById('context-paste').onclick = () => {
+                        if(this.clipboard && this.selectedElement) {
+                            const newElement = document.createElement('div');
+                            newElement.className = 'canvas-element';
+                            newElement.innerHTML = this.clipboard.html;
+                            newElement.dataset.styles = this.clipboard.styles;
+                            newElement.dataset.componentType = this.clipboard.componentType;
+                            newElement.dataset.elementId = this.generateId();
+                            
+                            this.reattachEventListenersToElement(newElement);
+                            this.selectedElement.after(newElement);
+                            this.saveToHistory();
+                        }
+                    };
+                    document.getElementById('context-delete').onclick = () => this.deleteElement(this.selectedElement);
+                    // Copy/Paste actions can be added here later
+                });
+
+                window.addEventListener('click', () => {
+                    document.getElementById('context-menu').classList.add('hidden');
+                }, true);
+                // --- END CONTEXT MENU LOGIC ---
+
+                // Keyboard shortcuts
+                document.addEventListener('keydown', (e) => {
+                    // --- START ADDING/MODIFYING HERE ---
+
+                    // 1. Check for a selected element first
+                    if (this.selectedElement && !e.target.matches('input, textarea')) {
+                        // Prevent browser default action for arrow keys when an element is selected
+                        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                             e.preventDefault();
+                        }
+
+                        // Arrow Key Movement
+                        const moveAmount = e.shiftKey ? 10 : 1; // Move by 10px if Shift is held
+                        switch(e.key) {
+                            case 'ArrowUp':
+                                this.selectedElement.style.top = (parseFloat(this.selectedElement.style.top) || 0) - moveAmount + 'px';
+                                break;
+                            case 'ArrowDown':
+                                this.selectedElement.style.top = (parseFloat(this.selectedElement.style.top) || 0) + moveAmount + 'px';
+                                break;
+                            case 'ArrowLeft':
+                                this.selectedElement.style.left = (parseFloat(this.selectedElement.style.left) || 0) - moveAmount + 'px';
+                                break;
+                            case 'ArrowRight':
+                                this.selectedElement.style.left = (parseFloat(this.selectedElement.style.left) || 0) + moveAmount + 'px';
+                                break;
+                        }
+                        // Update the selection box after moving
+                        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                            this.updateSelectionBox();
+                            // We can choose to save on every move, or on mouseup after moving. For simplicity, we save now.
+                            this.saveToHistory();
                         }
                     }
+
+                    // 2. Handle Ctrl/Meta key combinations
                     if (e.ctrlKey || e.metaKey) {
-                        if (e.key === 'z') { e.preventDefault(); e.shiftKey ? this.redo() : this.undo(); }
-                        if (e.key === 's') { e.preventDefault(); this.save(); }
+                        switch(e.key.toLowerCase()) { // Use toLowerCase to catch 'd' and 'D'
+                            case 'z':
+                                e.preventDefault();
+                                if (e.shiftKey) {
+                                    this.redo();
+                                } else {
+                                    this.undo();
+                                }
+                                break;
+                            case 's':
+                                e.preventDefault();
+                                this.save();
+                                break;
+                            // Add new case for Duplication
+                            // Replace this entire case block
+                            case 'd':
+                                e.preventDefault();
+                                if (this.selectedElement) {
+                                    const clone = this.selectedElement.cloneNode(true);
+                                    clone.dataset.elementId = this.generateId();
+                                    
+                                    // Apply styles AND BIND EVENTS to the new clone
+                                    this.applyAllStyles(clone); 
+                                    this.bindInteractiveEvents(clone);
+
+                                    this.selectedElement.after(clone);
+                                    this.selectElement(clone); // Select the new element
+                                    this.saveToHistory();
+                                }
+                                break;
+
+                        }
+                    }
+                    if (e.key === 'Delete' && this.selectedElement) {
+                        this.deleteElement(this.selectedElement);
+                    }
+                    // --- END ADDING/MODIFYING HERE ---
+                });
+
+                document.getElementById('add-class-btn').addEventListener('click', () => {
+                    const classNameInput = document.getElementById('new-class-name');
+                    const className = classNameInput.value.trim();
+                    if (className) {
+                        this.addNewGlobalClass(className);
+                        classNameInput.value = '';
                     }
                 });
             }
 
             setupDragAndDrop() {
                 document.querySelectorAll('.component-item').forEach(item => {
-                    item.addEventListener('dragstart', e => {
-                        this.draggedInfo = { type: 'component', componentType: e.currentTarget.dataset.component };
+                    item.addEventListener('dragstart', (e) => {
+                        this.draggedElement = {
+                            type: 'component',
+                            componentType: e.target.dataset.component
+                        };
                         e.dataTransfer.effectAllowed = 'copy';
                     });
                 });
 
-                this.canvas.addEventListener('dragover', e => {
-                    e.preventDefault();
-                    this.canvas.classList.add('drag-over');
-                });
-                
-                this.canvas.addEventListener('dragleave', () => this.canvas.classList.remove('drag-over'));
+                const canvas = document.getElementById('canvas');
+                const dropIndicator = document.getElementById('drop-indicator');
 
-                this.canvas.addEventListener('drop', e => {
+
+                canvas.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    const targetContainer = e.target.closest('.drop-zone');
+                    if (!targetContainer) return;
+
+                    targetContainer.classList.add('drag-over');
+                    
+                    const closestElement = e.target.closest('.canvas-element');
+                    if (closestElement && closestElement !== this.draggedElement?.element) {
+                        const rect = closestElement.getBoundingClientRect();
+                        const position = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+                        
+                        dropIndicator.classList.remove('hidden');
+                        if (position === 'before') {
+                            dropIndicator.style.top = rect.top + 'px';
+                        } else {
+                            dropIndicator.style.top = rect.bottom + 'px';
+                        }
+                        dropIndicator.style.left = rect.left + 'px';
+                        dropIndicator.style.width = rect.width + 'px';
+                    } else {
+                        dropIndicator.classList.add('hidden');
+                    }
+                });
+
+                canvas.addEventListener('dragleave', () => {
+                    canvas.classList.remove('drag-over');
+                    dropIndicator.classList.add('hidden');
+                });
+
+                canvas.addEventListener('drop', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    this.canvas.classList.remove('drag-over');
+                    canvas.classList.remove('drag-over');
+                    dropIndicator.classList.add('hidden');
 
-                    if (!this.draggedInfo) return;
+                    if (!this.draggedElement) return;
 
-                    const canvasRect = this.canvas.getBoundingClientRect();
-                    const dropX = (e.clientX - canvasRect.left) / this.zoomLevel;
-                    const dropY = (e.clientY - canvasRect.top) / this.zoomLevel;
-
-                    if (this.draggedInfo.type === 'component') {
-                        this.addComponent(this.draggedInfo.componentType, { x: dropX, y: dropY });
+                    
+                    if (this.draggedElement.type === 'asset') {
+                        const asset = this.assets.find(a => a.id === this.draggedElement.assetId);
+                        if (!asset) return;
+                        const targetEl = e.target.closest('.canvas-element');
+                        if (targetEl) {
+                            const imageEl = targetEl.querySelector('img');
+                            const videoEl = targetEl.querySelector('video');
+                            if (imageEl && asset.type.startsWith('image/')) { imageEl.src = asset.data; this.saveToHistory(); }
+                            else if (videoEl && asset.type.startsWith('video/')) { videoEl.src = asset.data; this.saveToHistory(); }
+                        }
+                    } 
+                    else if (this.draggedElement.type === 'component') {
+                        this.addComponent(this.draggedElement.componentType, e);
                     }
-                    this.draggedInfo = null;
+
+                    document.querySelectorAll('.opacity-50').forEach(el => el.classList.remove('opacity-50'));
+                    this.draggedElement = null;
                 });
             }
 
-            addComponent(componentType, position) {
+            loadComponents() {
+                
+                
+                this.components.set('text', {
+                    name: 'Text',
+                    html: '<p>Sample text content</p>',
+                    defaultStyles: {
+                        fontSize: '16px',
+                        color: '#333333',
+                        fontFamily: 'Arial, sans-serif'
+                    }
+                });
+
+                this.components.set('two-columns', {
+                    name: 'Two Columns',
+                    html: `
+                        <div style="display: flex; gap: 20px; padding: 10px;">
+                            <div class="col" style="flex: 1; min-height: 50px; border: 1px dashed #ccc; padding: 10px;">Column 1</div>
+                            <div class="col" style="flex: 1; min-height: 50px; border: 1px dashed #ccc; padding: 10px;">Column 2</div>
+                        </div>
+                    `,
+                });
+
+                this.components.set('hero-section', {
+                    name: 'Hero Section',
+                    html: `
+                        <div style="padding: 60px 20px; text-align: center; background-color: #f0f0f0;">
+                            <h1 style="font-size: 48px; margin-bottom: 20px;">Hero Title</h1>
+                            <p style="font-size: 18px; max-width: 600px; margin: 0 auto 30px auto;">This is a paragraph describing your hero section. Capture the user's attention here.</p>
+                            <button style="padding: 12px 24px; font-size: 16px; cursor: pointer; background-color: #3b82f6; color: white; border: none; border-radius: 6px;">Call to Action</button>
+                        </div>
+                    `,
+                });
+
+                this.components.set('heading', {
+                    name: 'Heading',
+                    html: '<h2>Sample Heading</h2>',
+                    defaultStyles: {
+                        fontSize: '32px',
+                        color: '#333333',
+                        fontWeight: 'bold',
+                        margin: '20px 0'
+                    }
+                });
+
+                this.components.set('button', {
+                    name: 'Button',
+                    html: '<button>Click Me</button>',
+                    defaultStyles: {
+                        padding: '12px 24px',
+                        backgroundColor: '#3b82f6',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontSize: '16px'
+                    }
+                });
+
+                this.components.set('image', {
+                    name: 'Image',
+                    html: '<img src="https://via.placeholder.com/300x200" alt="Placeholder">',
+                    defaultStyles: {
+                        maxWidth: '100%',
+                        height: 'auto'
+                    }
+                });
+
+                this.components.set('container', {
+                    name: 'Container',
+                    html: '<div class="container">Container content</div>',
+                    defaultStyles: {
+                        padding: '20px',
+                        backgroundColor: '#f8f9fa',
+                        border: '1px solid #e9ecef',
+                        borderRadius: '6px',
+                        minHeight: '100px'
+                    }
+                });
+
+                this.components.set('row', {
+                    name: 'Row',
+                    html: '<div class="row"><div class="col">Column 1</div><div class="col">Column 2</div></div>',
+                    defaultStyles: {
+                        display: 'flex',
+                        gap: '20px',
+                        alignItems: 'stretch'
+                    }
+                });
+
+                this.components.set('navbar', {
+                    name: 'Navigation Bar',
+                    html: '<nav><div class="nav-brand">Brand</div><ul class="nav-menu"><li><a href="#">Home</a></li><li><a href="#">About</a></li><li><a href="#">Contact</a></li></ul></nav>',
+                    defaultStyles: {
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '15px 30px',
+                        backgroundColor: '#ffffff',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                    }
+                });
+
+                this.components.set('card', {
+                    name: 'Card',
+                    html: '<div class="card"><div class="card-header">Card Title</div><div class="card-body">Card content goes here</div></div>',
+                    defaultStyles: {
+                        border: '1px solid #e9ecef',
+                        borderRadius: '8px',
+                        overflow: 'hidden',
+                        backgroundColor: 'white',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                    }
+                });
+
+                this.components.set('form', {
+                    name: 'Form',
+                    html: '<form><div class="form-group"><label>Name:</label><input type="text" placeholder="Enter your name"></div><div class="form-group"><label>Email:</label><input type="email" placeholder="Enter your email"></div><button type="submit">Submit</button></form>',
+                    defaultStyles: {
+                        padding: '20px',
+                        border: '1px solid #e9ecef',
+                        borderRadius: '8px'
+                    }
+                });
+
+                this.components.set('video', {
+                    name: 'Video',
+                    html: '<video controls><source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4">Your browser does not support the video tag.</video>',
+                    defaultStyles: {
+                        width: '100%',
+                        maxWidth: '600px'
+                    }
+                });
+            }
+
+            setupMonacoEditor() {
+                require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs' } });
+                require(['vs/editor/editor.main'], () => {
+                    this.codeEditor = monaco.editor.create(document.getElementById('code-editor'), {
+                        value: '',
+                        language: 'html',
+                        theme: 'vs-dark',
+                        automaticLayout: true
+                    });
+                });
+            }
+
+            switchTab(tabName) {
+                // Update tab buttons
+                document.querySelectorAll('.tab-btn').forEach(btn => {
+                    btn.classList.remove('active', 'bg-blue-500', 'text-white');
+                    btn.classList.add('text-gray-600');
+                });
+                document.querySelector(`[data-tab="${tabName}"]`).classList.add('active', 'bg-blue-500', 'text-white');
+
+                // Show/hide tab content
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.add('hidden');
+                });
+                document.getElementById(`${tabName}-tab`).classList.remove('hidden');
+
+                if (tabName === 'layers') {
+                    this.updateLayersTree();
+                }
+            }
+
+            switchBreakpoint(breakpoint) {
+                document.querySelectorAll('.breakpoint-button').forEach(btn => {
+                    btn.classList.remove('active', 'bg-blue-500', 'text-white');
+                });
+                document.querySelector(`[data-breakpoint="${breakpoint}"]`).classList.add('active', 'bg-blue-500', 'text-white');
+                
+                this.currentBreakpoint = breakpoint;
+                this.updateCanvasSize();
+            }
+
+            updateCanvasSize() {
+                const container = document.getElementById('canvas-container');
+                const sizes = {
+                    desktop: '1024px',
+                    tablet: '768px',
+                    mobile: '375px'
+                };
+                container.style.width = sizes[this.currentBreakpoint];
+            }
+
+            setZoom(zoom) {
+                const container = document.getElementById('canvas-container');
+                container.style.transform = `scale(${zoom / 100})`;
+                container.style.transformOrigin = 'top left';
+                document.getElementById('zoom-display').textContent = `${zoom}%`;
+            }
+
+            addComponent(componentType, event) {
                 const component = this.components.get(componentType);
                 if (!component) return;
 
+
                 const element = document.createElement('div');
                 element.className = 'canvas-element';
+                element.style.position = 'absolute';
+                element.innerHTML = component.html;
                 element.dataset.componentType = componentType;
                 element.dataset.elementId = this.generateId();
-                element.innerHTML = component.html;
-                
-                element.style.position = 'absolute';
-                element.style.left = `${position.x}px`;
-                element.style.top = `${position.y}px`;
-                element.style.width = component.defaultWidth || '250px';
-                element.style.height = component.defaultHeight || 'auto';
-                
+                element.draggable = true;
+
+                if (component.defaultStyles) {
+                    Object.assign(element.style, component.defaultStyles);
+                }
+
+                const controls = document.createElement('div');
+                controls.className = 'element-controls';
+                controls.innerHTML = `<i class="fas fa-trash cursor-pointer" onclick="event.stopPropagation(); app.deleteElement(this.closest('.canvas-element'))"></i>`;
+                element.appendChild(controls);
                 this.bindInteractiveEvents(element);
-                this.canvas.appendChild(element);
-                
-                this.applyAllStyles(element);
-                this.selectElement(element);
+
+                // Find drop position and append
+                let targetContainer = event.target.closest('.drop-zone') || document.getElementById('canvas');
+                targetContainer.appendChild(element); // This MUST be before selectElement
+
                 this.saveToHistory();
                 this.updateLayersTree();
-            }
-
-            bindInteractiveEvents(element) {
-                const onMouseDown = e => {
-                    if (e.button !== 0 || this.isResizing) return;
-                    e.stopPropagation();
-
-                    this.selectElement(element);
-
-                    if (this.editingElement !== element) {
-                        this.isDragging = true;
-                        this.elementInitialRect = { left: element.offsetLeft, top: element.offsetTop };
-                        this.mouseInitialPos = { x: e.clientX, y: e.clientY };
-
-                        document.addEventListener('mousemove', onMouseMove);
-                        document.addEventListener('mouseup', onMouseUp);
-                    }
-                };
-
-                const onMouseMove = e => {
-                    if (!this.isDragging) return;
-                    
-                    const dx = (e.clientX - this.mouseInitialPos.x) / this.zoomLevel;
-                    const dy = (e.clientY - this.mouseInitialPos.y) / this.zoomLevel;
-
-                    element.style.left = `${this.elementInitialRect.left + dx}px`;
-                    element.style.top = `${this.elementInitialRect.top + dy}px`;
-                    
-                    this.updateSelectionBox(element);
-                };
-
-                const onMouseUp = () => {
-                    if (this.isDragging) {
-                        this.isDragging = false;
-                        this.updateElementStyle('left', element.style.left);
-                        this.updateElementStyle('top', element.style.top);
-                        this.saveToHistory();
-                    }
-                    document.removeEventListener('mousemove', onMouseMove);
-                    document.removeEventListener('mouseup', onMouseUp);
-                };
-                
-                element.addEventListener('mousedown', onMouseDown);
-                element.addEventListener('dblclick', e => {
-                    e.stopPropagation();
-                    this.enterEditMode(element);
-                });
             }
 
             selectElement(element) {
-                if (this.selectedElement === element) return;
-
+                if (this.isResizing) return;
                 if (this.selectedElement) {
                     this.selectedElement.classList.remove('selected');
-                }
-                
-                if (this.editingElement && this.editingElement !== element) {
-                    this.exitEditMode();
                 }
 
                 this.selectedElement = element;
-                element.classList.add('selected');
+                this.selectedElement.classList.add('selected');
                 
-                this.updateSelectionBox(element);
                 this.showProperties(element);
-                this.updateLayersTreeActiveState();
                 this.updateBreadcrumbs();
-            }
+                this.updateSelectionBox();
 
-            enterEditMode(element) {
-                if(this.editingElement === element) return;
-                this.exitEditMode(); // Exit any other editing element first
-                this.editingElement = element;
-                this.selectionBox.classList.add('is-editing');
-                this.updateSelectionBox(element);
+                document.querySelectorAll('.layer-item.active-layer').forEach(item => item.classList.remove('active-layer'));
+                const activeLayer = document.querySelector(`.layer-item[data-element-id="${element.dataset.elementId}"]`);
+                if (activeLayer) activeLayer.classList.add('active-layer');
             }
-
-            exitEditMode() {
-                if (!this.editingElement) return;
-                this.editingElement = null;
-                this.selectionBox.classList.remove('is-editing');
-            }
-
+            
             handleCanvasClick(e) {
-                if (e.target.closest('.canvas-element, .resizer')) return;
-                
+                if (e.target.closest('.canvas-element')) return;
+
                 if (this.selectedElement) {
                     this.selectedElement.classList.remove('selected');
                     this.selectedElement = null;
                 }
-                this.exitEditMode();
-                this.updateSelectionBox(null);
-                this.showProperties(null);
+                
+                document.getElementById('properties-panel').innerHTML = `<div class="p-4 text-center text-gray-500"><i class="fas fa-mouse-pointer text-3xl mb-2 block"></i><p>Select an element to edit its properties</p></div>`;
+                this.updateSelectionBox(); // This will hide the box
                 this.updateBreadcrumbs();
-                this.updateLayersTreeActiveState();
-            }
-            
-            setupResizing() {
-                const resizers = this.selectionBox.querySelectorAll('.resizer');
-                let activeResizer = null;
-
-                const onMouseDown = e => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (!this.editingElement) return;
-                    
-                    this.isResizing = true;
-                    activeResizer = e.target;
-                    
-                    this.elementInitialRect = {
-                        width: this.editingElement.offsetWidth, height: this.editingElement.offsetHeight,
-                        left: this.editingElement.offsetLeft, top: this.editingElement.offsetTop
-                    };
-                    this.mouseInitialPos = { x: e.clientX, y: e.clientY };
-                    document.addEventListener('mousemove', onMouseMove);
-                    document.addEventListener('mouseup', onMouseUp);
-                };
-
-                const onMouseMove = e => {
-                    if (!this.isResizing) return;
-                    const dx = (e.clientX - this.mouseInitialPos.x) / this.zoomLevel;
-                    const dy = (e.clientY - this.mouseInitialPos.y) / this.zoomLevel;
-                    let { width, height, left, top } = this.elementInitialRect;
-
-                    if (activeResizer.className.includes('right')) width += dx;
-                    if (activeResizer.className.includes('bottom')) height += dy;
-                    if (activeResizer.className.includes('left')) { width -= dx; left += dx; }
-                    if (activeResizer.className.includes('top')) { height -= dy; top += dy; }
-                    
-                    const minSize = 20;
-                    if (width >= minSize) { this.editingElement.style.width = `${width}px`; this.editingElement.style.left = `${left}px`; }
-                    if (height >= minSize) { this.editingElement.style.height = `${height}px`; this.editingElement.style.top = `${top}px`; }
-
-                    this.updateSelectionBox(this.editingElement);
-                };
-
-                const onMouseUp = () => {
-                    if (this.isResizing) {
-                        this.isResizing = false;
-                        this.updateElementStyle('width', this.editingElement.style.width);
-                        this.updateElementStyle('height', this.editingElement.style.height);
-                        this.updateElementStyle('left', this.editingElement.style.left);
-                        this.updateElementStyle('top', this.editingElement.style.top);
-                        this.saveToHistory();
-                    }
-                    document.removeEventListener('mousemove', onMouseMove);
-                    document.removeEventListener('mouseup', onMouseUp);
-                };
-
-                resizers.forEach(resizer => resizer.addEventListener('mousedown', onMouseDown));
-            }
-
-            updateSelectionBox(element) {
-                if (!element) {
-                    this.selectionBox.classList.remove('active');
-                    return;
-                }
-                this.selectionBox.style.left = `${element.offsetLeft}px`;
-                this.selectionBox.style.top = `${element.offsetTop}px`;
-                this.selectionBox.style.width = `${element.offsetWidth}px`;
-                this.selectionBox.style.height = `${element.offsetHeight}px`;
-                this.selectionBox.classList.add('active');
-            }
-            
+                document.querySelectorAll('.layer-item.active-layer').forEach(item => item.classList.remove('active-layer'));
+            }            
             showProperties(element) {
-                // This function's internal logic can remain the same as your last working version.
-                // It correctly shows properties for the selected element or a default message.
-                // For brevity, I am not re-listing the massive HTML string here.
-                 if (!element) {
-                    this.propertiesPanel.innerHTML = `<div class="p-4 text-center text-gray-500"><i class="fas fa-mouse-pointer text-3xl mb-2 block"></i><p>Select an element to edit its properties</p></div>`;
-                    return;
+                const panel = document.getElementById('properties-panel');
+                const componentType = element.dataset.componentType;
+
+                let specificProperties = '';
+                switch(componentType) {
+                    case 'image':
+                    case 'video': // We can combine them since the properties are similar
+                        const elementContent = element.querySelector('img, video');
+                        const currentFit = elementContent ? elementContent.style.objectFit : 'cover';
+                        
+                        specificProperties = `
+                                
+                            <div class="sidebar-section pb-4 mb-4">
+                                <h4 class="font-medium mb-2">Media Settings</h4>
+                                ${componentType === 'image' ? `
+                                <div class="mb-2">
+                                    <label class="text-xs text-gray-600">Image Source (URL)</label>
+                                    <input type="text" class="property-input" value="${elementContent?.src || ''}" onchange="app.updateElementAttribute('src', this.value, 'img')">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-600">Alt Text</label>
+                                    <input type="text" class="property-input" value="${elementContent?.alt || ''}" onchange="app.updateElementAttribute('alt', this.value, 'img')">
+                                </div>
+                                ` : ''}
+
+                                <div class="mt-2">
+                                    <label class="text-xs text-gray-600">Content Fit</label>
+                                    <select class="property-input" onchange="app.updateChildElementStyle('img, video', 'objectFit', this.value)">
+                                        <option value="cover" ${currentFit === 'cover' ? 'selected' : ''}>Cover (No Distortion)</option>
+                                        <option value="contain" ${currentFit === 'contain' ? 'selected' : ''}>Contain (Show All)</option>
+                                        <option value="fill" ${currentFit === 'fill' ? 'selected' : ''}>Fill (Stretch)</option>
+                                        <option value="none" ${currentFit === 'none' ? 'selected' : ''}>None (Original Size)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        `;
+                        break;
+                    case 'button':
+                        // The content editor already handles the button text, but we could add button-specific things here later.
+                        break;
                 }
-                const componentType = element.dataset.componentType || 'Element';
-                this.propertiesPanel.innerHTML = `
+
+                let propertiesHTML = `
                     <div class="p-4">
-                        <h3 class="font-semibold mb-2">${componentType.charAt(0).toUpperCase() + componentType.slice(1)}</h3>
+                        <div class="mb-4">
+                            <label class="text-sm font-medium">State</label>
+                            <select id="state-selector" class="property-input mt-1">
+                                <option value="base">Base</option>
+                                <option value="hover">Hover</option>
+                            </select>
+                        </div>
+                        
                         <div class="sidebar-section pb-4 mb-4">
-                            <h4 class="font-medium mb-2">Layout & Position</h4>
-                             <div class="grid grid-cols-2 gap-2 mb-2">
-                                <div><label class="text-xs">Left</label><input type="text" class="property-input" value="${element.style.left}" onchange="app.updateElementStyle('left', this.value)"></div>
-                                <div><label class="text-xs">Top</label><input type="text" class="property-input" value="${element.style.top}" onchange="app.updateElementStyle('top', this.value)"></div>
-                                <div><label class="text-xs">Width</label><input type="text" class="property-input" value="${element.style.width}" onchange="app.updateElementStyle('width', this.value)"></div>
-                                <div><label class="text-xs">Height</label><input type="text" class="property-input" value="${element.style.height}" onchange="app.updateElementStyle('height', this.value)"></div>
+                            <h4 class="font-medium mb-2">CSS Classes</h4>
+                            <input type="text" id="class-input" class="property-input" placeholder="e.g. btn btn-primary" 
+                                value="${this.selectedElement.className.replace('canvas-element','').replace('selected','').trim()}"
+                                onchange="app.updateElementClasses(this.value)">
+                        </div>
+                        <h3 class="font-semibold mb-4">${componentType.charAt(0).toUpperCase() + componentType.slice(1)} Properties</h3>
+                        
+                        <!-- Basic Properties -->
+                        <div class="sidebar-section pb-4 mb-4">
+                            <h4 class="font-medium mb-2">Layout</h4>
+                            <!-- Display property -->
+                            <div class="mb-2">
+                                <label class="text-xs text-gray-600">Display</label>
+                                <select class="property-input" oninput="app.updateElementStyle('display', this.value)">
+                                    <option value="block" ${this.getCurrentStyle('display') === 'block' ? 'selected' : ''}>Block</option>
+                                    <option value="flex" ${this.getCurrentStyle('display') === 'flex' ? 'selected' : ''}>Flex</option>
+                                    <option value="inline-block" ${this.getCurrentStyle('display') === 'inline-block' ? 'selected' : ''}>Inline Block</option>
+                                    <option value="none" ${this.getCurrentStyle('display') === 'none' ? 'selected' : ''}>None</option>
+                                </select>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 mb-2">
+                                <div class="relative">
+                                    <label class="text-xs text-gray-600">Width</label>
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('width') || 'auto'}" oninput="app.updateElementStyle('width', this.value)">
+                                    ${this.hasBreakpointSpecificStyle('width') ? '<span class="responsive-indicator"></span>' : ''}
+                                </div>
+                                <div class="relative">
+                                    <label class="text-xs text-gray-600">Height</label>
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('height') || 'auto'}" oninput="app.updateElementStyle('height', this.value)">
+                                    ${this.hasBreakpointSpecificStyle('height') ? '<span class="responsive-indicator"></span>' : ''}
+                                </div>
+                                <div class="relative">
+                                    <label class="text-xs text-gray-600">Margin</label>
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('margin') || '0'}" oninput="app.updateElementStyle('margin', this.value)">
+                                    ${this.hasBreakpointSpecificStyle('margin') ? '<span class="responsive-indicator"></span>' : ''}
+                                </div>
+                                <div class="relative">
+                                    <label class="text-xs text-gray-600">Padding</label>
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('padding') || '0'}" oninput="app.updateElementStyle('padding', this.value)">
+                                    ${this.hasBreakpointSpecificStyle('padding') ? '<span class="responsive-indicator"></span>' : ''}
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-600">Border</label>
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('border') || 'none'}" oninput="app.updateElementStyle('border', this.value)">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-600">Radius</label>
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('borderRadius') || '0'}" oninput="app.updateElementStyle('borderRadius', this.value)">
+                                </div>
+                            </div>
+                            <div class="border-t pt-2 mt-2">
+                                <h5 class="text-xs font-bold mb-1">Positioning</h5>
+                                <div class="mb-2">
+                                    <label class="text-xs text-gray-600">Position</label>
+                                    <select class="property-input" oninput="app.updateElementStyle('position', this.value)">
+                                        <option value="static" ${this.getCurrentStyle('position') === 'static' ? 'selected' : ''}>Static</option>
+                                        <option value="relative" ${this.getCurrentStyle('position') === 'relative' ? 'selected' : ''}>Relative</option>
+                                        <option value="absolute" ${this.getCurrentStyle('position') === 'absolute' ? 'selected' : ''}>Absolute</option>
+                                        <option value="fixed" ${this.getCurrentStyle('position') === 'fixed' ? 'selected' : ''}>Fixed</option>
+                                        <option value="sticky" ${this.getCurrentStyle('position') === 'sticky' ? 'selected' : ''}>Sticky</option>
+                                    </select>
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="text-xs text-gray-600">Top</label>
+                                        <input type="text" class="property-input" value="${this.getCurrentStyle('top') || ''}" oninput="app.updateElementStyle('top', this.value)">
+                                    </div>
+                                    <div>
+                                        <label class="text-xs text-gray-600">Left</label>
+                                        <input type="text" class="property-input" value="${this.getCurrentStyle('left') || ''}" oninput="app.updateElementStyle('left', this.value)">
+                                    </div>
+                                    <div>
+                                        <label class="text-xs text-gray-600">Right</label>
+                                        <input type="text" class="property-input" value="${this.getCurrentStyle('right') || ''}" oninput="app.updateElementStyle('right', this.value)">
+                                    </div>
+                                    <div>
+                                        <label class="text-xs text-gray-600">Bottom</label>
+                                        <input type="text" class="property-input" value="${this.getCurrentStyle('bottom') || ''}" oninput="app.updateElementStyle('bottom', this.value)">
+                                    </div>
+                                    <div>
+                                        <label class="text-xs text-gray-600">Z-Index</label>
+                                        <input type="number" class="property-input" value="${this.getCurrentStyle('zIndex') || ''}" oninput="app.updateElementStyle('zIndex', this.value)">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Typography -->
+                        <div class="sidebar-section pb-4 mb-4">
+                            <h4 class="font-medium mb-2">Typography</h4>
+                            <div class="mb-2"> <!-- Wrap it in a div -->
+                                <label class="text-xs text-gray-600">Font Family</label>
+                                <select class="property-input" oninput="app.updateElementStyle('fontFamily', this.value)">
+                                    <option value="">Default</option>
+                                    ${this.googleFonts.map(font => `<option value="'${font}', sans-serif" ${this.getCurrentStyle('fontFamily').includes(font) ? 'selected' : ''}>${font}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 mb-2">
+                                <div>
+                                    <label class="text-xs text-gray-600">Font Size</label>
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('fontSize') || '16px'}" oninput="app.updateElementStyle('fontSize', this.value)">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-600">Font Weight</label>
+                                    <select class="property-input" oninput="app.updateElementStyle('fontWeight', this.value)">
+                                        <option value="normal" ${this.getCurrentStyle('fontWeight') === 'normal' ? 'selected' : ''}>Normal</option>
+                                        <option value="bold" ${this.getCurrentStyle('fontWeight') === 'bold' ? 'selected' : ''}>Bold</option>
+                                        <option value="lighter" ${this.getCurrentStyle('fontWeight') === 'lighter' ? 'selected' : ''}>Lighter</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="mb-2">
+                                <label class="text-xs text-gray-600">Color</label>
+                                <input type="color" class="property-input" value="${this.rgbToHex(this.getCurrentStyle('color')) || '#333333'}" oninput="app.updateElementStyle('color', this.value)">
+                            </div>
+                        </div>
+
+                        <!-- Background -->
+                        <div class="sidebar-section pb-4 mb-4">
+                            <h4 class="font-medium mb-2">Background</h4>
+                            <div class="mb-2">
+                                <label class="text-xs text-gray-600">Background Color</label>
+                                <input type="color" class="property-input" value="${this.rgbToHex(this.getCurrentStyle('backgroundColor')) || '#ffffff'}" oninput="app.updateElementStyle('backgroundColor', this.value)">
+                            </div>
+                            <div class="mb-2">
+                                <label class="text-xs text-gray-600">Background Image (URL or Gradient)</label>
+                                <input type="text" class="property-input" placeholder="url(...) or linear-gradient(...)" value="${this.getCurrentStyle('backgroundImage') || ''}" oninput="app.updateElementStyle('backgroundImage', this.value)">
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="text-xs text-gray-600">Size</label>
+                                    <input type="text" class="property-input" placeholder="cover, contain, 100%" value="${this.getCurrentStyle('backgroundSize') || 'auto'}" oninput="app.updateElementStyle('backgroundSize', this.value)">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-600">Position</label>
+                                    <input type="text" class="property-input" placeholder="center, top left" value="${this.getCurrentStyle('backgroundPosition') || 'center'}" oninput="app.updateElementStyle('backgroundPosition', this.value)">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Content Editing -->
+                        <div class="sidebar-section pb-4 mb-4">
+                            <h4 class="font-medium mb-2">Content</h4>
+                            <textarea class="property-input h-20" placeholder="Edit content..." oninput="app.updateElementContent(this.value)">${this.getElementText(element)}</textarea>
+                        </div>
+
+                        <!-- This is where the new properties will be injected -->
+                        ${specificProperties}
+
+                        <!-- Flexbox section (only if display: flex) -->
+                        ${this.getCurrentStyle('display') === 'flex' ? `
+                        <div class="sidebar-section pb-4 mb-4">
+                            <h4 class="font-medium mb-2">Flexbox</h4>
+                            <div class="grid grid-cols-2 gap-2 mb-2">
+                                <div>
+                                    <label class="text-xs text-gray-600">Direction</label>
+                                    <select class="property-input" oninput="app.updateElementStyle('flexDirection', this.value)">
+                                        <option value="row" ${this.getCurrentStyle('flexDirection') === 'row' ? 'selected' : ''}>Row</option>
+                                        <option value="column" ${this.getCurrentStyle('flexDirection') === 'column' ? 'selected' : ''}>Column</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-600">Justify Content</label>
+                                    <select class="property-input" oninput="app.updateElementStyle('justifyContent', this.value)">
+                                        <option value="flex-start" ${this.getCurrentStyle('justifyContent') === 'flex-start' ? 'selected' : ''}>Start</option>
+                                        <option value="center" ${this.getCurrentStyle('justifyContent') === 'center' ? 'selected' : ''}>Center</option>
+                                        <option value="flex-end" ${this.getCurrentStyle('justifyContent') === 'flex-end' ? 'selected' : ''}>End</option>
+                                        <option value="space-between" ${this.getCurrentStyle('justifyContent') === 'space-between' ? 'selected' : ''}>Space Between</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-600">Align Items</label>
+                                    <select class="property-input" oninput="app.updateElementStyle('alignItems', this.value)">
+                                        <option value="stretch" ${this.getCurrentStyle('alignItems') === 'stretch' ? 'selected' : ''}>Stretch</option>
+                                        <option value="flex-start" ${this.getCurrentStyle('alignItems') === 'flex-start' ? 'selected' : ''}>Start</option>
+                                        <option value="center" ${this.getCurrentStyle('alignItems') === 'center' ? 'selected' : ''}>Center</option>
+                                        <option value="flex-end" ${this.getCurrentStyle('alignItems') === 'flex-end' ? 'selected' : ''}>End</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-600">Gap</label>
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('gap') || '0px'}" oninput="app.updateElementStyle('gap', this.value)">
+                                </div>
+                            </div>
+                            <div class="sidebar-section pb-4 mb-4">
+                            <h4 class="font-medium mb-2">Effects</h4>
+                             <div class="mb-2">
+                                <label class="text-xs text-gray-600">Opacity</label>
+                                <input type="range" min="0" max="1" step="0.01" class="w-full" 
+                                       value="${this.getCurrentStyle('opacity') || '1'}" 
+                                       oninput="app.updateElementStyle('opacity', this.value)">
+                            </div>
+                            <div class="mb-2">
+                                <label class="text-xs text-gray-600">Box Shadow</label>
+                                <input type="text" class="property-input" placeholder="e.g., 0px 10px 15px rgba(0,0,0,0.1)" value="${this.getCurrentStyle('boxShadow') || ''}" oninput="app.updateElementStyle('boxShadow', this.value)">
+                            </div>
+                        </div>
+                        </div>
+                        
+                        ` : ''}
+                        <div class="sidebar-section pb-4 mb-4">
+                            <h4 class="font-medium mb-2">Effects</h4>
+                            <div class="mb-2">
+                                <label class="text-xs text-gray-600">Box Shadow</label>
+                                <input type="text" class="property-input" placeholder="e.g., 0px 10px 15px rgba(0,0,0,0.1)" value="${this.getCurrentStyle('boxShadow') || ''}" oninput="app.updateElementStyle('boxShadow', this.value)">
                             </div>
                         </div>
                         <div class="sidebar-section pb-4 mb-4">
-                            <h4 class="font-medium mb-2">Background</h4>
-                             <div><label class="text-xs">Color</label><input type="color" class="w-full h-8" value="${this.rgbToHex(element.style.backgroundColor)}" onchange="app.updateElementStyle('backgroundColor', this.value)"></div>
-                        </div>
-                         <div class="sidebar-section pb-4 mb-4">
-                            <h4 class="font-medium mb-2">Content</h4>
-                            <textarea class="property-input h-20" onchange="app.updateElementContent(this.value)">${this.getElementText(element)}</textarea>
+                            <h4 class="font-medium mb-2">Transitions & Transforms</h4>
+                            <div class="mb-2">
+                                <label class="text-xs text-gray-600">Transition</label>
+                                <input type="text" class="property-input" placeholder="e.g., all 0.3s ease" value="${this.getCurrentStyle('transition') || ''}" oninput="app.updateElementStyle('transition', this.value)">
+                            </div>
+                            <div class="mb-2">
+                                <label class="text-xs text-gray-600">Transform</label>
+                                <input type="text" class="property-input" placeholder="e.g., scale(1.1) rotate(5deg)" value="${this.getCurrentStyle('transform') || ''}" oninput="app.updateElementStyle('transform', this.value)">
+                            </div>
                         </div>
                     </div>
                 `;
+
+                panel.innerHTML = propertiesHTML;
+
+                const stateSelector = document.getElementById('state-selector');
+                if (stateSelector) {
+                    stateSelector.value = this.currentState;
+                    stateSelector.addEventListener('change', () => {
+                        this.currentState = stateSelector.value;
+                        // Re-render the properties panel to show the styles for the new state
+                        this.showProperties(this.selectedElement); 
+                    });
+                }
             }
 
+            // REPLACE the entire old method with this one.
             updateElementStyle(property, value) {
                 if (!this.selectedElement) return;
-                this.selectedElement.style[property] = value;
-                // This is a simplified version. A full implementation would update dataset.styles
-                // and handle breakpoints, which you can add back if needed.
-            }
-            
-            updateElementContent(content) {
-                if (!this.selectedElement) return;
-                const textElement = this.selectedElement.querySelector('p, h1, h2, h3, h4, h5, h6, button');
-                if (textElement) {
-                    textElement.textContent = content;
+
+                const typographyProps = ['color', 'fontFamily', 'fontSize', 'fontWeight', 'textAlign', 'lineHeight'];
+                let styles = {};
+                try {
+                    styles = JSON.parse(this.selectedElement.dataset.styles || '{}');
+                } catch (e) { styles = {}; }
+
+                // Ensure state and breakpoint objects exist
+                if (!styles[this.currentState]) styles[this.currentState] = {};
+                if (!styles[this.currentState][this.currentBreakpoint]) styles[this.currentState][this.currentBreakpoint] = {};
+
+                styles[this.currentState][this.currentBreakpoint][property] = value;
+                
+                if (property === 'fontFamily' && value) {
+                    this.loadGoogleFont(value.split(',')[0].replace(/'/g, ''));
                 }
+
+                this.selectedElement.dataset.styles = JSON.stringify(styles);
+                
+                // --- INTELLIGENT STYLE APPLICATION ---
+                const targetTextElement = this.getInnermostTextElement(this.selectedElement);
+                if (typographyProps.includes(property) && targetTextElement) {
+                    // If it's a typography property, apply it to the inner text element
+                    targetTextElement.style[property] = value;
+                } else {
+                    // Otherwise, apply it to the main container
+                    this.selectedElement.style[property] = value;
+                }
+                
+                this.applyAllStyles(this.selectedElement); // Re-apply all styles for consistency
+                this.updateSelectionBox(); // Update box in case width/height changed
                 this.saveToHistory();
+            }
+            applyAllStyles(element) {
+                if (!element || !element.dataset.styles) return;
+
+                // Clear all previous inline styles to start fresh
+                element.style.cssText = '';
+
+                let allStylesData = {};
+                try {
+                    allStylesData = JSON.parse(element.dataset.styles || '{}');
+                } catch (e) { return; }
+
+                const baseStyles = allStylesData['base'] || {};
+                const hoverStyles = allStylesData['hover'] || {};
+
+                // 1. Apply base styles in cascading order (Desktop -> Tablet -> Mobile)
+                Object.assign(element.style, baseStyles['desktop'] || {});
+                if (this.currentBreakpoint === 'tablet' || this.currentBreakpoint === 'mobile') {
+                    Object.assign(element.style, baseStyles['tablet'] || {});
+                }
+                if (this.currentBreakpoint === 'mobile') {
+                    Object.assign(element.style, baseStyles['mobile'] || {});
+                }
+
+                // 2. Setup live hover preview in the editor
+                element.removeEventListener('mouseenter', this.applyHoverStyles);
+                element.removeEventListener('mouseleave', () => this.applyAllStyles(element)); // Re-apply base on leave
+
+                element.hoverStyleStore = hoverStyles; // Store hover styles on the element
+                element.applyHoverStyles = () => {
+                    const stylesToApply = element.hoverStyleStore;
+                    if (!stylesToApply) return;
+                    Object.assign(element.style, stylesToApply['desktop'] || {});
+                     if (this.currentBreakpoint === 'tablet' || this.currentBreakpoint === 'mobile') {
+                        Object.assign(element.style, stylesToApply['tablet'] || {});
+                    }
+                    if (this.currentBreakpoint === 'mobile') {
+                        Object.assign(element.style, stylesToApply['mobile'] || {});
+                    }
+                };
+                
+                element.addEventListener('mouseenter', element.applyHoverStyles);
+                element.addEventListener('mouseleave', () => this.applyAllStyles(element));
+            }
+
+            updateElementContent(content) {
+                if (this.selectedElement) {
+                    const textElement = this.selectedElement.querySelector('p, h1, h2, h3, h4, h5, h6, button, label');
+                    if (textElement) {
+                        textElement.textContent = content;
+                    }
+                    this.saveToHistory();
+                }
+            }
+
+            updateElementAttribute(attr, value, selector) {
+                if (this.selectedElement) {
+                    const target = this.selectedElement.querySelector(selector);
+                    if (target) {
+                        target.setAttribute(attr, value);
+                        this.saveToHistory();
+                    }
+                }
             }
 
             getElementText(element) {
-                const textElement = element.querySelector('p, h1, h2, h3, h4, h5, h6, button');
+                const textElement = element.querySelector('p, h1, h2, h3, h4, h5, h6, button, label');
                 return textElement ? textElement.textContent : '';
             }
 
+            rgbToHex(rgb) {
+                if (!rgb || rgb === 'transparent') return '#ffffff';
+                if (rgb.startsWith('#')) return rgb;
+                
+                const result = rgb.match(/\d+/g);
+                if (!result) return '#ffffff';
+                
+                return '#' + result.map(x => {
+                    const hex = parseInt(x).toString(16);
+                    return hex.length === 1 ? '0' + hex : hex;
+                }).join('');
+            }
+
             deleteElement(element) {
-                if (!element) return;
-                element.remove();
-                if (element === this.selectedElement) {
+                if (element) {
+                    element.remove();
                     this.selectedElement = null;
-                    this.showProperties(null);
+                    document.getElementById('properties-panel').innerHTML = `
+                        <div class="p-4 text-center text-gray-500">
+                            <i class="fas fa-mouse-pointer text-3xl mb-2 block"></i>
+                            <p>Select an element to edit its properties</p>
+                        </div>
+                    `;
+                    this.saveToHistory();
+                    this.updateLayersTree();
                 }
-                if (element === this.editingElement) {
-                    this.exitEditMode();
+            }
+
+
+            handleCanvasClick(e){
+                if (e.target.closest('.canvas-element')) return;
+                document.querySelectorAll('.canvas-element').forEach(x=>x.classList.remove('selected'));
+                this.selectedElement=null;
+                document.getElementById('properties-panel').innerHTML = `<div class="p-4 text-center text-gray-500"><i class="fas fa-mouse-pointer text-3xl mb-2"></i><p>Select an element to edit its properties</p></div>`;
+            }
+
+            updateLayersTree() {
+            const tree = document.getElementById('layers-tree');
+            const canvas = document.getElementById('canvas');
+            tree.innerHTML = this.generateLayersHTML(canvas, 0);
+
+            // Add event listeners AFTER generating the HTML
+            tree.querySelectorAll('.layer-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const elementId = item.dataset.elementId;
+                    const elementToSelect = document.querySelector(`[data-element-id="${elementId}"]`);
+                    if (elementToSelect) {
+                        this.selectElement(elementToSelect);
+                        // Optional: scroll the element into view on the canvas
+                        elementToSelect.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                });
+            });
+        }
+
+            generateLayersHTML(container, depth) {
+                let html = '';
+                const elements = Array.from(container.children).filter(el => el.classList.contains('canvas-element'));
+                
+                elements.forEach(element => {
+                    const componentType = element.dataset.componentType;
+                    const elementId = element.dataset.elementId;
+                    const indent = 'pl-' + (depth * 4);
+                    
+                    html += `
+                        <div class="layer-item ${indent} py-1 px-2 hover:bg-gray-100 cursor-pointer flex items-center" data-element-id="${elementId}">
+                            <i class="fas fa-${this.getComponentIcon(componentType)} mr-2 text-gray-500"></i>
+                            <span class="text-sm">${componentType}</span>
+                        </div>
+                    `;
+                    
+                    // Check for nested elements
+                    const nested = Array.from(element.children).filter(el => el.classList.contains('canvas-element'));
+                    if (nested.length > 0) {
+                        html += this.generateLayersHTML(element, depth + 1);
+                    }
+                });
+                
+                return html;
+            }
+
+            getComponentIcon(componentType) {
+                const icons = {
+                    text: 'font',
+                    heading: 'heading',
+                    button: 'mouse-pointer',
+                    image: 'image',
+                    container: 'square',
+                    row: 'columns',
+                    navbar: 'bars',
+                    card: 'id-card',
+                    form: 'wpforms',
+                    video: 'video'
+                };
+                return icons[componentType] || 'cube';
+            }
+
+            selectElementById(elementId) {
+                const element = document.querySelector(`[data-element-id="${elementId}"]`);
+                if (element) {
+                    this.selectElement(element);
                 }
-                this.updateSelectionBox(null);
-                this.saveToHistory();
-                this.updateLayersTree();
+            }
+
+            generateId() {
+                return 'element_' + Math.random().toString(36).substr(2, 9);
+            }
+
+            handleAssetUpload(e) {
+                const files = Array.from(e.target.files);
+                files.forEach(file => {
+                    if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            this.assets.push({
+                                id: this.generateId(),
+                                name: file.name,
+                                type: file.type,
+                                data: e.target.result
+                            });
+                            this.updateAssetsGrid();
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
+            }
+
+            updateAssetsGrid() {
+                const grid = document.getElementById('assets-grid');
+                grid.innerHTML = this.assets.map(asset => `
+                    <div class="asset-item border rounded p-2 cursor-pointer hover:bg-gray-50" draggable="true" data-asset-id="${asset.id}">
+                        ${asset.type.startsWith('image/') 
+                            ? `<img src="${asset.data}" alt="${asset.name}" class="w-full h-20 object-cover rounded mb-1 pointer-events-none">`
+                            : `<div class="w-full h-20 bg-gray-200 rounded mb-1 flex items-center justify-center pointer-events-none"><i class="fas fa-video text-gray-500"></i></div>`
+                        }
+                        <p class="text-xs truncate pointer-events-none">${asset.name}</p>
+                    </div>
+                `).join('');
+
+                grid.querySelectorAll('.asset-item').forEach(item => {
+                    item.addEventListener('dragstart', (e) => {
+                        this.draggedElement = {
+                            type: 'asset',
+                            assetId: e.target.dataset.assetId
+                        };
+                    });
+                });
+            }
+
+            showPreview() {
+                const modal = document.getElementById('preview-modal');
+                const frame = document.getElementById('preview-frame');
+                
+                const html = this.generatePreviewHTML();
+                const blob = new Blob([html], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                
+                frame.src = url;
+                modal.classList.remove('hidden');
+            }
+
+            hidePreview() {
+                document.getElementById('preview-modal').classList.add('hidden');
+            }
+
+            generatePreviewHTML() {
+                const canvas = document.getElementById('canvas');
+                const styles = this.extractStyles();
+                
+                return `
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>Preview</title>
+                        <style>
+                            body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
+                            .row { display: flex; gap: 20px; align-items: stretch; }
+                            .col { flex: 1; }
+                            .card-header { padding: 15px; background: #f8f9fa; border-bottom: 1px solid #e9ecef; font-weight: bold; }
+                            .card-body { padding: 15px; }
+                            .nav-brand { font-weight: bold; font-size: 18px; }
+                            .nav-menu { list-style: none; display: flex; gap: 20px; margin: 0; padding: 0; }
+                            .nav-menu a { text-decoration: none; color: inherit; }
+                            .form-group { margin-bottom: 15px; }
+                            .form-group label { display: block; margin-bottom: 5px; font-weight: medium; }
+                            .form-group input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+                            ${styles}
+                        </style>
+                    </head>
+                    <body>
+                        ${this.getCleanHTML(canvas)}
+                    </body>
+                    </html>
+                `;
+            }
+
+            getCleanHTML(container) {
+                const clone = container.cloneNode(true);
+                
+                // Remove editor-specific elements
+                clone.querySelectorAll('.element-controls').forEach(el => el.remove());
+                clone.querySelectorAll('.canvas-element').forEach(el => {
+                    el.classList.remove('canvas-element', 'selected');
+                    el.removeAttribute('data-component-type');
+                });
+                
+                return clone.innerHTML;
+            }
+
+            extractStyles() {
+                let css = '';
+                for (const className in this.globalStyles) {
+                    const styleObj = this.globalStyles[className];
+                    const styleString = Object.entries(styleObj).map(([prop, val]) => `${this.camelToKebab(prop)}: ${val};`).join(' ');
+                    if (styleString) {
+                        css += `.${className} { ${styleString} }\n`;
+                    }
+                }
+
+                const elements = document.querySelectorAll('.canvas-element');
+                const desktopStyles = new Map();
+                const tabletStyles = new Map();
+                const mobileStyles = new Map();
+
+                elements.forEach(element => {
+                    const elementId = element.dataset.elementId;
+                    if (!elementId) return;
+                    let styles = {};
+                    try {
+                        styles = JSON.parse(element.dataset.styles || '{}');
+                    } catch (e) { return; }
+                    
+                    // Add styles for the BASE state
+                    if (styles.base?.desktop) desktopStyles.set(elementId, styles.base.desktop);
+                    if (styles.base?.tablet) tabletStyles.set(elementId, styles.base.tablet);
+                    if (styles.base?.mobile) mobileStyles.set(elementId, styles.base.mobile);
+
+                    // --- ADD THIS NEW BLOCK FOR HOVER STATE ---
+                    if (styles.hover) {
+                        // We'll generate a separate hover CSS string
+                        let hoverCss = '';
+                        const hoverDesktop = styles.hover?.desktop || {};
+                        const hoverTablet = styles.hover?.tablet || {};
+                        const hoverMobile = styles.hover?.mobile || {};
+
+                        const hoverDesktopString = Object.entries(hoverDesktop).map(([p, v]) => `${this.camelToKebab(p)}: ${v};`).join(' ');
+                        if (hoverDesktopString) css += `[data-element-id="${elementId}"]:hover { ${hoverDesktopString} }\n`;
+                        
+                        const hoverTabletString = Object.entries(hoverTablet).map(([p, v]) => `${this.camelToKebab(p)}: ${v};`).join(' ');
+                        if (hoverTabletString) css += `@media (max-width: 1023px) { [data-element-id="${elementId}"]:hover { ${hoverTabletString} } }\n`;
+
+                        const hoverMobileString = Object.entries(hoverMobile).map(([p, v]) => `${this.camelToKebab(p)}: ${v};`).join(' ');
+                        if (hoverMobileString) css += `@media (max-width: 767px) { [data-element-id="${elementId}"]:hover { ${hoverMobileString} } }\n`;
+                    }
+                });
+
+                desktopStyles.forEach((styleObj, id) => {
+                    const styleString = Object.entries(styleObj).map(([prop, val]) => `${this.camelToKebab(prop)}: ${val};`).join(' ');
+                    css += `[data-element-id="${id}"] { ${styleString} }\n`;
+                });
+
+                if (tabletStyles.size > 0) {
+                    css += '@media (max-width: 1023px) {\n';
+                    tabletStyles.forEach((styleObj, id) => {
+                        const styleString = Object.entries(styleObj).map(([prop, val]) => `${this.camelToKebab(prop)}: ${val};`).join(' ');
+                        css += `  [data-element-id="${id}"] { ${styleString} }\n`;
+                    });
+                    css += '}\n';
+                }
+
+                if (mobileStyles.size > 0) {
+                    css += '@media (max-width: 767px) {\n';
+                    mobileStyles.forEach((styleObj, id) => {
+                        const styleString = Object.entries(styleObj).map(([prop, val]) => `${this.camelToKebab(prop)}: ${val};`).join(' ');
+                        css += `  [data-element-id="${id}"] { ${styleString} }\n`;
+                    });
+                    css += '}\n';
+                }
+                
+                return css;
+            }
+
+            camelToKebab(str) {
+                return str.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`);
+            }
+
+            showCodeEditor() {
+                if (!this.codeEditor) return;
+                
+                const modal = document.getElementById('code-modal');
+                modal.classList.remove('hidden');
+                
+                this.switchCodeTab(this.currentCodeTab);
+            }
+
+            hideCodeEditor() {
+                document.getElementById('code-modal').classList.add('hidden');
+            }
+
+            switchCodeTab(tab) {
+                this.currentCodeTab = tab;
+                
+                document.querySelectorAll('.code-tab-btn').forEach(btn => {
+                    btn.classList.remove('bg-blue-500', 'text-white');
+                    btn.classList.add('bg-gray-300', 'text-gray-700');
+                });
+                document.querySelector(`[data-code-tab="${tab}"]`).classList.add('bg-blue-500', 'text-white');
+                
+                let content = '';
+                let language = 'html';
+                
+                switch(tab) {
+                    case 'html':
+                        content = this.getCleanHTML(document.getElementById('canvas'));
+                        language = 'html';
+                        break;
+                    case 'css':
+                        content = this.extractStyles();
+                        language = 'css';
+                        break;
+                    case 'js':
+                        content = '// Add your JavaScript code here\n';
+                        language = 'javascript';
+                        break;
+                }
+                
+                if (this.codeEditor) {
+                    monaco.editor.setModelLanguage(this.codeEditor.getModel(), language);
+                    this.codeEditor.setValue(content);
+                }
+            }
+
+            save() {
+                const projectData = {
+                    canvas: document.getElementById('canvas').innerHTML,
+                    assets: this.assets,
+                    timestamp: new Date().toISOString()
+                };
+                
+                localStorage.setItem('webbuilder_project', JSON.stringify(projectData));
+                
+                // Show success message
+                const notification = document.createElement('div');
+                notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded shadow-lg z-50';
+                notification.textContent = 'Project saved successfully!';
+                document.body.appendChild(notification);
+                
+                setTimeout(() => {
+                    notification.remove();
+                }, 3000);
+            }
+
+            loadFromLocalStorage() {
+                const saved = localStorage.getItem('webbuilder_project');
+                if (saved) {
+                    try {
+                        const projectData = JSON.parse(saved);
+                        document.getElementById('canvas').innerHTML = projectData.canvas;
+                        this.assets = projectData.assets || [];
+                        this.updateAssetsGrid();
+                        this.updateLayersTree();
+                        
+                        // Reattach event listeners to loaded elements
+                        this.reattachEventListeners();
+                    } catch (e) {
+                        console.error('Failed to load project:', e);
+                    }
+                }
+            }
+
+            // REPLACE the entire old method with this one
+            reattachEventListeners() {
+                document.querySelectorAll('.canvas-element').forEach(element => {
+                    // Bind all interactive events (select, drag)
+                    this.bindInteractiveEvents(element);
+                    
+                    // Re-apply styles for hover effects and responsiveness
+                    this.applyAllStyles(element);
+                });
+            }
+
+            reattachEventListenersToElement(element) {
+                const elements = [element, ...element.querySelectorAll('.canvas-element')];
+                elements.forEach(el => {
+                });
+            }
+
+            export() {
+                const html = this.generatePreviewHTML();
+                const blob = new Blob([html], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'website.html';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
             }
 
             saveToHistory() {
-                const state = this.canvas.innerHTML;
-                if (this.history[this.historyIndex] === state) return;
-
-                this.history = this.history.slice(0, this.historyIndex + 1);
+                const state = {
+                    canvas: document.getElementById('canvas').innerHTML,
+                    timestamp: Date.now()
+                };
+                
+                // Remove any future history if we're not at the end
+                if (this.historyIndex < this.history.length - 1) {
+                    this.history = this.history.slice(0, this.historyIndex + 1);
+                }
+                
                 this.history.push(state);
-                this.historyIndex++;
-                if (this.history.length > 50) { this.history.shift(); this.historyIndex--; }
+                this.historyIndex = this.history.length - 1;
+                
+                // Limit history size
+                if (this.history.length > 50) {
+                    this.history.shift();
+                    this.historyIndex--;
+                }
             }
 
-            loadFromState(state) {
-                this.canvas.innerHTML = state;
-                this.reattachEventListeners();
-                this.updateLayersTree();
-                this.selectedElement = null;
-                this.editingElement = null;
-                this.updateSelectionBox(null);
-                this.showProperties(null);
-                this.updateBreadcrumbs();
-            }
-            
             undo() {
                 if (this.historyIndex > 0) {
                     this.historyIndex--;
-                    this.loadFromState(this.history[this.historyIndex]);
+                    const state = this.history[this.historyIndex];
+                    document.getElementById('canvas').innerHTML = state.canvas;
+                    this.reattachEventListeners();
+                    this.updateLayersTree();
                 }
             }
 
             redo() {
                 if (this.historyIndex < this.history.length - 1) {
                     this.historyIndex++;
-                    this.loadFromState(this.history[this.historyIndex]);
+                    const state = this.history[this.historyIndex];
+                    document.getElementById('canvas').innerHTML = state.canvas;
+                    this.reattachEventListeners();
+                    this.updateLayersTree();
                 }
             }
-            
-            reattachEventListeners() {
-                this.selectionBox = document.getElementById('selection-box');
-                this.canvas.querySelectorAll('.canvas-element').forEach(element => {
-                    this.bindInteractiveEvents(element);
-                    // this.applyAllStyles(element); // Re-enable if using complex style datasets
-                });
+
+            renderStyleManager() {
+                const list = document.getElementById('class-manager-list');
+                let html = '';
+                for (const className in this.globalStyles) {
+                    // Simple display for now; could be expanded to show rules
+                    html += `<div class="p-2 border rounded text-sm cursor-pointer hover:bg-gray-100">${className}</div>`;
+                }
+                list.innerHTML = html;
             }
 
-            loadComponents() {
-                this.components.set('heading', { name: 'Heading', html: '<h2>Sample Heading</h2>', defaultWidth: '300px', defaultHeight: 'auto' });
-                this.components.set('text', { name: 'Text', html: '<p>Sample text content. You can edit this by changing the content property.</p>', defaultWidth: '250px', defaultHeight: 'auto' });
-                this.components.set('button', { name: 'Button', html: '<button style="width:100%; height:100%;" class="bg-blue-500 text-white font-bold py-2 px-4 rounded">Button</button>', defaultWidth: '120px', defaultHeight: '40px' });
-                this.components.set('image', { name: 'Image', html: '<img src="https://via.placeholder.com/300x200" alt="Placeholder" style="width:100%; height:100%; object-fit:cover;">', defaultWidth: '300px', defaultHeight: '200px' });
-                this.components.set('container', { name: 'Container', html: '<div style="width:100%; height:100%; background-color:#f0f0f0; border:1px solid #ccc;"></div>', defaultWidth: '300px', defaultHeight: '200px' });
-                this.components.set('video', { name: 'Video', html: '<video controls src="https://www.w3schools.com/html/mov_bbb.mp4" style="width:100%; height:100%;"></video>', defaultWidth: '300px', defaultHeight: '200px' });
+            addNewGlobalClass(className) {
+                if (!className || this.globalStyles[className]) return;
+                this.globalStyles[className] = {}; // Initialize empty style object
+                this.renderStyleManager();
             }
-
-            setZoom(value) {
-                this.zoomLevel = value / 100;
-                document.getElementById('canvas-container').style.transform = `scale(${this.zoomLevel})`;
-                document.getElementById('zoom-display').textContent = `${value}%`;
-            }
-            
-            rgbToHex(rgb) {
-                if (!rgb || !rgb.startsWith('rgb')) return '#ffffff';
-                const result = rgb.match(/\d+/g);
-                if (!result) return '#ffffff';
-                return '#' + result.map(x => parseInt(x).toString(16).padStart(2, '0')).join('');
-            }
-            
-            generateId() { return 'el_' + Math.random().toString(36).substr(2, 9); }
-            updateLayersTree() { /* Logic can be added back */ }
-            updateLayersTreeActiveState() { /* Logic can be added back */ }
-            updateBreadcrumbs() { /* Logic can be added back */ }
-            save() { localStorage.setItem('webbuilder_project', this.canvas.innerHTML); alert('Saved!'); }
-            loadFromLocalStorage() {
-                const saved = localStorage.getItem('webbuilder_project');
-                if (saved) { this.loadFromState(saved); }
-            }
-            export() { alert('Exporting...'); }
-            switchTab(tabName) {
-                 document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tabName));
-                 document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('hidden', c.id !== `${tabName}-tab`));
-            }
-            switchBreakpoint(bp) {
-                 document.querySelectorAll('.breakpoint-button').forEach(btn => btn.classList.toggle('active', btn.dataset.breakpoint === bp));
-                 const sizes = { desktop: '100%', tablet: '768px', mobile: '375px' };
-                 document.getElementById('canvas-container').style.width = sizes[bp];
-            }
-            setupMonacoEditor() { /* Placeholder */ }
-            applyAllStyles(element) { /* Placeholder for advanced styling */ }
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            window.app = new WebBuilderPro();
-        });
+        // Initialize the application
+        const app = new WebBuilderPro();
+        
+        // Make app globally accessible for onclick handlers
+        window.app = app;
     </script>
 </body>
 </html>
