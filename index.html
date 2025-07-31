@@ -11,22 +11,23 @@
     <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
     <style>
 
-        /* hide native dashed on hover when selected */
-        .canvas-element { position: absolute; cursor: move; }
-        .canvas-element.selected { outline: 2px solid #3b82f6; outline-offset: 2px; }
-        .canvas-element .gjs-resizer {
-        position: absolute;
-        width: 10px; height: 10px; background: #3b82f6;
-        border: 1px solid #fff; border-radius: 50%;
-        z-index: 10; display: none;
+        /* GrapeJS-style canvas & handles */
+        .canvas-element{
+        position:absolute; cursor:move; border:1px dashed transparent;
         }
-        .canvas-element.selected .gjs-resizer { display: block; }
-        .gjs-resizer.nw { top: -5px;  left: -5px;  cursor: nwse-resize; }
-        .gjs-resizer.ne { top: -5px;  right: -5px; cursor: nesw-resize; }
-        .gjs-resizer.sw { bottom: -5px; left: -5px;  cursor: nesw-resize; }
-        .gjs-resizer.se { bottom: -5px; right: -5px; cursor: nwse-resize; }
-
-
+        .canvas-element:hover{border-color:#3b82f6;}
+        .canvas-element.selected{
+        outline:2px solid #3b82f6; outline-offset:2px; background:rgba(59,130,246,.05);
+        }
+        .gjs-resizer{
+        position:absolute; width:10px; height:10px; background:#3b82f6;
+        border:1px solid #fff; border-radius:50%; z-index:10; display:none;
+        }
+        .canvas-element.selected .gjs-resizer{display:block;}
+        .gjs-resizer.nw{top:-5px;left:-5px;cursor:nwse-resize;}
+        .gjs-resizer.ne{top:-5px;right:-5px;cursor:nesw-resize;}
+        .gjs-resizer.sw{bottom:-5px;left:-5px;cursor:nesw-resize;}
+        .gjs-resizer.se{bottom:-5px;right:-5px;cursor:nwse-resize;}
 
         /* Add this to your <style> block */
         .layer-item.active-layer {
@@ -544,29 +545,6 @@
                     || '';
             }
 
-            repositionSelectionWrapper() {
-                const selectionWrapper = document.getElementById('selection-wrapper');
-                if (!this.selectedElement) {
-                    selectionWrapper.classList.add('hidden');
-                    return;
-                }
-
-                // Use the correct scroll area we identified earlier
-                const scrollContainer = document.getElementById('scroll-area'); 
-                
-                const elementRect = this.selectedElement.getBoundingClientRect();
-                const scrollRect = scrollContainer.getBoundingClientRect();
-
-                const top = elementRect.top - scrollRect.top + scrollContainer.scrollTop;
-                const left = elementRect.left - scrollRect.left + scrollContainer.scrollLeft;
-
-                selectionWrapper.style.top = `${top}px`;
-                selectionWrapper.style.left = `${left}px`;
-                selectionWrapper.style.width = `${elementRect.width}px`;
-                selectionWrapper.style.height = `${elementRect.height}px`;
-
-                // The line that forced it to be visible has been removed.
-            }
 
             setupResizing() {
                 const selectionWrapper = document.getElementById('selection-wrapper');
@@ -609,7 +587,7 @@
                             this.updateElementStyle('height', `${Math.max(10, newHeight).toFixed(0)}px`);
                             this.updateElementStyle('top', `${newTop.toFixed(0)}px`);
                             this.updateElementStyle('left', `${newLeft.toFixed(0)}px`);
-                            this.repositionSelectionWrapper(); 
+                        //    this.repositionSelectionWrapper(); 
                         };
 
                         const handleMouseUp = () => {
@@ -635,7 +613,7 @@
                 this.setupDragAndDrop();
                 this.loadComponents();
                 this.setupMonacoEditor();
-                this.setupResizing();
+            //    this.setupResizing();
                 this.loadFromLocalStorage();
             }
 
@@ -644,7 +622,7 @@
                     const h=document.createElement('div');
                     h.className=`gjs-resizer ${pos}`;
                     element.appendChild(h);
-                    this._bindResizeHandles(element);
+                //    this._bindResizeHandles(element);
                 });
                 // Main click event for selecting the element
                 element.addEventListener('click', (e) => {
@@ -660,7 +638,7 @@
                         moveBtn.addEventListener('mousedown', (e) => {
                             if (element.classList.contains('is-editing')) return;
                             e.stopPropagation();
-                            this.initiateDrag(e, element);
+                        //    this.initiateDrag(e, element);
                         });
                     }
 
@@ -706,126 +684,6 @@
                 });
             }
 
-            _bindElementEvents(el) {
-                // 4 corner handles
-                ['nw','ne','sw','se'].forEach(pos=>{
-                    const h=document.createElement('div');
-                    h.className=`gjs-resizer ${pos}`;
-                    el.appendChild(h);
-                });
-
-                // Select on click
-                el.addEventListener('click', e=>{
-                    e.stopPropagation();
-                    document.querySelectorAll('.canvas-element').forEach(x=>x.classList.remove('selected'));
-                    el.classList.add('selected');
-                    this.selectedElement = el;
-                    this.showProperties(el);
-                });
-
-                // Instant grab-and-move
-                el.addEventListener('mousedown', e=>{
-                    if (e.target.classList.contains('gjs-resizer')) return; // resize takes over
-                    e.preventDefault();
-                    const sx=e.clientX, sy=e.clientY;
-                    const sl=parseFloat(el.style.left)||0, st=parseFloat(el.style.top)||0;
-                    const z=parseFloat(document.getElementById('zoom-slider').value)/100;
-
-                    const onMove = ev=>{
-                    el.style.left = sl+(ev.clientX-sx)/z+'px';
-                    el.style.top  = st+(ev.clientY-sy)/z+'px';
-                    };
-                    const onUp = ()=>{
-                    document.removeEventListener('mousemove',onMove);
-                    document.removeEventListener('mouseup',onUp);
-                    this.saveToHistory();
-                    };
-                    document.addEventListener('mousemove',onMove);
-                    document.addEventListener('mouseup',onUp);
-                });
-
-                // Live corner resize
-                el.querySelectorAll('.gjs-resizer').forEach(h=>{
-                    h.addEventListener('mousedown', e=>{
-                    e.stopPropagation();
-                    const sx=e.clientX, sy=e.clientY;
-                    const rect=el.getBoundingClientRect();
-                    const z=parseFloat(document.getElementById('zoom-slider').value)/100;
-                    const w0=rect.width/z, h0=rect.height/z;
-                    const l0=parseFloat(el.style.left)||0, t0=parseFloat(el.style.top)||0;
-
-                    const onMove = ev=>{
-                        const dx=(ev.clientX-sx)/z, dy=(ev.clientY-sy)/z;
-                        let w=w0, h=h0, l=l0, t=t0;
-                        if(h.classList.contains('se')){ w=w0+dx; h=h0+dy; }
-                        if(h.classList.contains('sw')){ w=w0-dx; h=h0+dy; l=l0+dx; }
-                        if(h.classList.contains('ne')){ w=w0+dx; h=h0-dy; t=t0+dy; }
-                        if(h.classList.contains('nw')){ w=w0-dx; h=h0-dy; l=l0+dx; t=t0+dy; }
-                        el.style.width=Math.max(10,w)+'px';
-                        el.style.height=Math.max(10,h)+'px';
-                        el.style.left=l+'px';
-                        el.style.top=t+'px';
-                    };
-                    const onUp = ()=>{
-                        document.removeEventListener('mousemove',onMove);
-                        document.removeEventListener('mouseup',onUp);
-                        this.saveToHistory();
-                    };
-                    document.addEventListener('mousemove',onMove);
-                    document.addEventListener('mouseup',onUp);
-                    });
-                });
-            }
-
-            initiateDrag(e, element) {
-                if (!element || this.isResizing) return; // Safety check: Do not allow dragging while resizing.
-                e.preventDefault();
-                e.stopPropagation();
-
-                // --- CRITICAL FIX: Force exit from Edit Mode on drag ---
-                if (element.classList.contains('is-editing')) {
-                    element.classList.remove('is-editing');
-                    const editIcon = element.querySelector('.fa-check');
-                    if(editIcon) editIcon.classList.replace('fa-check', 'fa-edit');
-                }
-                document.getElementById('selection-wrapper').classList.add('hidden');
-                // --- END FIX ---
-
-                let needsPositionChange = false;
-                const positionType = window.getComputedStyle(element).position;
-                if (positionType === 'static') {
-                    element.style.position = 'relative';
-                    needsPositionChange = true;
-                }
-
-                const initialMouse = { x: e.clientX, y: e.clientY };
-                const zoom = parseFloat(document.getElementById('zoom-slider').value) / 100;
-                const initialElementPos = {
-                    left: parseFloat(element.style.left) || 0,
-                    top: parseFloat(element.style.top) || 0
-                };
-
-                const handleMouseMove = (moveEvent) => {
-                    const dx = moveEvent.clientX - initialMouse.x;
-                    const dy = moveEvent.clientY - initialMouse.y;
-                    element.style.left = `${initialElementPos.left + (dx / zoom)}px`;
-                    element.style.top = `${initialElementPos.top + (dy / zoom)}px`;
-                    // While dragging, we don't need to reposition the (hidden) wrapper
-                };
-
-                const handleMouseUp = () => {
-                    window.removeEventListener('mousemove', handleMouseMove);
-                    if (needsPositionChange) this.updateElementStyle('position', 'relative');
-                    this.updateElementStyle('left', element.style.left);
-                    this.updateElementStyle('top', element.style.top);
-                    this.saveToHistory();
-                    // After dropping, reposition the wrapper for the next selection
-                    this.repositionSelectionWrapper();
-                };
-
-                window.addEventListener('mousemove', handleMouseMove);
-                window.addEventListener('mouseup', handleMouseUp, { once: true });
-            }
             
             setupEventListeners() {
                 this.clipboard = null;
@@ -1296,6 +1154,7 @@
             addComponent(componentType, event) {
                 const component = this.components.get(componentType);
                 if (!component) return;
+                element.style.position = 'absolute';
 
                 const element = document.createElement('div');
                 element.className = 'canvas-element';
@@ -1349,7 +1208,7 @@
                 this.selectedElement = element;
                 
                 this.showProperties(element);
-                this.repositionSelectionWrapper();
+            //    this.repositionSelectionWrapper();
                 selectionWrapper.classList.add('hidden'); 
                 this.updateBreadcrumbs();
                 
@@ -1687,7 +1546,6 @@
                 this.selectedElement.dataset.styles = JSON.stringify(styles);
 
                 this.applyAllStyles(this.selectedElement);
-                // this.repositionSelectionWrapper(); // <-- DELETE THIS LINE
             }
             
             applyAllStyles(element) {
