@@ -57,9 +57,6 @@
 
 
         .canvas-element:hover{border-color:#3b82f6;}
-        .canvas-element.selected{
-        outline:2px solid #3b82f6; outline-offset:2px; background:rgba(59,130,246,.05);
-        }
 
         /* Add this to your <style> block */
         .layer-item.active-layer {
@@ -100,14 +97,8 @@
             background-color: #f3f4f6;
         }
 
-        .resizer {
-            position: absolute;
-            width: 10px;
-            height: 10px;
-            background: #3b82f6;
-            border: 1px solid white;
-            border-radius: 50%;
-            pointer-events: all;
+        .canvas-element.selected {
+            background: rgba(59, 130, 246, 0.05);
         }
 
         .component-item {
@@ -465,6 +456,51 @@
                 this.globalStyles = {};
                 this.currentState = 'base';
                 this.init();
+            }
+
+            // ADD THIS ENTIRE NEW METHOD
+            bindInteractiveEvents(el) {
+                // 1. Single Click to Select
+                el.addEventListener('mousedown', (e) => {
+                    // Only trigger selection on a primary button click and not on a resizer handle
+                    if (e.button !== 0 || e.target.classList.contains('resizer')) {
+                        return;
+                    }
+                    e.stopPropagation();
+                    this.selectElement(el);
+                });
+
+                // 2. Drag to Move
+                el.addEventListener('mousedown', (e) => {
+                    if (e.button !== 0 || e.target.classList.contains('resizer')) {
+                        return;
+                    }
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    const initialX = e.clientX;
+                    const initialY = e.clientY;
+                    const initialTop = el.offsetTop;
+                    const initialLeft = el.offsetLeft;
+                    const zoom = parseFloat(document.getElementById('zoom-slider').value) / 100;
+
+                    const onDragMove = (moveEvent) => {
+                        const dx = (moveEvent.clientX - initialX) / zoom;
+                        const dy = (moveEvent.clientY - initialY) / zoom;
+                        el.style.top = (initialTop + dy) + 'px';
+                        el.style.left = (initialLeft + dx) + 'px';
+                        this.updateSelectionBox();
+                    };
+
+                    const onDragEnd = () => {
+                        document.removeEventListener('mousemove', onDragMove);
+                        document.removeEventListener('mouseup', onDragEnd);
+                        this.saveToHistory();
+                    };
+
+                    document.addEventListener('mousemove', onDragMove);
+                    document.addEventListener('mouseup', onDragEnd);
+                });
             }
 
             setupResizing() {
@@ -940,17 +976,23 @@
                                 this.save();
                                 break;
                             // Add new case for Duplication
+                            // Replace this entire case block
                             case 'd':
                                 e.preventDefault();
                                 if (this.selectedElement) {
                                     const clone = this.selectedElement.cloneNode(true);
                                     clone.dataset.elementId = this.generateId();
-                                    this.applyAllStyles(clone); // Ensure styles are applied to clone
+                                    
+                                    // Apply styles AND BIND EVENTS to the new clone
+                                    this.applyAllStyles(clone); 
+                                    this.bindInteractiveEvents(clone);
+
                                     this.selectedElement.after(clone);
                                     this.selectElement(clone); // Select the new element
                                     this.saveToHistory();
                                 }
                                 break;
+
                         }
                     }
                     if (e.key === 'Delete' && this.selectedElement) {
@@ -1257,7 +1299,7 @@
                 controls.className = 'element-controls';
                 controls.innerHTML = `<i class="fas fa-trash cursor-pointer" onclick="event.stopPropagation(); app.deleteElement(this.closest('.canvas-element'))"></i>`;
                 element.appendChild(controls);
-
+                this.bindInteractiveEvents(element);
 
                 // Find drop position and append
                 let targetContainer = event.target.closest('.drop-zone') || document.getElementById('canvas');
@@ -2052,16 +2094,13 @@
                 }
             }
 
+            // REPLACE the entire old method with this one
             reattachEventListeners() {
                 document.querySelectorAll('.canvas-element').forEach(element => {
-                    // The old _bindElementEvents is gone, so we don't call it.
-                    // Instead, we add a click listener to select the element.
-                    element.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        this.selectElement(e.currentTarget);
-                    });
+                    // Bind all interactive events (select, drag)
+                    this.bindInteractiveEvents(element);
                     
-                    // CRITICAL: Re-apply styles to make sure hover effects and responsive design works on load.
+                    // Re-apply styles for hover effects and responsiveness
                     this.applyAllStyles(element);
                 });
             }
