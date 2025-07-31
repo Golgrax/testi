@@ -55,10 +55,7 @@
         z-index: 11;
     }
 
-        /* GrapeJS-style canvas & handles */
-        .canvas-element{
-        position:absolute; cursor:move; border:1px dashed transparent;
-        }
+
         .canvas-element:hover{border-color:#3b82f6;}
         .canvas-element.selected{
         outline:2px solid #3b82f6; outline-offset:2px; background:rgba(59,130,246,.05);
@@ -363,14 +360,6 @@
                 <!-- Canvas Container -->
                 <div id="scroll-area" class="flex-1 p-4 overflow-auto bg-gray-50">
 
-                        <div class="resizer top-left" data-resizer="top-left"></div>
-                        <div class="resizer top-right" data-resizer="top-right"></div>
-                        <div class="resizer bottom-left" data-resizer="bottom-left"></div>
-                        <div class="resizer bottom-right" data-resizer="bottom-right"></div>
-                        <div class="resizer top-center" data-resizer="top-center"></div>
-                        <div class="resizer bottom-center" data-resizer="bottom-center"></div>
-                        <div class="resizer left-center" data-resizer="left-center"></div>
-                        <div class="resizer right-center" data-resizer="right-center"></div>
 
                     <div class="mx-auto bg-white shadow-lg" id="canvas-container" style="width: 1024px; min-height: 600px;">
                         <div id="canvas" class="drop-zone relative" style="min-height: 600px;">
@@ -380,16 +369,7 @@
                 </div>
             </div>
 
-                <div id="selection-box" class="selection-box">
-                    <div class="resizer top-left"></div>
-                    <div class="resizer top-center"></div>
-                    <div class="resizer top-right"></div>
-                    <div class="resizer middle-left"></div>
-                    <div class="resizer middle-right"></div>
-                    <div class="resizer bottom-left"></div>
-                    <div class="resizer bottom-center"></div>
-                    <div class="resizer bottom-right"></div>
-                </div>
+
 
 
         </div>
@@ -408,6 +388,17 @@
             </div>
         </div>
     </div>
+
+        <div id="selection-box" class="selection-box">
+            <div class="resizer top-left"></div>
+            <div class="resizer top-center"></div>
+            <div class="resizer top-right"></div>
+            <div class="resizer middle-left"></div>
+            <div class="resizer middle-right"></div>
+            <div class="resizer bottom-left"></div>
+            <div class="resizer bottom-center"></div>
+            <div class="resizer bottom-right"></div>
+        </div>
 
     <div id="drop-indicator" class="fixed bg-blue-500 h-1 pointer-events-none hidden" style="z-index: 9999;"></div>
     
@@ -900,8 +891,42 @@
 
                 // Keyboard shortcuts
                 document.addEventListener('keydown', (e) => {
-                    if (e.ctrlKey || e.metaKey) {
+                    // --- START ADDING/MODIFYING HERE ---
+
+                    // 1. Check for a selected element first
+                    if (this.selectedElement && !e.target.matches('input, textarea')) {
+                        // Prevent browser default action for arrow keys when an element is selected
+                        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                             e.preventDefault();
+                        }
+
+                        // Arrow Key Movement
+                        const moveAmount = e.shiftKey ? 10 : 1; // Move by 10px if Shift is held
                         switch(e.key) {
+                            case 'ArrowUp':
+                                this.selectedElement.style.top = (parseFloat(this.selectedElement.style.top) || 0) - moveAmount + 'px';
+                                break;
+                            case 'ArrowDown':
+                                this.selectedElement.style.top = (parseFloat(this.selectedElement.style.top) || 0) + moveAmount + 'px';
+                                break;
+                            case 'ArrowLeft':
+                                this.selectedElement.style.left = (parseFloat(this.selectedElement.style.left) || 0) - moveAmount + 'px';
+                                break;
+                            case 'ArrowRight':
+                                this.selectedElement.style.left = (parseFloat(this.selectedElement.style.left) || 0) + moveAmount + 'px';
+                                break;
+                        }
+                        // Update the selection box after moving
+                        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                            this.updateSelectionBox();
+                            // We can choose to save on every move, or on mouseup after moving. For simplicity, we save now.
+                            this.saveToHistory();
+                        }
+                    }
+
+                    // 2. Handle Ctrl/Meta key combinations
+                    if (e.ctrlKey || e.metaKey) {
+                        switch(e.key.toLowerCase()) { // Use toLowerCase to catch 'd' and 'D'
                             case 'z':
                                 e.preventDefault();
                                 if (e.shiftKey) {
@@ -914,11 +939,24 @@
                                 e.preventDefault();
                                 this.save();
                                 break;
+                            // Add new case for Duplication
+                            case 'd':
+                                e.preventDefault();
+                                if (this.selectedElement) {
+                                    const clone = this.selectedElement.cloneNode(true);
+                                    clone.dataset.elementId = this.generateId();
+                                    this.applyAllStyles(clone); // Ensure styles are applied to clone
+                                    this.selectedElement.after(clone);
+                                    this.selectElement(clone); // Select the new element
+                                    this.saveToHistory();
+                                }
+                                break;
                         }
                     }
                     if (e.key === 'Delete' && this.selectedElement) {
                         this.deleteElement(this.selectedElement);
                     }
+                    // --- END ADDING/MODIFYING HERE ---
                 });
 
                 document.getElementById('add-class-btn').addEventListener('click', () => {
@@ -1220,8 +1258,6 @@
                 controls.innerHTML = `<i class="fas fa-trash cursor-pointer" onclick="event.stopPropagation(); app.deleteElement(this.closest('.canvas-element'))"></i>`;
                 element.appendChild(controls);
 
-                // Use our new central function to add all events
-                this._bindElementEvents(element);
 
                 // Find drop position and append
                 let targetContainer = event.target.closest('.drop-zone') || document.getElementById('canvas');
@@ -1329,7 +1365,7 @@
                             <!-- Display property -->
                             <div class="mb-2">
                                 <label class="text-xs text-gray-600">Display</label>
-                                <select class="property-input" onchange="app.updateElementStyle('display', this.value)">
+                                <select class="property-input" oninput="app.updateElementStyle('display', this.value)">
                                     <option value="block" ${this.getCurrentStyle('display') === 'block' ? 'selected' : ''}>Block</option>
                                     <option value="flex" ${this.getCurrentStyle('display') === 'flex' ? 'selected' : ''}>Flex</option>
                                     <option value="inline-block" ${this.getCurrentStyle('display') === 'inline-block' ? 'selected' : ''}>Inline Block</option>
@@ -1339,38 +1375,38 @@
                             <div class="grid grid-cols-2 gap-2 mb-2">
                                 <div class="relative">
                                     <label class="text-xs text-gray-600">Width</label>
-                                    <input type="text" class="property-input" value="${this.getCurrentStyle('width') || 'auto'}" onchange="app.updateElementStyle('width', this.value)">
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('width') || 'auto'}" oninput="app.updateElementStyle('width', this.value)">
                                     ${this.hasBreakpointSpecificStyle('width') ? '<span class="responsive-indicator"></span>' : ''}
                                 </div>
                                 <div class="relative">
                                     <label class="text-xs text-gray-600">Height</label>
-                                    <input type="text" class="property-input" value="${this.getCurrentStyle('height') || 'auto'}" onchange="app.updateElementStyle('height', this.value)">
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('height') || 'auto'}" oninput="app.updateElementStyle('height', this.value)">
                                     ${this.hasBreakpointSpecificStyle('height') ? '<span class="responsive-indicator"></span>' : ''}
                                 </div>
                                 <div class="relative">
                                     <label class="text-xs text-gray-600">Margin</label>
-                                    <input type="text" class="property-input" value="${this.getCurrentStyle('margin') || '0'}" onchange="app.updateElementStyle('margin', this.value)">
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('margin') || '0'}" oninput="app.updateElementStyle('margin', this.value)">
                                     ${this.hasBreakpointSpecificStyle('margin') ? '<span class="responsive-indicator"></span>' : ''}
                                 </div>
                                 <div class="relative">
                                     <label class="text-xs text-gray-600">Padding</label>
-                                    <input type="text" class="property-input" value="${this.getCurrentStyle('padding') || '0'}" onchange="app.updateElementStyle('padding', this.value)">
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('padding') || '0'}" oninput="app.updateElementStyle('padding', this.value)">
                                     ${this.hasBreakpointSpecificStyle('padding') ? '<span class="responsive-indicator"></span>' : ''}
                                 </div>
                                 <div>
                                     <label class="text-xs text-gray-600">Border</label>
-                                    <input type="text" class="property-input" value="${this.getCurrentStyle('border') || 'none'}" onchange="app.updateElementStyle('border', this.value)">
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('border') || 'none'}" oninput="app.updateElementStyle('border', this.value)">
                                 </div>
                                 <div>
                                     <label class="text-xs text-gray-600">Radius</label>
-                                    <input type="text" class="property-input" value="${this.getCurrentStyle('borderRadius') || '0'}" onchange="app.updateElementStyle('borderRadius', this.value)">
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('borderRadius') || '0'}" oninput="app.updateElementStyle('borderRadius', this.value)">
                                 </div>
                             </div>
                             <div class="border-t pt-2 mt-2">
                                 <h5 class="text-xs font-bold mb-1">Positioning</h5>
                                 <div class="mb-2">
                                     <label class="text-xs text-gray-600">Position</label>
-                                    <select class="property-input" onchange="app.updateElementStyle('position', this.value)">
+                                    <select class="property-input" oninput="app.updateElementStyle('position', this.value)">
                                         <option value="static" ${this.getCurrentStyle('position') === 'static' ? 'selected' : ''}>Static</option>
                                         <option value="relative" ${this.getCurrentStyle('position') === 'relative' ? 'selected' : ''}>Relative</option>
                                         <option value="absolute" ${this.getCurrentStyle('position') === 'absolute' ? 'selected' : ''}>Absolute</option>
@@ -1381,23 +1417,23 @@
                                 <div class="grid grid-cols-2 gap-2">
                                     <div>
                                         <label class="text-xs text-gray-600">Top</label>
-                                        <input type="text" class="property-input" value="${this.getCurrentStyle('top') || ''}" onchange="app.updateElementStyle('top', this.value)">
+                                        <input type="text" class="property-input" value="${this.getCurrentStyle('top') || ''}" oninput="app.updateElementStyle('top', this.value)">
                                     </div>
                                     <div>
                                         <label class="text-xs text-gray-600">Left</label>
-                                        <input type="text" class="property-input" value="${this.getCurrentStyle('left') || ''}" onchange="app.updateElementStyle('left', this.value)">
+                                        <input type="text" class="property-input" value="${this.getCurrentStyle('left') || ''}" oninput="app.updateElementStyle('left', this.value)">
                                     </div>
                                     <div>
                                         <label class="text-xs text-gray-600">Right</label>
-                                        <input type="text" class="property-input" value="${this.getCurrentStyle('right') || ''}" onchange="app.updateElementStyle('right', this.value)">
+                                        <input type="text" class="property-input" value="${this.getCurrentStyle('right') || ''}" oninput="app.updateElementStyle('right', this.value)">
                                     </div>
                                     <div>
                                         <label class="text-xs text-gray-600">Bottom</label>
-                                        <input type="text" class="property-input" value="${this.getCurrentStyle('bottom') || ''}" onchange="app.updateElementStyle('bottom', this.value)">
+                                        <input type="text" class="property-input" value="${this.getCurrentStyle('bottom') || ''}" oninput="app.updateElementStyle('bottom', this.value)">
                                     </div>
                                     <div>
                                         <label class="text-xs text-gray-600">Z-Index</label>
-                                        <input type="number" class="property-input" value="${this.getCurrentStyle('zIndex') || ''}" onchange="app.updateElementStyle('zIndex', this.value)">
+                                        <input type="number" class="property-input" value="${this.getCurrentStyle('zIndex') || ''}" oninput="app.updateElementStyle('zIndex', this.value)">
                                     </div>
                                 </div>
                             </div>
@@ -1408,7 +1444,7 @@
                             <h4 class="font-medium mb-2">Typography</h4>
                             <div class="mb-2"> <!-- Wrap it in a div -->
                                 <label class="text-xs text-gray-600">Font Family</label>
-                                <select class="property-input" onchange="app.updateElementStyle('fontFamily', this.value)">
+                                <select class="property-input" oninput="app.updateElementStyle('fontFamily', this.value)">
                                     <option value="">Default</option>
                                     ${this.googleFonts.map(font => `<option value="'${font}', sans-serif" ${this.getCurrentStyle('fontFamily').includes(font) ? 'selected' : ''}>${font}</option>`).join('')}
                                 </select>
@@ -1416,11 +1452,11 @@
                             <div class="grid grid-cols-2 gap-2 mb-2">
                                 <div>
                                     <label class="text-xs text-gray-600">Font Size</label>
-                                    <input type="text" class="property-input" value="${this.getCurrentStyle('fontSize') || '16px'}" onchange="app.updateElementStyle('fontSize', this.value)">
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('fontSize') || '16px'}" oninput="app.updateElementStyle('fontSize', this.value)">
                                 </div>
                                 <div>
                                     <label class="text-xs text-gray-600">Font Weight</label>
-                                    <select class="property-input" onchange="app.updateElementStyle('fontWeight', this.value)">
+                                    <select class="property-input" oninput="app.updateElementStyle('fontWeight', this.value)">
                                         <option value="normal" ${this.getCurrentStyle('fontWeight') === 'normal' ? 'selected' : ''}>Normal</option>
                                         <option value="bold" ${this.getCurrentStyle('fontWeight') === 'bold' ? 'selected' : ''}>Bold</option>
                                         <option value="lighter" ${this.getCurrentStyle('fontWeight') === 'lighter' ? 'selected' : ''}>Lighter</option>
@@ -1429,7 +1465,7 @@
                             </div>
                             <div class="mb-2">
                                 <label class="text-xs text-gray-600">Color</label>
-                                <input type="color" class="property-input" value="${this.rgbToHex(this.getCurrentStyle('color')) || '#333333'}" onchange="app.updateElementStyle('color', this.value)">
+                                <input type="color" class="property-input" value="${this.rgbToHex(this.getCurrentStyle('color')) || '#333333'}" oninput="app.updateElementStyle('color', this.value)">
                             </div>
                         </div>
 
@@ -1438,20 +1474,20 @@
                             <h4 class="font-medium mb-2">Background</h4>
                             <div class="mb-2">
                                 <label class="text-xs text-gray-600">Background Color</label>
-                                <input type="color" class="property-input" value="${this.rgbToHex(this.getCurrentStyle('backgroundColor')) || '#ffffff'}" onchange="app.updateElementStyle('backgroundColor', this.value)">
+                                <input type="color" class="property-input" value="${this.rgbToHex(this.getCurrentStyle('backgroundColor')) || '#ffffff'}" oninput="app.updateElementStyle('backgroundColor', this.value)">
                             </div>
                             <div class="mb-2">
                                 <label class="text-xs text-gray-600">Background Image (URL or Gradient)</label>
-                                <input type="text" class="property-input" placeholder="url(...) or linear-gradient(...)" value="${this.getCurrentStyle('backgroundImage') || ''}" onchange="app.updateElementStyle('backgroundImage', this.value)">
+                                <input type="text" class="property-input" placeholder="url(...) or linear-gradient(...)" value="${this.getCurrentStyle('backgroundImage') || ''}" oninput="app.updateElementStyle('backgroundImage', this.value)">
                             </div>
                             <div class="grid grid-cols-2 gap-2">
                                 <div>
                                     <label class="text-xs text-gray-600">Size</label>
-                                    <input type="text" class="property-input" placeholder="cover, contain, 100%" value="${this.getCurrentStyle('backgroundSize') || 'auto'}" onchange="app.updateElementStyle('backgroundSize', this.value)">
+                                    <input type="text" class="property-input" placeholder="cover, contain, 100%" value="${this.getCurrentStyle('backgroundSize') || 'auto'}" oninput="app.updateElementStyle('backgroundSize', this.value)">
                                 </div>
                                 <div>
                                     <label class="text-xs text-gray-600">Position</label>
-                                    <input type="text" class="property-input" placeholder="center, top left" value="${this.getCurrentStyle('backgroundPosition') || 'center'}" onchange="app.updateElementStyle('backgroundPosition', this.value)">
+                                    <input type="text" class="property-input" placeholder="center, top left" value="${this.getCurrentStyle('backgroundPosition') || 'center'}" oninput="app.updateElementStyle('backgroundPosition', this.value)">
                                 </div>
                             </div>
                         </div>
@@ -1459,7 +1495,7 @@
                         <!-- Content Editing -->
                         <div class="sidebar-section pb-4 mb-4">
                             <h4 class="font-medium mb-2">Content</h4>
-                            <textarea class="property-input h-20" placeholder="Edit content..." onchange="app.updateElementContent(this.value)">${this.getElementText(element)}</textarea>
+                            <textarea class="property-input h-20" placeholder="Edit content..." oninput="app.updateElementContent(this.value)">${this.getElementText(element)}</textarea>
                         </div>
 
                         <!-- This is where the new properties will be injected -->
@@ -1472,14 +1508,14 @@
                             <div class="grid grid-cols-2 gap-2 mb-2">
                                 <div>
                                     <label class="text-xs text-gray-600">Direction</label>
-                                    <select class="property-input" onchange="app.updateElementStyle('flexDirection', this.value)">
+                                    <select class="property-input" oninput="app.updateElementStyle('flexDirection', this.value)">
                                         <option value="row" ${this.getCurrentStyle('flexDirection') === 'row' ? 'selected' : ''}>Row</option>
                                         <option value="column" ${this.getCurrentStyle('flexDirection') === 'column' ? 'selected' : ''}>Column</option>
                                     </select>
                                 </div>
                                 <div>
                                     <label class="text-xs text-gray-600">Justify Content</label>
-                                    <select class="property-input" onchange="app.updateElementStyle('justifyContent', this.value)">
+                                    <select class="property-input" oninput="app.updateElementStyle('justifyContent', this.value)">
                                         <option value="flex-start" ${this.getCurrentStyle('justifyContent') === 'flex-start' ? 'selected' : ''}>Start</option>
                                         <option value="center" ${this.getCurrentStyle('justifyContent') === 'center' ? 'selected' : ''}>Center</option>
                                         <option value="flex-end" ${this.getCurrentStyle('justifyContent') === 'flex-end' ? 'selected' : ''}>End</option>
@@ -1488,7 +1524,7 @@
                                 </div>
                                 <div>
                                     <label class="text-xs text-gray-600">Align Items</label>
-                                    <select class="property-input" onchange="app.updateElementStyle('alignItems', this.value)">
+                                    <select class="property-input" oninput="app.updateElementStyle('alignItems', this.value)">
                                         <option value="stretch" ${this.getCurrentStyle('alignItems') === 'stretch' ? 'selected' : ''}>Stretch</option>
                                         <option value="flex-start" ${this.getCurrentStyle('alignItems') === 'flex-start' ? 'selected' : ''}>Start</option>
                                         <option value="center" ${this.getCurrentStyle('alignItems') === 'center' ? 'selected' : ''}>Center</option>
@@ -1497,7 +1533,7 @@
                                 </div>
                                 <div>
                                     <label class="text-xs text-gray-600">Gap</label>
-                                    <input type="text" class="property-input" value="${this.getCurrentStyle('gap') || '0px'}" onchange="app.updateElementStyle('gap', this.value)">
+                                    <input type="text" class="property-input" value="${this.getCurrentStyle('gap') || '0px'}" oninput="app.updateElementStyle('gap', this.value)">
                                 </div>
                             </div>
                             <div class="sidebar-section pb-4 mb-4">
@@ -1510,7 +1546,7 @@
                             </div>
                             <div class="mb-2">
                                 <label class="text-xs text-gray-600">Box Shadow</label>
-                                <input type="text" class="property-input" placeholder="e.g., 0px 10px 15px rgba(0,0,0,0.1)" value="${this.getCurrentStyle('boxShadow') || ''}" onchange="app.updateElementStyle('boxShadow', this.value)">
+                                <input type="text" class="property-input" placeholder="e.g., 0px 10px 15px rgba(0,0,0,0.1)" value="${this.getCurrentStyle('boxShadow') || ''}" oninput="app.updateElementStyle('boxShadow', this.value)">
                             </div>
                         </div>
                         </div>
@@ -1520,18 +1556,18 @@
                             <h4 class="font-medium mb-2">Effects</h4>
                             <div class="mb-2">
                                 <label class="text-xs text-gray-600">Box Shadow</label>
-                                <input type="text" class="property-input" placeholder="e.g., 0px 10px 15px rgba(0,0,0,0.1)" value="${this.getCurrentStyle('boxShadow') || ''}" onchange="app.updateElementStyle('boxShadow', this.value)">
+                                <input type="text" class="property-input" placeholder="e.g., 0px 10px 15px rgba(0,0,0,0.1)" value="${this.getCurrentStyle('boxShadow') || ''}" oninput="app.updateElementStyle('boxShadow', this.value)">
                             </div>
                         </div>
                         <div class="sidebar-section pb-4 mb-4">
                             <h4 class="font-medium mb-2">Transitions & Transforms</h4>
                             <div class="mb-2">
                                 <label class="text-xs text-gray-600">Transition</label>
-                                <input type="text" class="property-input" placeholder="e.g., all 0.3s ease" value="${this.getCurrentStyle('transition') || ''}" onchange="app.updateElementStyle('transition', this.value)">
+                                <input type="text" class="property-input" placeholder="e.g., all 0.3s ease" value="${this.getCurrentStyle('transition') || ''}" oninput="app.updateElementStyle('transition', this.value)">
                             </div>
                             <div class="mb-2">
                                 <label class="text-xs text-gray-600">Transform</label>
-                                <input type="text" class="property-input" placeholder="e.g., scale(1.1) rotate(5deg)" value="${this.getCurrentStyle('transform') || ''}" onchange="app.updateElementStyle('transform', this.value)">
+                                <input type="text" class="property-input" placeholder="e.g., scale(1.1) rotate(5deg)" value="${this.getCurrentStyle('transform') || ''}" oninput="app.updateElementStyle('transform', this.value)">
                             </div>
                         </div>
                     </div>
@@ -2033,7 +2069,6 @@
             reattachEventListenersToElement(element) {
                 const elements = [element, ...element.querySelectorAll('.canvas-element')];
                 elements.forEach(el => {
-                    this._bindElementEvents(el);
                 });
             }
 
