@@ -14,6 +14,9 @@
         .canvas-element.is-editing #selection-wrapper {
             display: block !important;
         }
+        #selection-wrapper:not(.active) {
+            display: none !important;
+        }
 
         /* Add this to your <style> block */
         .layer-item.active-layer {
@@ -1690,12 +1693,14 @@
                 if (element.classList.contains('is-editing')) {
                     // --- ENTERING EDIT MODE ---
                     selectionWrapper.classList.remove('hidden');
+                    selectionWrapper.classList.add('active');
                     element.draggable = false;
                     element.style.pointerEvents = 'none';
                     if (editIcon) editIcon.classList.replace('fa-edit', 'fa-check');
                 } else {
                     // --- EXITING EDIT MODE ---
                     selectionWrapper.classList.add('hidden');
+                    selectionWrapper.classList.remove('active');
                     element.draggable = true;
                     element.style.pointerEvents = 'auto';
                     if (editIcon) editIcon.classList.replace('fa-check', 'fa-edit');
