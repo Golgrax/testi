@@ -27,48 +27,45 @@ class WebBuilderPro {
 
     // ADD THIS ENTIRE NEW METHOD
     bindInteractiveEvents(el) {
-        // 1. Single Click to Select
+        // We will use one 'mousedown' event to handle both selecting and initiating a drag.
         el.addEventListener('mousedown', (e) => {
-            // Only trigger selection on a primary button click and not on a resizer handle
             if (e.button !== 0 || e.target.classList.contains('resizer')) {
-                return;
+                return; // Do nothing for right-clicks or resizer handles.
             }
-            e.stopPropagation();
+
+            e.stopPropagation(); // Stop the event from bubbling up to the canvas.
             this.selectElement(el);
-        });
 
-        // 2. Drag to Move
-        el.addEventListener('mousedown', (e) => {
-            if (e.button !== 0 || e.target.classList.contains('resizer')) {
-                return;
+            // ONLY start a "drag-to-move" if the element is absolutely positioned.
+            if (el.style.position === 'absolute') {
+                e.preventDefault(); // Prevent text selection while dragging.
+
+                const initialX = e.clientX;
+                const initialY = e.clientY;
+                const initialTop = el.offsetTop;
+                const initialLeft = el.offsetLeft;
+                const zoom = parseFloat(document.getElementById('zoom-slider').value) / 100;
+
+                const onDragMove = (moveEvent) => {
+                    const dx = (moveEvent.clientX - initialX) / zoom;
+                    const dy = (moveEvent.clientY - initialY) / zoom;
+                    el.style.top = (initialTop + dy) + 'px';
+                    el.style.left = (initialLeft + dx) + 'px';
+                    this.updateSelectionBox();
+                };
+
+                const onDragEnd = () => {
+                    document.removeEventListener('mousemove', onDragMove);
+                    document.removeEventListener('mouseup', onDragEnd);
+                    this.saveToHistory();
+                };
+
+                document.addEventListener('mousemove', onDragMove);
+                document.addEventListener('mouseup', onDragEnd);
             }
-            e.preventDefault();
-            e.stopPropagation();
-
-            const initialX = e.clientX;
-            const initialY = e.clientY;
-            const initialTop = el.offsetTop;
-            const initialLeft = el.offsetLeft;
-            const zoom = parseFloat(document.getElementById('zoom-slider').value) / 100;
-
-            const onDragMove = (moveEvent) => {
-                const dx = (moveEvent.clientX - initialX) / zoom;
-                const dy = (moveEvent.clientY - initialY) / zoom;
-                el.style.top = (initialTop + dy) + 'px';
-                el.style.left = (initialLeft + dx) + 'px';
-                this.updateSelectionBox();
-            };
-
-            const onDragEnd = () => {
-                document.removeEventListener('mousemove', onDragMove);
-                document.removeEventListener('mouseup', onDragEnd);
-                this.saveToHistory();
-            };
-
-            document.addEventListener('mousemove', onDragMove);
-            document.addEventListener('mouseup', onDragEnd);
         });
     }
+
 
     setupResizing() {
         const selectionBox = document.getElementById('selection-box');
@@ -819,29 +816,37 @@ class WebBuilderPro {
         const component = this.components.get(componentType);
         if (!component) return;
 
-
         const element = document.createElement('div');
         element.className = 'canvas-element';
+        // **** IMPORTANT: All new elements must be positioned absolutely to be moved. ****
         element.style.position = 'absolute';
         element.innerHTML = component.html;
         element.dataset.componentType = componentType;
         element.dataset.elementId = this.generateId();
+
+        // ** NEW: Set draggable to true so it can be moved on the canvas **
         element.draggable = true;
 
         if (component.defaultStyles) {
             Object.assign(element.style, component.defaultStyles);
         }
-
-        const controls = document.createElement('div');
-        controls.className = 'element-controls';
-        controls.innerHTML = `<i class="fas fa-trash cursor-pointer" onclick="event.stopPropagation(); app.deleteElement(this.closest('.canvas-element'))"></i>`;
-        element.appendChild(controls);
+        
+        // ** NEW: Calculate drop position correctly **
+        const canvasRect = document.getElementById('canvas').getBoundingClientRect();
+        const zoom = parseFloat(document.getElementById('zoom-slider').value) / 100;
+        const dropX = (event.clientX - canvasRect.left) / zoom;
+        const dropY = (event.clientY - canvasRect.top) / zoom;
+        element.style.left = dropX + 'px';
+        element.style.top = dropY + 'px';
+        
+        // This MUST be called *after* setting its properties and position
         this.bindInteractiveEvents(element);
 
         // Find drop position and append
-        let targetContainer = event.target.closest('.drop-zone') || document.getElementById('canvas');
-        targetContainer.appendChild(element); // This MUST be before selectElement
-
+        const targetContainer = document.getElementById('canvas'); // Simplify to always drop on main canvas
+        targetContainer.appendChild(element);
+        
+        this.selectElement(element); // Select the newly created element
         this.saveToHistory();
         this.updateLayersTree();
     }
@@ -1510,12 +1515,14 @@ class WebBuilderPro {
         let css = '';
         const elements = document.querySelectorAll('.canvas-element[data-element-id]');
 
-        const processStyles = (stylesObject, mediaQuery = '') => {
+        // --- Inside extractStyles() ---
+        const processStyles = (stylesObject, id) => { // <-- ADD "id" as an argument here
             let resultCss = '';
             for (const state in stylesObject) { // states: 'base', 'hover'
                 const pseudoClass = state === 'hover' ? ':hover' : '';
                 for (const breakpoint in stylesObject[state]) { // breakpoints: 'desktop', 'tablet', 'mobile'
                     const styles = stylesObject[state][breakpoint];
+                    // The selector now correctly uses the 'id' passed into the function
                     const selector = `[data-element-id="${id}"]${pseudoClass}`;
                     const styleString = Object.entries(styles).map(([p, v]) => `${this.camelToKebab(p)}: ${v};`).join(' ');
 
@@ -1523,7 +1530,7 @@ class WebBuilderPro {
 
                     let finalCss = `${selector} { ${styleString} }\n`;
                     if(breakpoint === 'tablet'){
-                        resultCss += `@media (max-width: 1024px) { ${finalCss} } \n`;
+                        resultCss += `@media (max-width: 1023px) { ${finalCss} } \n`;
                     } else if (breakpoint === 'mobile'){
                         resultCss += `@media (max-width: 767px) { ${finalCss} } \n`;
                     } else {
@@ -1533,7 +1540,7 @@ class WebBuilderPro {
             }
             return resultCss;
         };
-        
+
         elements.forEach(element => {
             const id = element.dataset.elementId;
             let styles = {};
@@ -1541,7 +1548,7 @@ class WebBuilderPro {
                 styles = JSON.parse(element.dataset.styles || '{}');
             } catch(e) { return; }
 
-            css += processStyles(styles);
+            css += processStyles(styles, id); // <-- PASS the "id" to the function
         });
         
         return css;
