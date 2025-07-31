@@ -16,7 +16,14 @@ document.addEventListener('DOMContentLoaded', () => {
             'grapesjs-preset-webpage': {
                 // ... options for the preset
             },
-            'gjs-blocks-basic': { flexGrid: true }
+            'gjs-blocks-basic': { flexGrid: true },
+            'grapesjs-component-toolbar': {
+                toolbar: [
+                    { command: 'tlb-move', attributes: { title: 'Move', class: 'fa fa-arrows' } },
+                    { command: 'tlb-clone', attributes: { title: 'Clone', class: 'fa fa-clone' } },
+                    { command: 'tlb-delete', attributes: { title: 'Delete', class: 'fa fa-trash' } }
+                ]
+            },
         },
         // Define where to render UI components
         panels: {
@@ -53,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
         styleManager: { appendTo: '#style-container' },
         traitManager: { appendTo: '#trait-container' },
         blockManager: { appendTo: '#blocks' },
-        selectorManager: { appendTo: '#selector-manager-container' },
+        selectorManager: { appendTo: '#selector-manager-container', },
         styleManager: { appendTo: '#style-properties-container', sectors: [] },
         deviceManager: {
             devices: [
@@ -250,30 +257,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('trait-container').classList.remove('active');
     };
 
-    editor.Commands.add('show-layers', {
-        run(editor, sender) {
-            sender.set('active', true);
-            hideAll();
-            document.getElementById('layers-container').classList.add('active');
-        },
-        stop(editor, sender) { sender.set('active', false); }
-    });
-    editor.Commands.add('show-styles', {
-        run(editor, sender) {
-            sender.set('active', true);
-            hideAll();
-            document.getElementById('style-container').classList.add('active');
-        },
-        stop(editor, sender) { sender.set('active', false); }
-    });
-    editor.Commands.add('show-traits', {
-        run(editor, sender) {
-            sender.set('active', true);
-            hideAll();
-            document.getElementById('trait-container').classList.add('active');
-        },
-        stop(editor, sender) { sender.set('active', false); }
-    });
 
     // Clear canvas command
     editor.Commands.add('clear-canvas', {
@@ -340,6 +323,56 @@ document.addEventListener('DOMContentLoaded', () => {
     // Set initial active panel
     editor.on('load', () => {
         editor.runCommand('show-layers');
+    });
+
+    // --- NEW INTELLIGENT PROPERTIES PANEL LOGIC ---
+
+    // Cache the panel sections
+    const traitsSection = document.getElementById('traits-section');
+    const styleSection = document.getElementById('style-section');
+    const layersSection = document.getElementById('layers-section');
+
+    const updatePanelVisibility = () => {
+        const selected = editor.getSelected();
+        if (selected) {
+            // Show sections relevant to a selected component
+            traitsSection.style.display = 'block';
+            styleSection.style.display = 'block';
+        } else {
+            // Show only the layer manager if nothing is selected
+            traitsSection.style.display = 'none';
+            styleSection.style.display = 'none';
+        }
+    };
+
+    // Update panels whenever a new component is selected
+    editor.on('component:select', () => updatePanelVisibility());
+    editor.on('component:deselect', () => updatePanelVisibility());
+
+    // On initial load, update visibility
+    editor.on('load', () => {
+        updatePanelVisibility();
+        // Your other 'load' event code from before, like the indicator, goes here
+        const indicator = document.getElementById('responsive-indicator');
+        indicator.innerHTML = `Styling: <strong>Desktop</strong>`;
+    });
+
+    // Replace the simple switcher button logic with this intelligent one.
+    // We are now just controlling which section is *scrolled to*, not hiding/showing panels.
+    const sections = {
+        'show-layers': layersSection,
+        'show-styles': styleSection,
+        'show-traits': traitsSection
+    };
+    const switcherButtons = editor.Panels.getButtons('panel__switcher');
+    switcherButtons.forEach(button => {
+        button.set('active', 0); // Reset all
+        button.on('change:active', () => {
+            if(button.get('active')) {
+                switcherButtons.forEach(b => b.id !== button.id && b.set('active', 0));
+                sections[button.id].scrollIntoView({ behavior: 'smooth' });
+            }
+        });
     });
 
     window.editor = editor;

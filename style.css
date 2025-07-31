@@ -232,3 +232,50 @@ input.gjs-field, select.gjs-field {
 #selector-manager-container { padding: 10px; }
 #style-properties-container { padding: 10px; }
 .gjs-clm-tags, .gjs-sm-sectors { padding-top: 10px; }
+
+/* --- UNIFIED PROPERTIES PANEL --- */
+.panel__content-scrollable {
+    overflow-y: auto;
+    flex-grow: 1;
+}
+.panel-section {
+    border-bottom: 2px solid var(--theme-bg-color-lighter);
+    padding: 15px;
+}
+.panel-section-header {
+    display: flex;
+    align-items: center;
+    color: var(--theme-text-color-dim);
+    margin-bottom: 10px;
+}
+.panel-section-header h4 {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+.panel-section-header i {
+    margin-right: 8px;
+}
+
+/* Make Selector/Class Manager more prominent */
+#selector-manager-container .gjs-sm-header {
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+/* --- ON-CANVAS COMPONENT TOOLBAR --- */
+.gjs-comp-toolbar {
+    background-color: var(--theme-accent-color) !important;
+    border-radius: 6px !important;
+    padding: 2px !important;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.3) !important;
+    border: none !important;
+}
+.gjs-comp-toolbar .gjs-toolbar-item {
+    color: white !important;
+    width: 28px !important;
+    height: 28px !important;
+}
+.gjs-comp-toolbar .gjs-toolbar-item:hover {
+    background-color: rgba(255, 255, 255, 0.2) !important;
+}
