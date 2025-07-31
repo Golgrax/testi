@@ -660,6 +660,7 @@
                     const moveBtn = controls.querySelector('.fa-arrows-alt');
                     if (moveBtn) {
                         moveBtn.addEventListener('mousedown', (e) => {
+                            if (element.classList.contains('is-editing')) return;
                             e.stopPropagation();
                             this.initiateDrag(e, element);
                         });
@@ -741,6 +742,12 @@
                         const tab = e.target.dataset.tab;
                         this.switchTab(tab);
                     });
+                });
+
+                document.getElementById('canvas').addEventListener('click', (e) => {
+                    if (!e.target.closest('.canvas-element')) {
+                        this.handleCanvasClick(e);
+                    }
                 });
 
                 document.getElementById('page-settings-btn').addEventListener('click', () => {
@@ -1260,7 +1267,8 @@
 
             handleCanvasClick(e) {
                 // If the click is on any element or its controls, do nothing.
-                if (e.target.closest('.canvas-element')) return;
+                if (e.target.closest('.canvas-element, .element-controls')) return;
+                selectionWrapper.classList.remove('hidden');
 
                 if (this.selectedElement) {
                     // Fully reset the element's state when deselecting.
@@ -1276,6 +1284,7 @@
                 this.updateBreadcrumbs();
                 document.querySelectorAll('.layer-item.active-layer').forEach(item => item.classList.remove('active-layer'));
             }
+            
             showProperties(element) {
                 const panel = document.getElementById('properties-panel');
                 const componentType = element.dataset.componentType;
@@ -1681,12 +1690,14 @@
                 if (element.classList.contains('is-editing')) {
                     // --- ENTERING EDIT MODE ---
                     selectionWrapper.classList.remove('hidden');
-                    element.draggable = false; // Disable native dragging
+                    element.draggable = false;
+                    element.style.pointerEvents = 'none';
                     if (editIcon) editIcon.classList.replace('fa-edit', 'fa-check');
                 } else {
                     // --- EXITING EDIT MODE ---
                     selectionWrapper.classList.add('hidden');
-                    element.draggable = true; // Re-enable native dragging
+                    element.draggable = true;
+                    element.style.pointerEvents = 'auto';
                     if (editIcon) editIcon.classList.replace('fa-check', 'fa-edit');
                 }
                 this.repositionSelectionWrapper();
@@ -1694,7 +1705,8 @@
 
             handleCanvasClick(e) {
                 // If the click is on any element or its controls, do nothing.
-                if (e.target.closest('.canvas-element')) return;
+                if (e.target.closest('.canvas-element, .element-controls')) return;
+                selectionWrapper.classList.remove('hidden');
 
                 if (this.selectedElement) {
                     // Fully reset the element's state when deselecting.
