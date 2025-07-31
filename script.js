@@ -188,6 +188,48 @@ class WebBuilderPro {
             }
         }
     }
+
+    updateBreadcrumbs() {
+        // This function is required but can be empty for now if you don't need it.
+    }
+
+    selectPageBody() {
+        // This function is required but can be empty for now if you don't need it.
+        console.log("Page Settings Clicked");
+    }
+
+    switchTab(tabName) {
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.tab === tabName);
+        });
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.toggle('hidden', content.id !== `${tabName}-tab`);
+        });
+        if (tabName === 'layers') this.updateLayersTree();
+    }
+
+    setZoom(zoom) {
+        const container = document.getElementById('canvas-container');
+        container.style.transform = `scale(${zoom / 100})`;
+        document.getElementById('zoom-display').textContent = `${zoom}%`;
+    }
+
+    handleDoubleClick(e) {
+        // Placeholder for double-click text editing
+    }
+
+    handleContextMenu(e) {
+        // Placeholder for right-click menu
+    }
+
+    showPreview() { console.log("Show Preview"); }
+    hidePreview() { console.log("Hide Preview"); }
+    showCodeEditor() { console.log("Show Code Editor"); }
+    hideCodeEditor() { console.log("Hide Code Editor"); }
+    switchCodeTab(tab) { console.log(`Switching to ${tab} code tab`); }
+    updateAssetsGrid() { /* Placeholder */ }
+    updateLayersTree() { /* Placeholder */ }
+    export() { console.log("Exporting"); }
     
 
     getInnermostTextElement(element) {
@@ -377,6 +419,23 @@ setupResizing() {
         canvas.addEventListener('drop', e => this.handleDrop(e));
     }
     
+
+        setupMonacoEditor() {
+        if (typeof monaco === 'undefined') {
+            console.warn('Monaco editor is not available.');
+            return;
+        }
+        require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs' } });
+        require(['vs/editor/editor.main'], () => {
+            this.codeEditor = monaco.editor.create(document.getElementById('code-editor'), {
+                value: '',
+                language: 'html',
+                theme: 'vs-dark',
+                automaticLayout: true
+            });
+        });
+    }
+
     handleDragOver(e) {
         e.preventDefault();
         const dropIndicator = document.getElementById('drop-indicator');
@@ -490,6 +549,20 @@ setupResizing() {
             this.saveToHistory();
             this.updateLayersTree();
         }
+    }
+
+    getCurrentStyle(property) {
+        if (!this.selectedElement) return '';
+        let styles = {};
+        try {
+            styles = JSON.parse(this.selectedElement.dataset.styles || '{}');
+        } catch (e) {
+            return getComputedStyle(this.selectedElement)[property] || '';
+        }
+        return styles[this.currentState]?.[this.currentBreakpoint]?.[property] 
+            || styles['base']?.[this.currentBreakpoint]?.[property] 
+            || styles['base']?.['desktop']?.[property] 
+            || '';
     }
 
     //
