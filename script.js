@@ -28,43 +28,33 @@ class WebBuilderPro {
     }
 
     // --- REPLACE the old bindInteractiveEvents method with this one ---
+    // --- REPLACE the entire bindInteractiveEvents method ---
     bindInteractiveEvents(el) {
+        // --- DRAG TO RE-ORDER ---
+        el.draggable = true; // Make every canvas element draggable
+        el.addEventListener('dragstart', (e) => {
+            e.stopPropagation();
+            e.dataTransfer.effectAllowed = 'move';
+            this.draggedElement = {
+                type: 'element-reorder',
+                element: el // Keep track of the actual element being moved
+            };
+            // Optional: add a visual effect
+            setTimeout(() => el.classList.add('opacity-50'), 0);
+        });
+
+        // Clear visual effect on drag end
+        el.addEventListener('dragend', (e) => {
+            e.stopPropagation();
+            // This is just a cleanup for all elements
+            document.querySelectorAll('.opacity-50').forEach(elem => elem.classList.remove('opacity-50'));
+        });
+        
+        // --- CLICK TO SELECT ---
         el.addEventListener('mousedown', (e) => {
             if (e.button !== 0 || e.target.classList.contains('resizer')) return;
-
             e.stopPropagation();
             this.selectElement(el);
-
-            if (el.style.position === 'absolute') {
-                e.preventDefault();
-
-                const initialX = e.clientX;
-                const initialY = e.clientY;
-                const initialTop = el.offsetTop;
-                const initialLeft = el.offsetLeft;
-                const zoom = parseFloat(document.getElementById('zoom-slider').value) / 100;
-
-                const onDragMove = (moveEvent) => {
-                    const dx = (moveEvent.clientX - initialX) / zoom;
-                    const dy = (moveEvent.clientY - initialY) / zoom;
-                    el.style.top = (initialTop + dy) + 'px';
-                    el.style.left = (initialLeft + dx) + 'px';
-                    
-                    // This is the key: Update the box position on every single mouse move.
-                    this.updateSelectionBox();
-                };
-
-                const onDragEnd = () => {
-                    document.removeEventListener('mousemove', onDragMove);
-                    document.removeEventListener('mouseup', onDragEnd);
-                    // Final update to ensure it's perfectly positioned.
-                    this.updateSelectionBox();
-                    this.saveToHistory();
-                };
-
-                document.addEventListener('mousemove', onDragMove);
-                document.addEventListener('mouseup', onDragEnd);
-            }
         });
     }
 
@@ -626,32 +616,32 @@ class WebBuilderPro {
             dropIndicator.classList.add('hidden');
         });
 
+        // --- In setupDragAndDrop(), REPLACE the canvas.addEventListener('drop', ...) ---
         canvas.addEventListener('drop', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            canvas.classList.remove('drag-over');
-            dropIndicator.classList.add('hidden');
+            document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+            document.getElementById('drop-indicator').classList.add('hidden');
 
-            if (!this.draggedElement) return;
+            if (!this.draggedElement || !this.dropTarget) return;
 
-            
-            if (this.draggedElement.type === 'asset') {
-                const asset = this.assets.find(a => a.id === this.draggedElement.assetId);
-                if (!asset) return;
-                const targetEl = e.target.closest('.canvas-element');
-                if (targetEl) {
-                    const imageEl = targetEl.querySelector('img');
-                    const videoEl = targetEl.querySelector('video');
-                    if (imageEl && asset.type.startsWith('image/')) { imageEl.src = asset.data; this.saveToHistory(); }
-                    else if (videoEl && asset.type.startsWith('video/')) { videoEl.src = asset.data; this.saveToHistory(); }
-                }
-            } 
-            else if (this.draggedElement.type === 'component') {
+            // SCENARIO 1: Dropping a NEW component from the left panel
+            if (this.draggedElement.type === 'component') {
                 this.addComponent(this.draggedElement.componentType, e);
             }
+            // SCENARIO 2: RE-ORDERING an EXISTING element
+            else if (this.draggedElement.type === 'element-reorder') {
+                const elToMove = this.draggedElement.element;
+                if (this.dropPosition === 'inside') this.dropTarget.appendChild(elToMove);
+                else if (this.dropPosition === 'before') this.dropTarget.parentNode.insertBefore(elToMove, this.dropTarget);
+                else if (this.dropPosition === 'after') this.dropTarget.after(elToMove);
+                this.saveToHistory();
+            }
 
-            document.querySelectorAll('.opacity-50').forEach(el => el.classList.remove('opacity-50'));
+            // Cleanup
             this.draggedElement = null;
+            this.dropTarget = null;
+            this.dropPosition = null;
         });
     }
 
@@ -670,24 +660,36 @@ class WebBuilderPro {
 
         this.components.set('two-columns', {
             name: 'Two Columns',
-            // Note the two separate drop-zone divs inside a flex parent
+            // Note: the HTML is now two distinct child components.
             html: `
-                <div style="display: flex; gap: 20px; width: 100%;">
-                    <div class="drop-zone" style="flex: 1;"></div>
-                    <div class="drop-zone" style="flex: 1;"></div>
+                <div class="canvas-element" data-component-type="column" style="flex: 1; min-height: 50px;">
+                    <div class="drop-zone p-2"></div>
                 </div>
-            `,
+                <div class="canvas-element" data-component-type="column" style="flex: 1; min-height: 50px;">
+                    <div class="drop-zone p-2"></div>
+                </div>`,
+            defaultStyles: {
+                display: 'flex',
+                gap: '16px',
+                width: '100%',
+                padding: '10px'
+            },
         });
 
         this.components.set('hero-section', {
             name: 'Hero Section',
+            // We've simplified the HTML to be cleaner.
             html: `
-                <div style="padding: 60px 20px; text-align: center; background-color: #f0f0f0;">
-                    <h1 style="font-size: 48px; margin-bottom: 20px;">Hero Title</h1>
-                    <p style="font-size: 18px; max-width: 600px; margin: 0 auto 30px auto;">This is a paragraph describing your hero section. Capture the user's attention here.</p>
-                    <button style="padding: 12px 24px; font-size: 16px; cursor: pointer; background-color: #3b82f6; color: white; border: none; border-radius: 6px;">Call to Action</button>
-                </div>
+                <h1 class="text-4xl font-bold">Hero Title</h1>
+                <p class="mt-2">This is a paragraph describing your hero section.</p>
+                <button class="mt-4 px-4 py-2 bg-blue-500 text-white rounded">Call to Action</button>
             `,
+            defaultStyles: {
+                padding: '60px 20px',
+                textAlign: 'center',
+                backgroundColor: '#f3f4f6',
+                width: '100%'
+            },
         });
 
         this.components.set('heading', {
@@ -726,27 +728,26 @@ class WebBuilderPro {
 
         this.components.set('container', {
             name: 'Container',
-            // Note: It's now a drop-zone itself
-            html: '<div class="drop-zone p-4"></div>',
+            html: '<div class="drop-zone p-4">Add elements inside</div>', // It is its OWN drop-zone.
             defaultStyles: {
                 padding: '20px',
-                backgroundColor: '#ffffff',
+                backgroundColor: 'rgba(240, 240, 240, 0.5)',
+                width: '100%',
                 minHeight: '100px',
-                width: '100%', // Containers should be full-width by default
             }
         });
 
         this.components.set('row', {
             name: 'Row',
-            // It now contains other drop zones within it
-            html: '<div class="drop-zone p-4"></div>',
+            html: '<div class="drop-zone p-4">Drop columns or elements here</div>', // A single drop-zone.
             defaultStyles: {
-                display: 'flex', // A row is a flex container
-                gap: '20px',
+                display: 'flex', // THE PARENT .canvas-element IS NOW THE FLEX CONTAINER
+                gap: '16px',
                 padding: '10px',
                 width: '100%',
+                minHeight: '80px',
             }
-        });
+});
 
         this.components.set('navbar', {
             name: 'Navigation Bar',
@@ -852,47 +853,45 @@ class WebBuilderPro {
     }
 
     addComponent(componentType, event) {
-            const component = this.components.get(componentType);
-            if (!component) return;
+        const component = this.components.get(componentType);
+        if (!component || !this.dropTarget) return;
 
-            // Abort if our dragover logic didn't find a valid target
-            if (!this.dropTarget) {
-                console.warn("Drop aborted. No valid drop target found.");
-                return;
-            }
-
-            const element = document.createElement('div');
-            element.className = 'canvas-element';
-            element.innerHTML = component.html;
-            element.dataset.componentType = componentType;
-            element.dataset.elementId = this.generateId();
-
-            // ** NEW: Default style logic **
-            // Layout components use flex/flow layout and do not need 'position: absolute'.
-            // Simple components can still be positioned absolutely *if* dropped into a container
-            // that allows it, but we'll default to flow layout for now.
-            if (component.defaultStyles) {
-                Object.assign(element.style, component.defaultStyles);
-            }
-
-            // Use our drop logic to place the element
-            if (this.dropPosition === 'inside') {
-                this.dropTarget.appendChild(element);
-            } else if (this.dropPosition === 'before') {
-                this.dropTarget.parentNode.insertBefore(element, this.dropTarget);
-            } else if (this.dropPosition === 'after') {
-                this.dropTarget.after(element);
-            }
-            
-            this.bindInteractiveEvents(element); // MUST be called *after* adding to DOM
-            this.selectElement(element);
-            this.saveToHistory();
-            this.updateLayersTree();
-            
-            // Reset drop state
-            this.dropTarget = null;
-            this.dropPosition = null;
+        const element = document.createElement('div');
+        element.className = 'canvas-element';
+        element.dataset.componentType = componentType;
+        element.dataset.elementId = this.generateId();
+        
+        // This is key: assign styles directly to the main element
+        if (component.defaultStyles) {
+            Object.assign(element.style, component.defaultStyles);
         }
+        
+        // Use a temporary container to process the HTML
+        const tempContainer = document.createElement('div');
+        tempContainer.innerHTML = component.html;
+        
+        // Move children from temp to the actual element
+        while (tempContainer.firstChild) {
+            element.appendChild(tempContainer.firstChild);
+        }
+        
+        // Place the new element in the DOM
+        if (this.dropPosition === 'inside') this.dropTarget.appendChild(element);
+        else if (this.dropPosition === 'before') this.dropTarget.parentNode.insertBefore(element, this.dropTarget);
+        else if (this.dropPosition === 'after') this.dropTarget.after(element);
+        
+        // **** IMPORTANT NEW STEP ****
+        // After inserting the element, we must find ALL canvas elements
+        // within it (for nested components like 'two-columns') and attach listeners.
+        this.reattachEventListenersToElement(element);
+        
+        this.selectElement(element);
+        this.saveToHistory();
+        this.updateLayersTree();
+        
+        this.dropTarget = null;
+        this.dropPosition = null;
+    }
 
     selectElement(element) {
         if (this.isResizing) return;
