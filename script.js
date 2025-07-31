@@ -1,350 +1,207 @@
-const editor = grapesjs.init({
-  container: "#gjs",
-  height: "100vh",
-  width: "auto",
-  storageManager: {
-    type: "local",
-    autosave: true,
-    autoload: true,
-    stepsBeforeSave: 1,
-  },
-  plugins: [
-    "grapesjs-preset-webpage",
-    "grapesjs-blocks-basic",
-    "grapesjs-plugin-forms",
-    "grapesjs-plugin-export",
-  ],
-  pluginsOpts: {
-    "grapesjs-preset-webpage": {
-      modalImportTitle: "Import Template",
-      modalImportLabel:
-        '<div style="margin-bottom: 10px; font-size: 13px;">Paste here your HTML/CSS and click Import</div>',
-      modalImportContent: function (editor) {
-        return editor.getHtml() + "<style>" + editor.getCss() + "</style>";
-      },
-      filestackOpts: null,
-      aviaryOpts: false,
-      blocksBasicOpts: {
-        blocks: [
-          "column1",
-          "column2",
-          "column3",
-          "column3-7",
-          "text",
-          "link",
-          "image",
-          "video",
-        ],
-        flexGrid: 1,
-      },
-      customStyleManager: [
-        {
-          name: "General",
-          buildProps: ["float", "display", "position", "top", "right", "left", "bottom"],
-          properties: [
-            {
-              type: "select",
-              property: "float",
-              defaults: "none",
-              list: [
-                { value: "none", name: "None" },
-                { value: "left", name: "Left" },
-                { value: "right", name: "Right" },
-              ],
+document.addEventListener('DOMContentLoaded', () => {
+    const editor = grapesjs.init({
+        container: '#gjs',
+        fromElement: true,
+        height: '100%',
+        width: 'auto',
+        storageManager: { type: 'local' },
+        plugins: ['grapesjs-preset-webpage', 'gjs-blocks-basic', 'grapesjs-plugin-forms', 'grapesjs-plugin-export'],
+        pluginsOpts: {
+            'grapesjs-preset-webpage': {
+                // ... options for the preset
             },
-          ],
+            'gjs-blocks-basic': { flexGrid: true }
         },
-        {
-          name: "Dimension",
-          open: false,
-          buildProps: ["width", "min-height", "padding"],
-          properties: [
-            {
-              property: "margin",
-              properties: [
-                { name: "Top", property: "margin-top" },
-                { name: "Right", property: "margin-right" },
-                { name: "Bottom", property: "margin-bottom" },
-                { name: "Left", property: "margin-left" },
-              ],
-            },
-          ],
+        // Define where to render UI components
+        panels: {
+            defaults: [
+                { id: 'panel__options', el: '#panel__options' },
+                { id: 'panel__devices', el: '#panel__devices', buttons: [
+                    { id: 'device-desktop', command: 'set-device-desktop', label: '<i class="fas fa-desktop"></i>', active: true, },
+                    { id: 'device-tablet', command: 'set-device-tablet', label: '<i class="fas fa-tablet-alt"></i>' },
+                    { id: 'device-mobile', command: 'set-device-mobile', label: '<i class="fas fa-mobile-alt"></i>' },
+                ]},
+                { id: 'panel__views', el: '#panel__views', buttons: [
+                    { id: 'preview', command: 'core:preview', context: 'core:preview', label: '<i class="fas fa-eye"></i>', },
+                    { id: 'show-borders', command: 'core:component-outline', label: '<i class="fas fa-vector-square"></i>', },
+                    { id: 'undo', command: 'core:undo', label: '<i class="fas fa-undo"></i>', },
+                    { id: 'redo', command: 'core:redo', label: '<i class="fas fa-redo"></i>', },
+                    { id: 'export', command: 'export-template', label: '<i class="fas fa-file-export"></i>', },
+                    { id: 'clear-canvas', command: 'clear-canvas', label: '<i class="fas fa-trash"></i>', },
+                ]},
+                { id: 'panel__switcher', el: '#panel__switcher', buttons: [
+                    { id: 'show-layers', command: 'show-layers', active: true, label: '<i class="fas fa-layer-group"></i>', title: 'Layers' },
+                    { id: 'show-styles', command: 'show-styles', label: '<i class="fas fa-palette"></i>', title: 'Styles' },
+                    { id: 'show-traits', command: 'show-traits', label: '<i class="fas fa-cog"></i>', title: 'Settings' },
+                ]}
+            ]
         },
-        {
-          name: "Typography",
-          open: false,
-          buildProps: ["font-family", "font-size", "font-weight", "letter-spacing", "color", "line-height"],
-          properties: [
-            {
-              name: "Font",
-              property: "font-family",
-            },
-            {
-              name: "Weight",
-              property: "font-weight",
-            },
-            {
-              name: "Font color",
-              property: "color",
-            },
-          ],
+        // Define UI managers
+        layerManager: { appendTo: '#layers-container' },
+        styleManager: { appendTo: '#style-container' },
+        traitManager: { appendTo: '#trait-container' },
+        blockManager: { appendTo: '#blocks' },
+        selectorManager: { appendTo: '#style-container' },
+        deviceManager: {
+            devices: [
+                { name: 'Desktop', width: '' },
+                { name: 'Tablet', width: '768px', widthMedia: '992px' },
+                { name: 'Mobile', width: '375px', widthMedia: '575px' },
+            ]
         },
-        {
-          name: "Decorations",
-          open: false,
-          buildProps: ["opacity", "background-color", "border-radius", "border", "box-shadow", "background"],
-          properties: [
-            {
-              type: "slider",
-              property: "opacity",
-              defaults: 1,
-              step: 0.01,
-              max: 1,
-              min: 0,
-            },
-          ],
-        },
-        {
-          name: "Extra",
-          open: false,
-          buildProps: ["transition", "perspective", "transform"],
-          properties: [
-            {
-              property: "transition",
-              type: "stack",
-              properties: [
+        // Add custom, pre-styled blocks
+        blockManager: {
+            appendTo: '#blocks',
+            blocks: [
                 {
-                  name: "Property",
-                  property: "transition-property",
+                    id: 'hero-section',
+                    label: '<b>Hero Section</b>',
+                    category: 'Sections',
+                    attributes: { class: 'gjs-block-section' },
+                    content: `
+                        <div class="container-fluid" style="background-color: #333; color: white; padding: 100px 20px; text-align: center;">
+                            <h1 style="font-size: 3.5rem; margin-bottom: 20px;">Your Awesome Headline</h1>
+                            <p style="font-size: 1.25rem; margin-bottom: 30px;">A compelling sub-headline to engage your visitors.</p>
+                            <a href="#" class="btn btn-primary btn-lg" style="background-color: #007bff; border: none; padding: 15px 30px; font-size: 1.25rem; border-radius: 5px; text-decoration: none; color: white;">Call to Action</a>
+                        </div>
+                    `,
                 },
                 {
-                  name: "Duration",
-                  property: "transition-duration",
+                    id: 'pricing-table',
+                    label: '<b>Pricing Table</b>',
+                    category: 'Sections',
+                    content: `
+                        <div class="container py-5">
+                            <div class="row text-center">
+                                <div class="col-lg-4">
+                                    <div class="card mb-4 shadow-sm">
+                                        <div class="card-header"><h4 class="my-0 font-weight-normal">Free</h4></div>
+                                        <div class="card-body">
+                                            <h1 class="card-title pricing-card-title">$0 <small class="text-muted">/ mo</small></h1>
+                                            <ul class="list-unstyled mt-3 mb-4">
+                                                <li>10 users included</li><li>2 GB of storage</li><li>Email support</li>
+                                            </ul>
+                                            <button type="button" class="btn btn-lg btn-block btn-outline-primary">Sign up for free</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-lg-4">
+                                    <div class="card mb-4 shadow-sm">
+                                        <div class="card-header"><h4 class="my-0 font-weight-normal">Pro</h4></div>
+                                        <div class="card-body">
+                                            <h1 class="card-title pricing-card-title">$15 <small class="text-muted">/ mo</small></h1>
+                                            <ul class="list-unstyled mt-3 mb-4">
+                                                <li>20 users included</li><li>10 GB of storage</li><li>Priority email support</li>
+                                            </ul>
+                                            <button type="button" class="btn btn-lg btn-block btn-primary">Get started</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-lg-4">
+                                    <div class="card mb-4 shadow-sm">
+                                        <div class="card-header"><h4 class="my-0 font-weight-normal">Enterprise</h4></div>
+                                        <div class="card-body">
+                                            <h1 class="card-title pricing-card-title">$29 <small class="text-muted">/ mo</small></h1>
+                                            <ul class="list-unstyled mt-3 mb-4">
+                                                <li>30 users included</li><li>15 GB of storage</li><li>Phone and email support</li>
+                                            </ul>
+                                            <button type="button" class="btn btn-lg btn-block btn-primary">Contact us</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `,
                 },
-                {
-                  name: "Easing",
-                  property: "transition-timing-function",
-                },
-              ],
-            },
-          ],
+            ]
         },
-      ],
-    },
-    "grapesjs-blocks-basic": {},
-    "grapesjs-plugin-forms": {},
-    "grapesjs-plugin-export": {},
-  },
-  canvas: {
-    styles: [
-      "https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css",
-    ],
-    scripts: [
-      "https://code.jquery.com/jquery-3.3.1.slim.min.js",
-      "https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js",
-      "https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js",
-    ],
-  },
-  panels: {
-    defaults: [
-      {
-        id: "layers",
-        el: ".panel__right",
-        resizable: {
-          maxDim: 350,
-          minDim: 200,
-          tc: 0,
-          cl: 1,
-          cr: 0,
-          bc: 0,
-          keyWidth: "flex-basis",
+        // Load bootstrap in canvas
+        canvas: {
+            styles: ['https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css'],
+            scripts: ['https://code.jquery.com/jquery-3.5.1.slim.min.js', 'https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js', 'https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js'],
         },
-      },
-      {
-        id: "panel-switcher",
-        el: ".panel__switcher",
-        buttons: [
-          {
-            id: "show-layers",
-            active: true,
-            label: "Layers",
-            command: "show-layers",
-            togglable: false,
-          },
-          {
-            id: "show-style",
-            active: true,
-            label: "Styles",
-            command: "show-styles",
-            togglable: false,
-          },
-          {
-            id: "show-traits",
-            active: true,
-            label: "Settings",
-            command: "show-traits",
-            togglable: false,
-          },
-        ],
-      },
-    ],
-  },
-  layerManager: {
-    appendTo: ".layers-container",
-  },
-  traitManager: {
-    appendTo: ".traits-container",
-  },
-  selectorManager: {
-    appendTo: ".styles-container",
-  },
-  styleManager: {
-    appendTo: ".styles-container",
-    sectors: [
-      {
-        name: "Dimension",
-        open: false,
-        buildProps: ["width", "min-height", "padding"],
-        properties: [
-          {
-            type: "integer",
-            name: "Width",
-            property: "width",
-            units: ["px", "%"],
-            defaults: "auto",
-            min: 0,
-          },
-        ],
-      },
-      {
-        name: "Typography",
-        open: false,
-        buildProps: ["font-family", "font-size", "font-weight", "letter-spacing", "color", "line-height"],
-        properties: [
-          {
-            name: "Font",
-            property: "font-family",
-          },
-          {
-            name: "Weight",
-            property: "font-weight",
-          },
-          {
-            name: "Font color",
-            property: "color",
-          },
-        ],
-      },
-      {
-        name: "Decorations",
-        open: false,
-        buildProps: ["opacity", "background-color", "border-radius", "border", "box-shadow", "background"],
-        properties: [
-          {
-            type: "slider",
-            property: "opacity",
-            defaults: 1,
-            step: 0.01,
-            max: 1,
-            min: 0,
-          },
-        ],
-      },
-    ],
-  },
-  blockManager: {
-    appendTo: ".blocks-container",
-    blocks: [
-      {
-        id: "section",
-        label: "<b>Section</b>",
-        attributes: { class: "gjs-block-section" },
-        content: `<section>
-              <h1>Insert title here</h1>
-              <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua</p>
-            </section>`,
-      },
-      {
-        id: "text",
-        label: "Text",
-        content: '<div data-gjs-type="text">Insert your text here</div>',
-      },
-      {
-        id: "image",
-        label: "Image",
-        select: true,
-        content: { type: "image" },
-        activate: true,
-      },
-    ],
-  },
-  deviceManager: {
-    devices: [
-      {
-        name: "Desktop",
-        width: "",
-      },
-      {
-        name: "Mobile",
-        width: "320px",
-        widthMedia: "480px",
-      },
-    ],
-  },
+    });
+
+    // --- COMMANDS ---
+    // Device switch commands
+    editor.Commands.add('set-device-desktop', { run: editor => editor.setDevice('Desktop') });
+    editor.Commands.add('set-device-tablet', { run: editor => editor.setDevice('Tablet') });
+    editor.Commands.add('set-device-mobile', { run: editor => editor.setDevice('Mobile') });
+    
+    // Panel visibility commands
+    const hideAll = () => {
+        document.getElementById('layers-container').classList.remove('active');
+        document.getElementById('style-container').classList.remove('active');
+        document.getElementById('trait-container').classList.remove('active');
+    };
+
+    editor.Commands.add('show-layers', {
+        run(editor, sender) {
+            sender.set('active', true);
+            hideAll();
+            document.getElementById('layers-container').classList.add('active');
+        },
+        stop(editor, sender) { sender.set('active', false); }
+    });
+    editor.Commands.add('show-styles', {
+        run(editor, sender) {
+            sender.set('active', true);
+            hideAll();
+            document.getElementById('style-container').classList.add('active');
+        },
+        stop(editor, sender) { sender.set('active', false); }
+    });
+    editor.Commands.add('show-traits', {
+        run(editor, sender) {
+            sender.set('active', true);
+            hideAll();
+            document.getElementById('trait-container').classList.add('active');
+        },
+        stop(editor, sender) { sender.set('active', false); }
+    });
+
+    // Clear canvas command
+    editor.Commands.add('clear-canvas', {
+        run: editor => {
+            if (confirm('Are you sure you want to clear the canvas?')) {
+                editor.getComponents().clear();
+                setTimeout(() => localStorage.clear(), 0);
+            }
+        }
+    });
+
+    // --- THEME TOGGLE ---
+    const themeToggle = document.getElementById('theme-toggle');
+    const body = document.body;
+    const moonIcon = '<i class="fa-solid fa-moon"></i>';
+    const sunIcon = '<i class="fa-solid fa-sun"></i>';
+    
+    const setTheme = (theme) => {
+        if (theme === 'light') {
+            body.classList.add('light-theme');
+            themeToggle.innerHTML = moonIcon;
+            localStorage.setItem('theme', 'light');
+        } else {
+            body.classList.remove('light-theme');
+            themeToggle.innerHTML = sunIcon;
+            localStorage.setItem('theme', 'dark');
+        }
+    };
+
+    themeToggle.addEventListener('click', () => {
+        const isLight = body.classList.contains('light-theme');
+        setTheme(isLight ? 'dark' : 'light');
+    });
+
+    // Set initial theme from localStorage
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    setTheme(savedTheme);
+
+
+    // Set initial active panel
+    editor.on('load', () => {
+        editor.runCommand('show-layers');
+    });
+
+    window.editor = editor; // for debugging
 });
-
-editor.Commands.add("show-layers", {
-  getRowEl(editor) {
-    return editor.getContainer().closest(".editor-row");
-  },
-  getLayersEl(row) {
-    return row.querySelector(".layers-container");
-  },
-
-  run(editor, sender) {
-    const lmEl = this.getLayersEl(this.getRowEl(editor));
-    lmEl.style.display = "";
-  },
-  stop(editor, sender) {
-    const lmEl = this.getLayersEl(this.getRowEl(editor));
-    lmEl.style.display = "none";
-  },
-});
-
-editor.Commands.add("show-styles", {
-  getRowEl(editor) {
-    return editor.getContainer().closest(".editor-row");
-  },
-  getStyleEl(row) {
-    return row.querySelector(".styles-container");
-  },
-
-  run(editor, sender) {
-    const smEl = this.getStyleEl(this.getRowEl(editor));
-    smEl.style.display = "";
-  },
-  stop(editor, sender) {
-    const smEl = this.getStyleEl(this.getRowEl(editor));
-    smEl.style.display = "none";
-  },
-});
-
-editor.Commands.add("show-traits", {
-  getRowEl(editor) {
-    return editor.getContainer().closest(".editor-row");
-  },
-  getTraitsEl(row) {
-    return row.querySelector(".traits-container");
-  },
-
-  run(editor, sender) {
-    const tmEl = this.getTraitsEl(this.getRowEl(editor));
-    tmEl.style.display = "";
-  },
-  stop(editor, sender) {
-    const tmEl = this.getTraitsEl(this.getRowEl(editor));
-    tmEl.style.display = "none";
-  },
-});
-
-window.grapesJSEditor = editor;

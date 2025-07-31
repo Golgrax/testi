@@ -1,64 +1,62 @@
 <!doctype html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>WebBuilder Pro - Enhanced Visual Website Builder</title>
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/grapesjs/dist/css/grapes.min.css"
-    />
+
+    <!-- GrapesJS Core CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/grapesjs/dist/css/grapes.min.css"/>
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+    <!-- Custom Styles for the Editor UI -->
     <link rel="stylesheet" href="style.css" />
-  </head>
-  <body>
-    <div id="root">
-      <div class="editor-row flex h-screen">
-        <!-- Left Sidebar - Blocks -->
-        <div class="w-80 bg-white border-r border-gray-200 flex flex-col">
-          <div class="p-4 border-b border-gray-200">
-            <h2 class="text-lg font-semibold text-gray-800">Components</h2>
-          </div>
-          <div class="flex-1 overflow-y-auto">
-            <div class="blocks-container p-4"></div>
-          </div>
+</head>
+<body>
+    <div id="app">
+        <div class="editor-row">
+            <!-- Left Panel: Blocks -->
+            <div class="panel__left">
+                <div class="panel__header">Blocks</div>
+                <div id="blocks"></div>
+            </div>
+
+            <!-- Center Panel: Editor -->
+            <div class="editor-canvas">
+                <div id="top-panel">
+                    <div id="panel__devices"></div>
+                    <div id="panel__options"></div>
+                    <div id="panel__views"></div>
+                </div>
+                <div id="gjs">
+                    <h1>Welcome to WebBuilder Pro!</h1>
+                    <p>Drag and drop components from the left panel to build your page.</p>
+                </div>
+            </div>
+
+            <!-- Right Panel: Layers, Styles, Traits -->
+            <div class="panel__right">
+                <div class="panel__header">
+                    <div id="panel__switcher" class="panel__switcher"></div>
+                    <button id="theme-toggle" class="gjs-btn-prim gjs-btn-s" title="Toggle Theme">
+                        <i class="fa-solid fa-moon"></i>
+                    </button>
+                </div>
+                <div id="layers-container" class="panel__content"></div>
+                <div id="style-container" class="panel__content"></div>
+                <div id="trait-container" class="panel__content"></div>
+            </div>
         </div>
-
-        <!-- Main Editor Area -->
-        <div class="flex-1 flex flex-col">
-          <!-- Top Toolbar -->
-          <div class="bg-white border-b border-gray-200 p-4">
-            <div class="panel__switcher flex gap-2"></div>
-          </div>
-
-          <!-- Canvas -->
-          <div class="flex-1 bg-gray-50">
-            <div id="gjs" class="h-full"></div>
-          </div>
-        </div>
-
-        <!-- Right Sidebar - Properties -->
-        <div class="panel__right w-80 bg-white border-l border-gray-200 flex flex-col">
-          <div class="p-4 border-b border-gray-200">
-            <h2 class="text-lg font-semibold text-gray-800">Properties</h2>
-          </div>
-
-          <div class="flex-1 overflow-y-auto">
-            <div class="layers-container p-4"></div>
-            <div class="styles-container p-4" style="display: none"></div>
-            <div class="traits-container p-4" style="display: none"></div>
-          </div>
-        </div>
-      </div>
     </div>
+
+    <!-- GrapesJS Core & Plugins -->
     <script src="https://unpkg.com/grapesjs"></script>
     <script src="https://unpkg.com/grapesjs-preset-webpage"></script>
     <script src="https://unpkg.com/grapesjs-blocks-basic"></script>
     <script src="https://unpkg.com/grapesjs-plugin-forms"></script>
     <script src="https://unpkg.com/grapesjs-plugin-export"></script>
-    <script src="https://unpkg.com/grapesjs-parser-postcss"></script>
-    <script src="https://unpkg.com/grapesjs-component-countdown"></script>
+
+    <!-- Custom Editor Logic -->
     <script src="script.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-  </body>
+</body>
 </html>
