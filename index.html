@@ -1235,7 +1235,6 @@
                 let targetContainer = event.target.closest('.drop-zone') || document.getElementById('canvas');
                 targetContainer.appendChild(element); // This MUST be before selectElement
 
-                this.selectElement(element); // This will select it in a clean "Selected" state
                 this.saveToHistory();
                 this.updateLayersTree();
             }
@@ -1256,6 +1255,7 @@
 
                 // Select the new element in a clean state
                 element.classList.add('selected');
+                document.getElementById('selection-wrapper').classList.add('hidden');
                 this.selectedElement = element;
                 
                 this.showProperties(element);
