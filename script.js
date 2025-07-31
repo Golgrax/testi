@@ -5,7 +5,13 @@ document.addEventListener('DOMContentLoaded', () => {
         height: '100%',
         width: 'auto',
         storageManager: { type: 'local' },
-        plugins: ['grapesjs-preset-webpage', 'gjs-blocks-basic', 'grapesjs-plugin-forms', 'grapesjs-plugin-export'],
+        plugins: [
+            'grapesjs-preset-webpage',
+            'gjs-blocks-basic',
+            'grapesjs-plugin-forms',
+            'grapesjs-plugin-export',
+            'grapesjs-component-code-editor' // <-- ADD THIS
+        ],
         pluginsOpts: {
             'grapesjs-preset-webpage': {
                 // ... options for the preset
@@ -22,12 +28,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     { id: 'device-mobile', command: 'set-device-mobile', label: '<i class="fas fa-mobile-alt"></i>' },
                 ]},
                 { id: 'panel__views', el: '#panel__views', buttons: [
-                    { id: 'preview', command: 'core:preview', context: 'core:preview', label: '<i class="fas fa-eye"></i>', },
-                    { id: 'show-borders', command: 'core:component-outline', label: '<i class="fas fa-vector-square"></i>', },
-                    { id: 'undo', command: 'core:undo', label: '<i class="fas fa-undo"></i>', },
-                    { id: 'redo', command: 'core:redo', label: '<i class="fas fa-redo"></i>', },
-                    { id: 'export', command: 'export-template', label: '<i class="fas fa-file-export"></i>', },
-                    { id: 'clear-canvas', command: 'clear-canvas', label: '<i class="fas fa-trash"></i>', },
+                    { id: 'preview', command: 'core:preview', context: 'core:preview', label: '<i class="fas fa-eye"></i>', title: 'Preview' },
+                    { id: 'show-borders', command: 'core:component-outline', label: '<i class="fas fa-vector-square"></i>', title: 'View Components' },
+                    { id: 'open-code', command: 'core:open-code', label: '<i class="fas fa-code"></i>', title: 'View Code' },
+                    { id: 'undo', command: 'core:undo', label: '<i class="fas fa-undo"></i>', title: 'Undo' },
+                    { id: 'redo', command: 'core:redo', label: '<i class="fas fa-redo"></i>', title: 'Redo' },
+                    { id: 'save-block', command: 'save-custom-block', label: '<i class="fas fa-save"></i>', title: 'Save as Block' },
+                    { id: 'export', command: 'export-template', label: '<i class="fas fa-file-export"></i>', title: 'Export Code' },
+                    { id: 'clear-canvas', command: 'clear-canvas', label: '<i class="fas fa-trash"></i>', title: 'Clear Canvas' },
                 ]},
                 { id: 'panel__switcher', el: '#panel__switcher', buttons: [
                     { id: 'show-layers', command: 'show-layers', active: true, label: '<i class="fas fa-layer-group"></i>', title: 'Layers' },
@@ -49,11 +57,55 @@ document.addEventListener('DOMContentLoaded', () => {
                 { name: 'Mobile', width: '375px', widthMedia: '575px' },
             ]
         },
-        // Add custom, pre-styled blocks
+        traitManager: {
+            appendTo: '#trait-container',
+        },
+        // When a component is selected, we want to see its traits
+        onComponentSelect(component) {
+            if (component.get('type') === 'wrapper') { // 'wrapper' is the body
+            editor.runCommand('show-traits');
+            }
+        },
+        // Configure traits for the body
+        components: [
+            {
+            type: 'wrapper', // This applies traits to the <body>
+            traits: [
+                {
+                name: 'title',
+                label: 'Page Title',
+                changeProp: 1,
+                }, {
+                name: 'data-seo-description',
+                label: 'Meta Description',
+                type: 'textarea',
+                changeProp: 1,
+                }
+            ]
+            }
+        ],
         blockManager: {
             appendTo: '#blocks',
             blocks: [
                 {
+                    id: 'section',
+                    label: '<b>Section</b>',
+                    attributes: { class: 'gjs-block-section' },
+                    content: `<section>
+                        <h1>This is a simple title</h1>
+                        <div>This is just a Lorem text: Lorem ipsum dolor sit amet</div>
+                    </section>`,
+                }, {
+                    id: 'text',
+                    label: 'Text',
+                    content: '<div data-gjs-type="text">Insert your text here</div>',
+                }, {
+                    id: 'image',
+                    label: 'Image',
+                    select: true,
+                    content: { type: 'image' },
+                    activate: true,
+                }, {
                     id: 'hero-section',
                     label: '<b>Hero Section</b>',
                     category: 'Sections',
@@ -65,61 +117,93 @@ document.addEventListener('DOMContentLoaded', () => {
                             <a href="#" class="btn btn-primary btn-lg" style="background-color: #007bff; border: none; padding: 15px 30px; font-size: 1.25rem; border-radius: 5px; text-decoration: none; color: white;">Call to Action</a>
                         </div>
                     `,
-                },
-                {
-                    id: 'pricing-table',
-                    label: '<b>Pricing Table</b>',
+                }, {
+                    id: 'feature-grid',
+                    label: '<b>Feature Grid</b>',
                     category: 'Sections',
                     content: `
                         <div class="container py-5">
-                            <div class="row text-center">
-                                <div class="col-lg-4">
-                                    <div class="card mb-4 shadow-sm">
-                                        <div class="card-header"><h4 class="my-0 font-weight-normal">Free</h4></div>
-                                        <div class="card-body">
-                                            <h1 class="card-title pricing-card-title">$0 <small class="text-muted">/ mo</small></h1>
-                                            <ul class="list-unstyled mt-3 mb-4">
-                                                <li>10 users included</li><li>2 GB of storage</li><li>Email support</li>
-                                            </ul>
-                                            <button type="button" class="btn btn-lg btn-block btn-outline-primary">Sign up for free</button>
-                                        </div>
-                                    </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-4">
+                                    <h4><i class="fas fa-cogs mr-2"></i> Feature One</h4>
+                                    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer nec odio. Praesent libero. Sed cursus ante dapibus diam.</p>
                                 </div>
-                                <div class="col-lg-4">
-                                    <div class="card mb-4 shadow-sm">
-                                        <div class="card-header"><h4 class="my-0 font-weight-normal">Pro</h4></div>
-                                        <div class="card-body">
-                                            <h1 class="card-title pricing-card-title">$15 <small class="text-muted">/ mo</small></h1>
-                                            <ul class="list-unstyled mt-3 mb-4">
-                                                <li>20 users included</li><li>10 GB of storage</li><li>Priority email support</li>
-                                            </ul>
-                                            <button type="button" class="btn btn-lg btn-block btn-primary">Get started</button>
-                                        </div>
-                                    </div>
+                                <div class="col-md-6 mb-4">
+                                    <h4><i class="fas fa-chart-line mr-2"></i> Feature Two</h4>
+                                    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer nec odio. Praesent libero. Sed cursus ante dapibus diam.</p>
                                 </div>
-                                <div class="col-lg-4">
-                                    <div class="card mb-4 shadow-sm">
-                                        <div class="card-header"><h4 class="my-0 font-weight-normal">Enterprise</h4></div>
-                                        <div class="card-body">
-                                            <h1 class="card-title pricing-card-title">$29 <small class="text-muted">/ mo</small></h1>
-                                            <ul class="list-unstyled mt-3 mb-4">
-                                                <li>30 users included</li><li>15 GB of storage</li><li>Phone and email support</li>
-                                            </ul>
-                                            <button type="button" class="btn btn-lg btn-block btn-primary">Contact us</button>
-                                        </div>
-                                    </div>
+                                <div class="col-md-6 mb-4">
+                                    <h4><i class="fas fa-users mr-2"></i> Feature Three</h4>
+                                    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer nec odio. Praesent libero. Sed cursus ante dapibus diam.</p>
+                                </div>
+                                <div class="col-md-6 mb-4">
+                                    <h4><i class="fas fa-shield-alt mr-2"></i> Feature Four</h4>
+                                    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer nec odio. Praesent libero. Sed cursus ante dapibus diam.</p>
                                 </div>
                             </div>
                         </div>
-                    `,
-                },
-            ]
+                    `
+                }, {
+                    id: 'testimonial',
+                    label: '<b>Testimonial</b>',
+                    category: 'Sections',
+                    content: `
+                        <div class="container py-5 text-center">
+                            <img src="https://via.placeholder.com/100" class="rounded-circle mb-3" alt="Client photo">
+                            <p class="lead"><em>"This product is absolutely amazing! It has completely changed my workflow for the better. Highly recommended!"</em></p>
+                            <footer class="blockquote-footer"><strong>Jane Doe</strong>, CEO at Company Inc.</footer>
+                        </div>
+                    `
+                }, {
+                    id: 'footer',
+                    label: '<b>Footer</b>',
+                    category: 'Sections',
+                    content: `
+                        <footer class="container-fluid bg-dark text-white mt-5 py-4">
+                            <div class="container">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <h5>WebBuilder Pro</h5>
+                                        <p>Create beautiful websites with ease.</p>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <h5>Links</h5>
+                                        <ul class="list-unstyled">
+                                            <li><a href="#" class="text-white">Home</a></li>
+                                            <li><a href="#" class="text-white">Features</a></li>
+                                            <li><a href="#" class="text-white">Pricing</a></li>
+                                        </ul>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <h5>Contact</h5>
+                                        <p>Email: contact@webbuilder.pro</p>
+                                        <p>Phone: (123) 456-7890</p>
+                                    </div>
+                                </div>
+                                <div class="text-center mt-3">
+                                    <small>Copyright © 2024 WebBuilder Pro</small>
+                                </div>
+                            </div>
+                        </footer>
+                    `
+                }
+            ],
         },
         // Load bootstrap in canvas
         canvas: {
             styles: ['https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css'],
             scripts: ['https://code.jquery.com/jquery-3.5.1.slim.min.js', 'https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js', 'https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js'],
         },
+
+        assetManager: {
+        assets: [
+        'https://via.placeholder.com/350x250/78c5d6/fff',
+        'https://via.placeholder.com/350x250/459ba8/fff',
+        'https://via.placeholder.com/350x250/79c267/fff',
+        ],
+        upload: false,
+        uploadText: 'This is a demo, so remote uploading is not available. You can add image URLs below.',
+    }
     });
 
     // --- COMMANDS ---
@@ -197,11 +281,41 @@ document.addEventListener('DOMContentLoaded', () => {
     const savedTheme = localStorage.getItem('theme') || 'dark';
     setTheme(savedTheme);
 
+    editor.Commands.add('save-custom-block', {
+        run(editor) {
+            const selected = editor.getSelected();
+            if (!selected) {
+                alert('Please select a component first.');
+                return;
+            }
+
+            const blockName = prompt("Enter a name for your new block:");
+            if (!blockName) {
+                return;
+            }
+
+            editor.BlockManager.add(blockName.replace(/\s+/g, '-').toLowerCase(), {
+                label: `<b>${blockName}</b>`,
+                category: 'Custom',
+                content: selected.toHTML(),
+                attributes: { class: 'fa fa-cube' }
+            });
+
+            alert(`Block "${blockName}" has been saved! You can find it in the 'Custom' category.`);
+        }
+    });
+
 
     // Set initial active panel
     editor.on('load', () => {
         editor.runCommand('show-layers');
     });
 
-    window.editor = editor; // for debugging
+    window.editor = editor;
+});
+
+editor.on('component:update:title', component => {
+  if (component.is('wrapper')) {
+    document.title = component.get('attributes').title || 'WebBuilder Pro';
+  }
 });
