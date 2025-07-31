@@ -929,219 +929,166 @@ class WebBuilderPro {
             }
         }
           
-    // --- REPLACE THE ENTIRE showProperties METHOD WITH THIS NEW, SMARTER VERSION ---
-    showProperties(element) {
-        const panel = document.getElementById('properties-panel');
-        const componentType = element.dataset.componentType || 'element';
+        showProperties(element) {
+            const panel = document.getElementById('properties-panel');
+            if (!element) {
+                panel.innerHTML = '<div class="p-4 text-center text-gray-500"><p>Select an element to edit its properties</p></div>';
+                return;
+            }
 
-        let flexChildProperties = '';
-        // ** THE NEW CORE LOGIC **
-        // Check if the selected element is a direct child of a flex container.
-        const parent = element.parentElement;
-        if (parent && parent.classList.contains('canvas-element') && getComputedStyle(parent).display === 'flex') {
-            flexChildProperties = `
-                <div class="sidebar-section pb-4 mb-4">
-                    <h4 class="font-medium mb-2">Flex Child</h4>
-                    <div class="grid grid-cols-2 gap-2 mb-2">
-                        <div>
-                            <label class="text-xs text-gray-600">Grow</label>
-                            <input type="number" class="property-input" placeholder="0" value="${this.getCurrentStyle('flexGrow') || '0'}" oninput="app.updateElementStyle('flexGrow', this.value)">
-                        </div>
-                        <div>
-                            <label class="text-xs text-gray-600">Shrink</label>
-                            <input type="number" class="property-input" placeholder="1" value="${this.getCurrentStyle('flexShrink') || '1'}" oninput="app.updateElementStyle('flexShrink', this.value)">
+            const componentType = element.dataset.componentType || 'element';
+
+            let propertiesHTML = `
+                <div class="p-4">
+                    <div class="mb-4">
+                        <label class="text-sm font-medium">State</label>
+                        <select id="state-selector" class="property-input mt-1" onchange="app.currentState = this.value; app.showProperties(app.selectedElement);">
+                            <option value="base" ${this.currentState === 'base' ? 'selected' : ''}>Base</option>
+                            <option value="hover" ${this.currentState === 'hover' ? 'selected' : ''}>Hover</option>
+                        </select>
+                    </div>
+                    <div class="sidebar-section pb-4 mb-4">
+                        <h4 class="font-medium mb-2">CSS Classes</h4>
+                        <input type="text" id="class-input" class="property-input" placeholder="e.g. btn btn-primary"
+                            value="${(element.className || '').replace(/canvas-element|selected/g, '').trim()}"
+                            onchange="app.updateElementClasses(this.value)">
+                    </div>
+                    <h3 class="font-semibold mb-4">${componentType.charAt(0).toUpperCase() + componentType.slice(1)} Properties</h3>
+
+                    ${this.generateFlexChildPropertiesHTML(element)}
+                    ${this.generateLayoutPropertiesHTML(element)}
+                    ${this.generateTypographyPropertiesHTML(element)}
+                    ${this.generateBackgroundPropertiesHTML(element)}
+                    ${this.generateContentEditingHTML(element)}
+                </div>
+            `;
+            
+            panel.innerHTML = propertiesHTML;
+
+            // Re-add event listeners for any dropdowns/inputs if necessary
+            const displaySelect = panel.querySelector('#display-select');
+            if(displaySelect) {
+                displaySelect.value = this.getCurrentStyle('display') || 'block';
+            }
+            const positionSelect = panel.querySelector('#position-select');
+            if(positionSelect) {
+                positionSelect.value = this.getCurrentStyle('position') || 'static';
+            }
+        }
+
+        generateFlexChildPropertiesHTML(element) {
+            const parent = element.parentElement;
+            // Check if the parent is a canvas element AND has display: flex
+            if (parent && parent.classList.contains('canvas-element') && getComputedStyle(parent).display === 'flex') {
+                return `
+                    <div class="sidebar-section pb-4 mb-4">
+                        <h4 class="font-medium mb-2">Flex Child</h4>
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <div>
+                                <label class="text-xs">Grow</label>
+                                <input type="number" class="property-input" placeholder="0" value="${this.getCurrentStyle('flexGrow') || ''}" oninput="app.updateElementStyle('flexGrow', this.value)">
+                            </div>
+                            <div>
+                                <label class="text-xs">Shrink</label>
+                                <input type="number" class="property-input" placeholder="1" value="${this.getCurrentStyle('flexShrink') || ''}" oninput="app.updateElementStyle('flexShrink', this.value)">
+                            </div>
                         </div>
                     </div>
-                    <div class="mb-2">
-                        <label class="text-xs text-gray-600">Basis</label>
-                        <input type="text" class="property-input" placeholder="auto" value="${this.getCurrentStyle('flexBasis') || 'auto'}" oninput="app.updateElementStyle('flexBasis', this.value)">
+                `;
+            }
+            return '';
+        }
+
+        generateLayoutPropertiesHTML(element) {
+            const flexParentControls = getComputedStyle(element).display === 'flex' ? `
+                <h4 class="font-medium mb-2 mt-4 border-t pt-4">Flex Container</h4>
+                <div class="grid grid-cols-2 gap-2 mb-2">
+                    <div>
+                        <label class="text-xs">Direction</label>
+                        <select class="property-input" oninput="app.updateElementStyle('flexDirection', this.value)">
+                            <option value="row" ${this.getCurrentStyle('flexDirection') === 'row' ? 'selected' : ''}>Row</option>
+                            <option value="column" ${this.getCurrentStyle('flexDirection') === 'column' ? 'selected' : ''}>Column</option>
+                        </select>
                     </div>
-                    <div class="mb-2">
-                        <label class="text-xs text-gray-600">Align Self</label>
-                        <select class="property-input" oninput="app.updateElementStyle('alignSelf', this.value)">
-                            <option value="auto" ${!this.getCurrentStyle('alignSelf') || this.getCurrentStyle('alignSelf') === 'auto' ? 'selected' : ''}>Auto</option>
-                            <option value="flex-start" ${this.getCurrentStyle('alignSelf') === 'flex-start' ? 'selected' : ''}>Start</option>
-                            <option value="flex-end" ${this.getCurrentStyle('alignSelf') === 'flex-end' ? 'selected' : ''}>End</option>
-                            <option value="center" ${this.getCurrentStyle('alignSelf') === 'center' ? 'selected' : ''}>Center</option>
-                            <option value="stretch" ${this.getCurrentStyle('alignSelf') === 'stretch' ? 'selected' : ''}>Stretch</option>
+                    <div>
+                        <label class="text-xs">Align Items</label>
+                        <select class="property-input" oninput="app.updateElementStyle('alignItems', this.value)">
+                            <option value="stretch" ${this.getCurrentStyle('alignItems') === 'stretch' ? 'selected' : ''}>Stretch</option>
+                            <option value="flex-start" ${this.getCurrentStyle('alignItems') === 'flex-start' ? 'selected' : ''}>Start</option>
+                            <option value="center" ${this.getCurrentStyle('alignItems') === 'center' ? 'selected' : ''}>Center</option>
+                            <option value="flex-end" ${this.getCurrentStyle('alignItems') === 'flex-end' ? 'selected' : ''}>End</option>
+                        </select>
+                    </div>
+                </div>` : '';
+                
+            return `
+            <div class="sidebar-section pb-4 mb-4">
+                <h4 class="font-medium mb-2">Layout & Sizing</h4>
+                <div class="grid grid-cols-2 gap-2 mb-2">
+                    <div>
+                        <label class="text-xs">Display</label>
+                        <select id="display-select" class="property-input" oninput="app.updateElementStyle('display', this.value)">
+                            <option value="block">Block</option>
+                            <option value="flex">Flex</option>
+                            <option value="inline-block">Inline-Block</option>
+                            <option value="none">None</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs">Position</label>
+                        <select id="position-select" class="property-input" oninput="app.updateElementStyle('position', this.value)">
+                            <option value="static">Static</option>
+                            <option value="relative">Relative</option>
+                            <option value="absolute">Absolute</option>
                         </select>
                     </div>
                 </div>
-            `;
+                <div class="grid grid-cols-2 gap-2">
+                    <div><label class="text-xs">Width</label><input type="text" class="property-input" value="${this.getCurrentStyle('width') || 'auto'}" oninput="app.updateElementStyle('width', this.value)"></div>
+                    <div><label class="text-xs">Height</label><input type="text" class="property-input" value="${this.getCurrentStyle('height') || 'auto'}" oninput="app.updateElementStyle('height', this.value)"></div>
+                    <div><label class="text-xs">Margin</label><input type="text" class="property-input" value="${this.getCurrentStyle('margin') || ''}" oninput="app.updateElementStyle('margin', this.value)"></div>
+                    <div><label class="text-xs">Padding</label><input type="text" class="property-input" value="${this.getCurrentStyle('padding') || ''}" oninput="app.updateElementStyle('padding', this.value)"></div>
+                </div>
+                ${flexParentControls}
+            </div>`;
         }
 
-// --- Inside showProperties(), just replace the propertiesHTML part ---
-
-    let propertiesHTML = `
-        <div class="p-4">
-            <div class="mb-4">
-                <label class="text-sm font-medium">State</label>
-                <select id="state-selector" class="property-input mt-1" onchange="app.currentState = this.value; app.showProperties(app.selectedElement);">
-                    <option value="base" ${this.currentState === 'base' ? 'selected' : ''}>Base</option>
-                    <option value="hover" ${this.currentState === 'hover' ? 'selected' : ''}>Hover</option>
-                </select>
-            </div>
-            <div class="sidebar-section pb-4 mb-4">
-                <h4 class="font-medium mb-2">CSS Classes</h4>
-                <input type="text" id="class-input" class="property-input" placeholder="e.g. btn btn-primary"
-                       value="${(this.selectedElement.className || '').replace(/canvas-element|selected/g, '').trim()}"
-                       onchange="app.updateElementClasses(this.value)">
-            </div>
-            <h3 class="font-semibold mb-4">${componentType.charAt(0).toUpperCase() + componentType.slice(1)} Properties</h3>
-
-            ${flexChildProperties}
-            ${this.generateLayoutPropertiesHTML()}
-            ${this.generateTypographyPropertiesHTML()}
-            ${this.generateBackgroundPropertiesHTML()}
-            ${this.generateContentEditingHTML()}
-
-        </div>
-    `;
-        
-        panel.innerHTML = propertiesHTML;
-    }
-
-    // NOTE: This is a refactor. The code from showProperties is moved here to be cleaner.
-    // ADD THIS NEW METHOD to your class
-    generateLayoutPropertiesHTML() {
-        if (!this.selectedElement) return '';
-
-        // Only show Flexbox PARENT controls if the selected item IS a flex container
-        const flexParentControls = getComputedStyle(this.selectedElement).display === 'flex' ? `
-            <h4 class="font-medium mb-2 mt-4 border-t pt-4">Flex Container</h4>
-            <div class="grid grid-cols-2 gap-2 mb-2">
-                <div>
-                    <label class="text-xs text-gray-600">Direction</label>
-                    <select class="property-input" oninput="app.updateElementStyle('flexDirection', this.value)">
-                        <option value="row" ${this.getCurrentStyle('flexDirection') === 'row' ? 'selected' : ''}>Row</option>
-                        <option value="column" ${this.getCurrentStyle('flexDirection') === 'column' ? 'selected' : ''}>Column</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="text-xs text-gray-600">Justify Content</label>
-                    <select class="property-input" oninput="app.updateElementStyle('justifyContent', this.value)">
-                        <option value="flex-start">Start</option>
-                        <option value="center">Center</option>
-                        <option value="flex-end">End</option>
-                        <option value="space-between">Space Between</option>
-                        <option value="space-around">Space Around</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="text-xs text-gray-600">Align Items</label>
-                    <select class="property-input" oninput="app.updateElementStyle('alignItems', this.value)">
-                        <option value="stretch">Stretch</option>
-                        <option value="flex-start">Start</option>
-                        <option value="center">Center</option>
-                        <option value="flex-end">End</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="text-xs text-gray-600">Gap</label>
-                    <input type="text" class="property-input" value="${this.getCurrentStyle('gap') || '0px'}" oninput="app.updateElementStyle('gap', this.value)">
-                </div>
-            </div>` : '';
-            
-        return `
-        <div class="sidebar-section pb-4 mb-4">
-            <h4 class="font-medium mb-2">Layout</h4>
-            <!-- Other layout controls like display, width, height, etc. -->
-            <div class="grid grid-cols-2 gap-2 mb-2">
-                <div>
-                    <label class="text-xs">Display</label>
-                    <select class="property-input" oninput="app.updateElementStyle('display', this.value)">
-                        <option value="block">Block</option>
-                        <option value="flex">Flex</option>
-                        <option value="inline-block">Inline-Block</option>
-                        <option value="none">None</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="text-xs">Position</label>
-                    <select class="property-input" oninput="app.updateElementStyle('position', this.value)">
-                        <option value="static">Static</option>
-                        <option value="relative">Relative</option>
-                        <option value="absolute">Absolute</option>
-                    </select>
-                </div>
-            </div>
-            <div class="grid grid-cols-2 gap-2 mb-2">
-                <div><label class="text-xs">Width</label><input type="text" class="property-input" value="${this.getCurrentStyle('width') || 'auto'}" oninput="app.updateElementStyle('width', this.value)"></div>
-                <div><label class="text-xs">Height</label><input type="text" class="property-input" value="${this.getCurrentStyle('height') || 'auto'}" oninput="app.updateElementStyle('height', this.value)"></div>
-            </div>
-            <!-- other props like margin, padding -->
-            
-            ${flexParentControls}
-        </div>`;
-    }
-
-
-    // --- ADD THESE NEW METHODS AFTER generateLayoutPropertiesHTML() ---
-
-        generateTypographyPropertiesHTML() {
-            if (!this.selectedElement) return '';
+        generateTypographyPropertiesHTML(element) {
             return `
             <div class="sidebar-section pb-4 mb-4">
                 <h4 class="font-medium mb-2">Typography</h4>
-                <div class="mb-2">
-                    <label class="text-xs text-gray-600">Font Family</label>
-                    <select class="property-input" oninput="app.updateElementStyle('fontFamily', this.value)">
-                        <option value="">Default</option>
-                        ${this.googleFonts.map(font => `<option value="'${font}', sans-serif" ${this.getCurrentStyle('fontFamily').includes(font) ? 'selected' : ''}>${font}</option>`).join('')}
-                    </select>
-                </div>
-                <div class="grid grid-cols-2 gap-2 mb-2">
+                <div class="grid grid-cols-2 gap-2">
                     <div>
-                        <label class="text-xs text-gray-600">Size</label>
+                        <label class="text-xs">Size</label>
                         <input type="text" class="property-input" value="${this.getCurrentStyle('fontSize') || ''}" oninput="app.updateElementStyle('fontSize', this.value)">
                     </div>
                     <div>
-                        <label class="text-xs text-gray-600">Weight</label>
-                        <select class="property-input" oninput="app.updateElementStyle('fontWeight', this.value)">
-                            <option value="normal">Normal</option>
-                            <option value="bold">Bold</option>
-                            <option value="300">300</option>
-                            <option value="500">500</option>
-                            <option value="700">700</option>
-                        </select>
+                        <label class="text-xs">Color</label>
+                        <input type="color" class="w-full h-8 p-0 border-0" value="${this.rgbToHex(this.getCurrentStyle('color'))}" oninput="app.updateElementStyle('color', this.value)">
                     </div>
-                </div>
-                <div class="mb-2">
-                    <label class="text-xs text-gray-600">Color</label>
-                    <input type="color" class="w-full h-8" value="${this.rgbToHex(this.getCurrentStyle('color'))}" oninput="app.updateElementStyle('color', this.value)">
                 </div>
             </div>`;
         }
 
-        generateBackgroundPropertiesHTML() {
-            if (!this.selectedElement) return '';
+        generateBackgroundPropertiesHTML(element) {
             return `
             <div class="sidebar-section pb-4 mb-4">
                 <h4 class="font-medium mb-2">Background</h4>
-                <div class="mb-2">
-                    <label class="text-xs text-gray-600">Color</label>
-                    <input type="color" class="w-full h-8" value="${this.rgbToHex(this.getCurrentStyle('backgroundColor'))}" oninput="app.updateElementStyle('backgroundColor', this.value)">
-                </div>
-                <div class="mb-2">
-                    <label class="text-xs text-gray-600">Image (URL)</label>
-                    <input type="text" class="property-input" placeholder="url(...)" value="${this.getCurrentStyle('backgroundImage') || ''}" oninput="app.updateElementStyle('backgroundImage', this.value)">
+                <div>
+                    <label class="text-xs">Color</label>
+                    <input type="color" class="w-full h-8 p-0 border-0" value="${this.rgbToHex(this.getCurrentStyle('backgroundColor'))}" oninput="app.updateElementStyle('backgroundColor', this.value)">
                 </div>
             </div>`;
         }
 
-        generateContentEditingHTML() {
-            if (!this.selectedElement || !this.getInnermostTextElement(this.selectedElement)) return '';
+        generateContentEditingHTML(element) {
+            if (!this.getInnermostTextElement(element)) return '';
             return `
             <div class="sidebar-section pb-4 mb-4">
                 <h4 class="font-medium mb-2">Content</h4>
-                <textarea class="property-input h-20" oninput="app.updateElementContent(this.value)">${this.getElementText(this.selectedElement)}</textarea>
-            </div>
-            `;
+                <textarea class="property-input h-20" oninput="app.updateElementContent(this.value)">${this.getElementText(element)}</textarea>
+            </div>`;
         }
-
-    // You can similarly refactor Typography and Background into their own generator methods
-    // For brevity, I'll omit them here but you should do it for cleaner code.
-    // e.g., generateTypographyPropertiesHTML() and generateBackgroundPropertiesHTML()
 
     // --- REPLACE the existing updateElementStyle method ---
     updateElementStyle(property, value) {

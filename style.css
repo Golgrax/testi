@@ -5,6 +5,9 @@
     z-index: 100;
     display: none; /* Initially hidden */
 }
+.canvas-element .drop-zone {
+    pointer-events: auto; /* This re-enables dropping into containers */
+}
 
 .canvas-element > * {
     pointer-events: none;
