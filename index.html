@@ -349,15 +349,28 @@
             <!-- Canvas Area -->
             <div class="flex-1 flex overflow-hidden">
                 <!-- Canvas Container -->
+                            <!-- START: Target Location for Pasting -->
                 <div id="scroll-area" class="flex-1 p-4 overflow-auto bg-gray-50">
-
-
                     <div class="mx-auto bg-white shadow-lg" id="canvas-container" style="width: 1024px; min-height: 600px;">
                         <div id="canvas" class="drop-zone relative" style="min-height: 600px;">
                             <!-- Canvas content will be dynamically added here -->
+
+                            <!-- PASTE THE SELECTION BOX HTML HERE -->
+                            <div id="selection-box" class="selection-box">
+                                <div class="resizer top-left"></div>
+                                <div class="resizer top-center"></div>
+                                <div class="resizer top-right"></div>
+                                <div class="resizer middle-left"></div>
+                                <div class="resizer middle-right"></div>
+                                <div class="resizer bottom-left"></div>
+                                <div class="resizer bottom-center"></div>
+                                <div class="resizer bottom-right"></div>
+                            </div>
+
                         </div>
                     </div>
                 </div>
+                <!-- END: Target Location for Pasting -->
             </div>
 
 
@@ -447,6 +460,10 @@
                 this.draggedElement = null;
                 this.codeEditor = null;
                 this.currentCodeTab = 'html';
+                this.isResizing = false; // Add this
+                this.activeResizer = null; // Add this
+                this.elementInitialRect = {}; // Add this
+                this.mouseInitialPos = {}; // Add this
                 this.isResizing = false;
                 this.resizerInitialPos = {};
                 this.elementInitialSize = {};
@@ -457,6 +474,150 @@
                 this.currentState = 'base';
                 this.init();
             }
+
+                        // START: ADD New Methods
+            setupResizing() {
+                const selectionBox = document.getElementById('selection-box');
+                const resizers = selectionBox.querySelectorAll('.resizer');
+
+                const onMouseDown = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    if (!this.selectedElement) return;
+
+                    this.isResizing = true;
+                    this.activeResizer = e.target;
+                    
+                    this.elementInitialRect = {
+                        width: this.selectedElement.offsetWidth,
+                        height: this.selectedElement.offsetHeight,
+                        left: this.selectedElement.offsetLeft,
+                        top: this.selectedElement.offsetTop,
+                    };
+                    
+                    this.mouseInitialPos = { x: e.clientX, y: e.clientY };
+
+                    document.addEventListener('mousemove', this.handleResize);
+                    document.addEventListener('mouseup', this.stopResize);
+                };
+
+                resizers.forEach(resizer => {
+                    resizer.addEventListener('mousedown', onMouseDown);
+                });
+                
+                this.handleResize = this.handleResize.bind(this);
+                this.stopResize = this.stopResize.bind(this);
+            }
+
+            handleResize(e) {
+                if (!this.isResizing || !this.selectedElement) return;
+
+                const zoom = parseFloat(document.getElementById('zoom-slider').value) / 100;
+                const dx = (e.clientX - this.mouseInitialPos.x) / zoom;
+                const dy = (e.clientY - this.mouseInitialPos.y) / zoom;
+                
+                let { width, height, left, top } = this.elementInitialRect;
+                const resizerType = this.activeResizer.className;
+
+                if (resizerType.includes('bottom-right')) { width += dx; height += dy; } 
+                else if (resizerType.includes('bottom-left')) { width -= dx; height += dy; left += dx; } 
+                else if (resizerType.includes('top-right')) { width += dx; height -= dy; top += dy; } 
+                else if (resizerType.includes('top-left')) { width -= dx; height -= dy; top += dy; left += dx; } 
+                else if (resizerType.includes('top-center')) { height -= dy; top += dy; } 
+                else if (resizerType.includes('bottom-center')) { height += dy; } 
+                else if (resizerType.includes('middle-left')) { width -= dx; left += dx; } 
+                else if (resizerType.includes('middle-right')) { width += dx; }
+                
+                const minSize = 20;
+                this.selectedElement.style.width = `${Math.max(width, minSize)}px`;
+                this.selectedElement.style.height = `${Math.max(height, minSize)}px`;
+                this.selectedElement.style.left = `${left}px`;
+                this.selectedElement.style.top = `${top}px`;
+
+                this.updateSelectionBox(this.selectedElement);
+            }
+
+            stopResize() {
+                this.isResizing = false;
+                document.removeEventListener('mousemove', this.handleResize);
+                document.removeEventListener('mouseup', this.stopResize);
+
+                if (this.selectedElement) {
+                    this.updateElementRect({
+                        width: this.selectedElement.style.width,
+                        height: this.selectedElement.style.height,
+                        left: this.selectedElement.style.left,
+                        top: this.selectedElement.style.top,
+                    });
+                }
+            }
+
+            updateElementRect(rect) {
+                if (!this.selectedElement) return;
+                let styles = {};
+                try {
+                    styles = JSON.parse(this.selectedElement.dataset.styles || '{}');
+                } catch (e) { styles = { base: { desktop: {} } }; }
+                if (!styles.base) styles.base = {};
+                if (!styles.base.desktop) styles.base.desktop = {};
+                
+                styles.base.desktop.width = rect.width;
+                styles.base.desktop.height = rect.height;
+                styles.base.desktop.left = rect.left;
+                styles.base.desktop.top = rect.top;
+
+                this.selectedElement.dataset.styles = JSON.stringify(styles);
+                this.applyAllStyles(this.selectedElement);
+                this.saveToHistory();
+            }
+
+            updateSelectionBox(element) {
+                const selectionBox = document.getElementById('selection-box');
+                if (!element || !selectionBox) {
+                    if(selectionBox) selectionBox.classList.remove('active');
+                    return;
+                }
+                selectionBox.style.top = `${element.offsetTop - 2}px`;
+                selectionBox.style.left = `${element.offsetLeft - 2}px`;
+                selectionBox.style.width = `${element.offsetWidth}px`;
+                selectionBox.style.height = `${element.offsetHeight}px`;
+                selectionBox.classList.add('active');
+            }
+
+            bindInteractiveEvents(element) {
+                element.addEventListener('click', e => {
+                    e.stopPropagation();
+                    this.selectElement(element);
+                });
+                element.addEventListener('mousedown', e => {
+                    if (this.isResizing || e.target.closest('.resizer')) return;
+                    if (element.classList.contains('is-editing')) return;
+                    e.preventDefault();
+                    this.selectElement(element);
+                    const sx = e.clientX, sy = e.clientY;
+                    const initialLeft = element.offsetLeft, initialTop = element.offsetTop;
+                    const zoom = parseFloat(document.getElementById('zoom-slider').value) / 100;
+                    const onMove = (ev) => {
+                        const dx = (ev.clientX - sx) / zoom;
+                        const dy = (ev.clientY - sy) / zoom;
+                        element.style.left = `${initialLeft + dx}px`;
+                        element.style.top = `${initialTop + dy}px`;
+                        this.updateSelectionBox(element);
+                    };
+                    const onUp = () => {
+                        document.removeEventListener('mousemove', onMove);
+                        document.removeEventListener('mouseup', onUp);
+                        this.updateElementRect({
+                            width: element.style.width, height: element.style.height,
+                            left: element.style.left, top: element.style.top
+                        });
+                    };
+                    document.addEventListener('mousemove', onMove);
+                    document.addEventListener('mouseup', onUp);
+                });
+            }
+            // END: ADD New Methods
 
             updateChildElementStyle(selector, property, value) {
                 if (!this.selectedElement) return;
@@ -550,10 +711,11 @@
            
             init() {
                 this.setupEventListeners();
+                this.setupEventListeners();
                 this.setupDragAndDrop();
                 this.loadComponents();
                 this.setupMonacoEditor();
-            //    this.setupResizing();
+                this.setupResizing(); // Change this line
                 this.loadFromLocalStorage();
             }
 
@@ -1116,7 +1278,7 @@
                 element.appendChild(controls);
 
                 // Use our new central function to add all events
-                this._bindElementEvents(element);
+                this.bindInteractiveEvents(element); // Change this line
 
                 // Find drop position and append
                 let targetContainer = event.target.closest('.drop-zone') || document.getElementById('canvas');
@@ -1146,7 +1308,7 @@
                 this.selectedElement = element;
                 
                 this.showProperties(element);
-                selectionWrapper.classList.add('hidden'); 
+                this.updateSelectionBox(element); // Add this line
                 this.updateBreadcrumbs();
                 
                 document.querySelectorAll('.layer-item.active-layer').forEach(item => item.classList.remove('active-layer'));
@@ -1154,25 +1316,21 @@
                 if (activeLayer) activeLayer.classList.add('active-layer');
             }
 
+            // START: CHANGE handleCanvasClick()
             handleCanvasClick(e) {
-                // If the click is on any element or its controls, do nothing.
-                if (e.target.closest('.canvas-element, .element-controls')) return;
-                selectionWrapper.classList.remove('hidden');
+                if (e.target.closest('.canvas-element, .resizer')) return;
 
                 if (this.selectedElement) {
-                    // Fully reset the element's state when deselecting.
                     this.selectedElement.classList.remove('selected', 'is-editing');
-                    const oldEditIcon = this.selectedElement.querySelector('.fa-check');
-                    if(oldEditIcon) oldEditIcon.classList.replace('fa-check', 'fa-edit');
                     this.selectedElement = null;
                 }
                 
-                // Reset the entire UI to its default state.
                 document.getElementById('properties-panel').innerHTML = `<div class="p-4 text-center text-gray-500"><i class="fas fa-mouse-pointer text-3xl mb-2 block"></i><p>Select an element to edit its properties</p></div>`;
-                document.getElementById('selection-wrapper').classList.add('hidden');
+                this.updateSelectionBox(null); // Add this line
                 this.updateBreadcrumbs();
                 document.querySelectorAll('.layer-item.active-layer').forEach(item => item.classList.remove('active-layer'));
             }
+            // END: CHANGE handleCanvasClick()
             
             showProperties(element) {
                 const panel = document.getElementById('properties-panel');
@@ -1912,15 +2070,14 @@
             }
 
             // REPLACE the entire old method with this one
+// START: CHANGE reattachEventListeners()
             reattachEventListeners() {
                 document.querySelectorAll('.canvas-element').forEach(element => {
-                    // Bind all interactive events (select, drag)
                     this.bindInteractiveEvents(element);
-                    
-                    // Re-apply styles for hover effects and responsiveness
                     this.applyAllStyles(element);
                 });
             }
+// END: CHANGE reattachEventListeners()
 
             reattachEventListenersToElement(element) {
                 const elements = [element, ...element.querySelectorAll('.canvas-element')];
