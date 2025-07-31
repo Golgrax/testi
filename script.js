@@ -33,6 +33,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     { id: 'open-code', command: 'core:open-code', label: '<i class="fas fa-code"></i>', title: 'View Code' },
                     { id: 'undo', command: 'core:undo', label: '<i class="fas fa-undo"></i>', title: 'Undo' },
                     { id: 'redo', command: 'core:redo', label: '<i class="fas fa-redo"></i>', title: 'Redo' },
+                    { id: 'import-template', command: 'gjs-open-import-webpage', label: '<i class="fas fa-upload"></i>', title: 'Import Template' },
+                    { id: 'save-project', command: 'save-project', label: '<i class="fas fa-hdd"></i>', title: 'Save Project' },
+                    { id: 'load-project', command: 'load-project', label: '<i class="fas fa-folder-open"></i>', title: 'Load Project' },
                     { id: 'save-block', command: 'save-custom-block', label: '<i class="fas fa-save"></i>', title: 'Save as Block' },
                     { id: 'export', command: 'export-template', label: '<i class="fas fa-file-export"></i>', title: 'Export Code' },
                     { id: 'clear-canvas', command: 'clear-canvas', label: '<i class="fas fa-trash"></i>', title: 'Clear Canvas' },
@@ -312,10 +315,92 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     window.editor = editor;
+
+// ADD THIS ENTIRE SECTION OF CODE INSIDE THE DOMContentLoaded LISTENER
+
+// --- NEW COMMANDS FOR PROJECT SAVE/LOAD ---
+editor.Commands.add('save-project', {
+    run: editor => {
+        const projectName = prompt("Enter a name to save your project:");
+        if (!projectName) return;
+        
+        const data = {
+            html: editor.getHtml(),
+            css: editor.getCss(),
+        };
+
+        localStorage.setItem(`gjsProject-${projectName}`, JSON.stringify(data));
+        alert(`Project "${projectName}" saved successfully!`);
+    }
 });
 
-editor.on('component:update:title', component => {
-  if (component.is('wrapper')) {
-    document.title = component.get('attributes').title || 'WebBuilder Pro';
-  }
+editor.Commands.add('load-project', {
+    run: editor => {
+        const projectName = prompt("Enter the name of the project to load:");
+        if (!projectName) return;
+
+        const data = localStorage.getItem(`gjsProject-${projectName}`);
+        if (!data) {
+            alert(`Project "${projectName}" not found!`);
+            return;
+        }
+
+        const parsedData = JSON.parse(data);
+        editor.setComponents(parsedData.html);
+        editor.setStyle(parsedData.css);
+        alert(`Project "${projectName}" loaded successfully!`);
+    }
 });
+
+
+// --- NEW EVENT LISTENERS FOR ADVANCED FEATURES ---
+
+// Add Responsive State Indicator logic
+const indicator = document.getElementById('responsive-indicator');
+editor.on('device:change', deviceName => {
+    indicator.innerHTML = `Styling: <strong>${deviceName}</strong>`;
+});
+
+
+// Add Context (Right-Click) Menu Logic
+const contextMenu = document.getElementById('context-menu');
+const canvas = editor.Canvas.getElement();
+
+canvas.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    const selected = editor.getSelected();
+
+    if (selected) {
+        contextMenu.style.left = `${e.clientX}px`;
+        contextMenu.style.top = `${e.clientY}px`;
+        contextMenu.style.display = 'block';
+    }
+});
+
+// Hide context menu on click
+window.addEventListener('click', () => {
+    contextMenu.style.display = 'none';
+});
+
+// Context menu actions
+contextMenu.addEventListener('click', e => {
+    const action = e.target.closest('.context-menu-item').dataset.action;
+    const selected = editor.getSelected();
+    if (!selected) return;
+
+    if (action === 'delete') {
+        selected.remove();
+    } else if (action === 'clone') {
+        editor.select(selected.clone());
+    }
+    contextMenu.style.display = 'none';
+});
+
+
+// Update the initial responsive indicator on load
+editor.on('load', () => {
+    indicator.innerHTML = `Styling: <strong>Desktop</strong>`;
+});
+
+});
+

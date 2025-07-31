@@ -13,10 +13,11 @@
     <link rel="stylesheet" href="style.css" />
     <!-- GrapesJS Code Editor Plugin CSS -->
     <link rel="stylesheet" href="https://unpkg.com/grapesjs-component-code-editor/dist/grapesjs-component-code-editor.min.css"/>
+    <!-- Animate.css for Animations -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    <link rel="stylesheet" href="context-menu.css" />
 </head>
 <body>
-    <!-- GrapesJS Code Editor Plugin -->
-    <script src="https://unpkg.com/grapesjs-component-code-editor/dist/grapesjs-component-code-editor.min.js"></script>
     <div id="app">
         <div class="editor-row">
             <!-- Left Panel: Blocks -->
@@ -29,6 +30,7 @@
             <div class="editor-canvas">
                 <div id="top-panel">
                     <div id="panel__devices"></div>
+                    <div id="responsive-indicator"></div>
                     <div id="panel__options"></div>
                     <div id="panel__views"></div>
                 </div>
@@ -62,5 +64,13 @@
 
     <!-- Custom Editor Logic -->
     <script src="script.js"></script>
+    <!-- GrapesJS Code Editor Plugin -->
+    <script src="https://unpkg.com/grapesjs-component-code-editor/dist/grapesjs-component-code-editor.min.js"></script>
+
+    <div id="context-menu" style="display:none; position:absolute;">
+        <div class="context-menu-item" data-action="clone"><i class="fas fa-copy"></i> Clone</div>
+        <div class="context-menu-item" data-action="delete"><i class="fas fa-trash"></i> Delete</div>
+    </div>
+</body>
 </body>
 </html>
