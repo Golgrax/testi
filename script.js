@@ -76,37 +76,37 @@ class WebBuilderPro {
             document.addEventListener('mouseup', onResizeMouseUp);
         };
 
-        // --- Inside setupResizing(), REPLACE the onResizeMouseMove constant ---
         const onResizeMouseMove = (e) => {
             if (!this.isResizing || !this.selectedElement) return;
 
             const style = this.selectedElement.style;
-            
-            // ** THE CRITICAL FIX IS HERE **
-            // Only modify position (top, left) if the element is NOT static.
             const isAbsolute = style.position === 'absolute';
+            
+            // Use deltas for smoother resizing
+            const dx = e.clientX - initialRect.left;
+            const dy = e.clientY - initialRect.top;
+            const dWidth = e.clientX - initialRect.right;
+            const dHeight = e.clientY - initialRect.bottom;
 
             if (currentResizer.classList.contains('bottom-right')) {
-                style.width = e.clientX - initialRect.left + 'px';
-                style.height = e.clientY - initialRect.top + 'px';
+                style.width = initialRect.width + dWidth + 'px';
+                style.height = initialRect.height + dHeight + 'px';
             } else if (currentResizer.classList.contains('bottom-left')) {
-                style.width = initialRect.right - e.clientX + 'px';
-                style.height = e.clientY - initialRect.top + 'px';
-                if (isAbsolute) style.left = e.clientX + 'px';
+                style.width = initialRect.width - dx + 'px';
+                style.height = initialRect.height + dHeight + 'px';
+                if (isAbsolute) style.left = initialRect.left + dx + 'px';
             } else if (currentResizer.classList.contains('top-right')) {
-                style.width = e.clientX - initialRect.left + 'px';
-                style.height = initialRect.bottom - e.clientY + 'px';
-                if (isAbsolute) style.top = e.clientY + 'px';
+                style.width = initialRect.width + dWidth + 'px';
+                style.height = initialRect.height - dy + 'px';
+                if (isAbsolute) style.top = initialRect.top + dy + 'px';
             } else if (currentResizer.classList.contains('top-left')) {
-                style.width = initialRect.right - e.clientX + 'px';
-                style.height = initialRect.bottom - e.clientY + 'px';
+                style.width = initialRect.width - dx + 'px';
+                style.height = initialRect.height - dy + 'px';
                 if (isAbsolute) {
-                    style.top = e.clientY + 'px';
-                    style.left = e.clientX + 'px';
+                    style.top = initialRect.top + dy + 'px';
+                    style.left = initialRect.left + dx + 'px';
                 }
             }
-            // ... (you can add the other resizers like 'top-center' if needed)
-            
             this.updateSelectionBox();
         };
 
@@ -970,33 +970,33 @@ class WebBuilderPro {
             `;
         }
 
-        let propertiesHTML = `
-            <div class="p-4">
-                <!-- The STATE and CSS CLASS panels remain here... -->
-                <div class="mb-4">
-                    <label class="text-sm font-medium">State</label>
-                    <select id="state-selector" class="property-input mt-1" onchange="this.value === 'base' ? app.currentState='base' : app.currentState='hover'; app.showProperties(app.selectedElement);">
-                        <option value="base" ${this.currentState === 'base' ? 'selected' : ''}>Base</option>
-                        <option value="hover" ${this.currentState === 'hover' ? 'selected' : ''}>Hover</option>
-                    </select>
-                </div>
-                <div class="sidebar-section pb-4 mb-4">
-                    <h4 class="font-medium mb-2">CSS Classes</h4>
-                    <input type="text" id="class-input" class="property-input" placeholder="e.g. btn btn-primary"
-                        value="${(this.selectedElement.className || '').replace(/canvas-element|selected/g, '').trim()}"
-                        onchange="app.updateElementClasses(this.value)">
-                </div>
-                <h3 class="font-semibold mb-4">${componentType.charAt(0).toUpperCase() + componentType.slice(1)} Properties</h3>
+// --- Inside showProperties(), just replace the propertiesHTML part ---
 
-                ${flexChildProperties} <!-- ** INJECT THE NEW FLEX PANEL HERE ** -->
-
-                <!-- All other property panels (Layout, Typography, etc.) go here -->
-                ${this.generateLayoutPropertiesHTML()}
-                ${this.generateTypographyPropertiesHTML()}
-                ${this.generateBackgroundPropertiesHTML()}
-                <!-- etc... -->
+    let propertiesHTML = `
+        <div class="p-4">
+            <div class="mb-4">
+                <label class="text-sm font-medium">State</label>
+                <select id="state-selector" class="property-input mt-1" onchange="app.currentState = this.value; app.showProperties(app.selectedElement);">
+                    <option value="base" ${this.currentState === 'base' ? 'selected' : ''}>Base</option>
+                    <option value="hover" ${this.currentState === 'hover' ? 'selected' : ''}>Hover</option>
+                </select>
             </div>
-        `;
+            <div class="sidebar-section pb-4 mb-4">
+                <h4 class="font-medium mb-2">CSS Classes</h4>
+                <input type="text" id="class-input" class="property-input" placeholder="e.g. btn btn-primary"
+                       value="${(this.selectedElement.className || '').replace(/canvas-element|selected/g, '').trim()}"
+                       onchange="app.updateElementClasses(this.value)">
+            </div>
+            <h3 class="font-semibold mb-4">${componentType.charAt(0).toUpperCase() + componentType.slice(1)} Properties</h3>
+
+            ${flexChildProperties}
+            ${this.generateLayoutPropertiesHTML()}
+            ${this.generateTypographyPropertiesHTML()}
+            ${this.generateBackgroundPropertiesHTML()}
+            ${this.generateContentEditingHTML()}
+
+        </div>
+    `;
         
         panel.innerHTML = propertiesHTML;
     }
@@ -1074,6 +1074,70 @@ class WebBuilderPro {
             ${flexParentControls}
         </div>`;
     }
+
+
+    // --- ADD THESE NEW METHODS AFTER generateLayoutPropertiesHTML() ---
+
+        generateTypographyPropertiesHTML() {
+            if (!this.selectedElement) return '';
+            return `
+            <div class="sidebar-section pb-4 mb-4">
+                <h4 class="font-medium mb-2">Typography</h4>
+                <div class="mb-2">
+                    <label class="text-xs text-gray-600">Font Family</label>
+                    <select class="property-input" oninput="app.updateElementStyle('fontFamily', this.value)">
+                        <option value="">Default</option>
+                        ${this.googleFonts.map(font => `<option value="'${font}', sans-serif" ${this.getCurrentStyle('fontFamily').includes(font) ? 'selected' : ''}>${font}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-2 mb-2">
+                    <div>
+                        <label class="text-xs text-gray-600">Size</label>
+                        <input type="text" class="property-input" value="${this.getCurrentStyle('fontSize') || ''}" oninput="app.updateElementStyle('fontSize', this.value)">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Weight</label>
+                        <select class="property-input" oninput="app.updateElementStyle('fontWeight', this.value)">
+                            <option value="normal">Normal</option>
+                            <option value="bold">Bold</option>
+                            <option value="300">300</option>
+                            <option value="500">500</option>
+                            <option value="700">700</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <label class="text-xs text-gray-600">Color</label>
+                    <input type="color" class="w-full h-8" value="${this.rgbToHex(this.getCurrentStyle('color'))}" oninput="app.updateElementStyle('color', this.value)">
+                </div>
+            </div>`;
+        }
+
+        generateBackgroundPropertiesHTML() {
+            if (!this.selectedElement) return '';
+            return `
+            <div class="sidebar-section pb-4 mb-4">
+                <h4 class="font-medium mb-2">Background</h4>
+                <div class="mb-2">
+                    <label class="text-xs text-gray-600">Color</label>
+                    <input type="color" class="w-full h-8" value="${this.rgbToHex(this.getCurrentStyle('backgroundColor'))}" oninput="app.updateElementStyle('backgroundColor', this.value)">
+                </div>
+                <div class="mb-2">
+                    <label class="text-xs text-gray-600">Image (URL)</label>
+                    <input type="text" class="property-input" placeholder="url(...)" value="${this.getCurrentStyle('backgroundImage') || ''}" oninput="app.updateElementStyle('backgroundImage', this.value)">
+                </div>
+            </div>`;
+        }
+
+        generateContentEditingHTML() {
+            if (!this.selectedElement || !this.getInnermostTextElement(this.selectedElement)) return '';
+            return `
+            <div class="sidebar-section pb-4 mb-4">
+                <h4 class="font-medium mb-2">Content</h4>
+                <textarea class="property-input h-20" oninput="app.updateElementContent(this.value)">${this.getElementText(this.selectedElement)}</textarea>
+            </div>
+            `;
+        }
 
     // You can similarly refactor Typography and Background into their own generator methods
     // For brevity, I'll omit them here but you should do it for cleaner code.
