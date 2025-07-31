@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import GrapesJsEditor from './components/GrapesJsEditor'
+import GrapesJsEditor from './GrapesJsEditor.jsx' 
 import './App.css'
 
 function App() {
