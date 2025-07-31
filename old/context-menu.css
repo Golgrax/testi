@@ -1,0 +1,30 @@
+/* --- CONTEXT MENU STYLES --- */
+#context-menu {
+    background-color: oklch(0.25 0.05 230);
+    border: 1px solid var(--theme-border-color);
+    border-radius: 6px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    color: var(--theme-text-color);
+    padding: 5px 0;
+    min-width: 150px;
+    z-index: 10000;
+}
+
+.context-menu-item {
+    padding: 8px 15px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+}
+
+.context-menu-item:hover {
+    background-color: var(--theme-accent-color);
+    color: white;
+}
+
+.context-menu-item i {
+    margin-right: 10px;
+    width: 15px;
+    text-align: center;
+}

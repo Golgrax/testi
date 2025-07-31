@@ -1,528 +1,822 @@
-document.addEventListener('DOMContentLoaded', () => {
-    const editor = grapesjs.init({
-        container: '#gjs',
-        fromElement: true,
-        height: '100%',
-        width: 'auto',
-        storageManager: { type: 'local' },
-        plugins: [
-            'grapesjs-preset-webpage',
-            'gjs-blocks-basic',
-            'grapesjs-plugin-forms',
-            'grapesjs-plugin-export',
-            'grapesjs-component-code-editor', // <-- ADD THIS
-            'grapesjs-component-toolbar'
-        ],
-        pluginsOpts: {
-            'grapesjs-preset-webpage': {
-                // ... options for the preset
-            },
-            'gjs-blocks-basic': { flexGrid: true },
-            'grapesjs-component-toolbar': {
-                toolbar: [
-                    { command: 'tlb-move', attributes: { title: 'Move', class: 'fa fa-arrows' } },
-                    { command: 'tlb-clone', attributes: { title: 'Clone', class: 'fa fa-clone' } },
-                    { command: 'tlb-delete', attributes: { title: 'Delete', class: 'fa fa-trash' } }
-                ]
-            },
-        },
-        // Define where to render UI components
-        panels: {
-            defaults: [
-                { id: 'panel__options', el: '#panel__options' },
-                { id: 'panel__devices', el: '#panel__devices', buttons: [
-                    { id: 'device-desktop', command: 'set-device-desktop', label: '<i class="fas fa-desktop"></i>', active: true, },
-                    { id: 'device-tablet', command: 'set-device-tablet', label: '<i class="fas fa-tablet-alt"></i>' },
-                    { id: 'device-mobile', command: 'set-device-mobile', label: '<i class="fas fa-mobile-alt"></i>' },
-                ]},
-                { id: 'panel__views', el: '#panel__views', buttons: [
-                    { id: 'preview', command: 'core:preview', context: 'core:preview', label: '<i class="fas fa-eye"></i>', title: 'Preview' },
-                    { id: 'show-borders', command: 'core:component-outline', label: '<i class="fas fa-vector-square"></i>', title: 'View Components' },
-                    { id: 'open-code', command: 'core:open-code', label: '<i class="fas fa-code"></i>', title: 'View Code' },
-                    { id: 'undo', command: 'core:undo', label: '<i class="fas fa-undo"></i>', title: 'Undo' },
-                    { id: 'redo', command: 'core:redo', label: '<i class="fas fa-redo"></i>', title: 'Redo' },
-                    { id: 'open-templates', command: 'open-templates', label: '<i class="far fa-window-maximize"></i>', title: 'Templates' },
-                    { id: 'import-template', command: 'gjs-open-import-webpage', label: '<i class="fas fa-upload"></i>', title: 'Import Template' },
-                    { id: 'save-project', command: 'save-project', label: '<i class="fas fa-hdd"></i>', title: 'Save Project' },
-                    { id: 'load-project', command: 'load-project', label: '<i class="fas fa-folder-open"></i>', title: 'Load Project' },
-                    { id: 'save-block', command: 'save-custom-block', label: '<i class="fas fa-save"></i>', title: 'Save as Block' },
-                    { id: 'export', command: 'export-template', label: '<i class="fas fa-file-export"></i>', title: 'Export Code' },
-                    { id: 'clear-canvas', command: 'clear-canvas', label: '<i class="fas fa-trash"></i>', title: 'Clear Canvas' },
-                ]},
-                { id: 'panel__switcher', el: '#panel__switcher', buttons: [
-                    { id: 'show-layers', command: 'show-layers', active: true, label: '<i class="fas fa-layer-group"></i>', title: 'Layers' },
-                    { id: 'show-styles', command: 'show-styles', label: '<i class="fas fa-palette"></i>', title: 'Styles' },
-                    { id: 'show-traits', command: 'show-traits', label: '<i class="fas fa-cog"></i>', title: 'Settings' },
-                ]}
-            ]
-        },
-        // Define UI managers
-        layerManager: { appendTo: '#layers-container' },
-        styleManager: { appendTo: '#style-container' },
-        traitManager: { appendTo: '#trait-container' },
-        blockManager: { appendTo: '#blocks' },
-        selectorManager: { appendTo: '#selector-manager-container', },
-        styleManager: { appendTo: '#style-properties-container', sectors: [] },
-        deviceManager: {
-            devices: [
-                { name: 'Desktop', width: '' },
-                { name: 'Tablet', width: '768px', widthMedia: '992px' },
-                { name: 'Mobile', width: '375px', widthMedia: '575px' },
-            ]
-        },
-        traitManager: {
-            appendTo: '#trait-container',
-        },
-        // When a component is selected, we want to see its traits
-        onComponentSelect(component) {
-            if (component.get('type') === 'wrapper') { // 'wrapper' is the body
-            editor.runCommand('show-traits');
-            }
-        },
-        // Configure traits for the body
-        components: [
-            {
-            type: 'wrapper', // This applies traits to the <body>
-            traits: [
-                {
-                name: 'title',
-                label: 'Page Title',
-                changeProp: 1,
-                }, {
-                name: 'data-seo-description',
-                label: 'Meta Description',
-                type: 'textarea',
-                changeProp: 1,
-                }
-            ]
-            }
-        ],
-        blockManager: {
+/**
+ * Enhanced WebBuilder Pro - Main Application Script
+ * Modern ES6+ implementation with enhanced features
+ */
 
-            
-            appendTo: '#blocks',
-            blocks: [
-                {
-                    id: 'section',
-                    label: '<b>Section</b>',
-                    attributes: { class: 'gjs-block-section' },
-                    content: `<section>
-                        <h1>This is a simple title</h1>
-                        <div>This is just a Lorem text: Lorem ipsum dolor sit amet</div>
-                    </section>`,
-                }, {
-                    id: 'text',
-                    label: 'Text',
-                    content: '<div data-gjs-type="text">Insert your text here</div>',
-                }, {
-                    id: 'image',
-                    label: 'Image',
-                    select: true,
-                    content: { type: 'image' },
-                    activate: true,
-                }, {
-                    id: 'hero-section',
-                    label: '<b>Hero Section</b>',
-                    category: 'Sections',
-                    attributes: { class: 'gjs-block-section' },
-                    content: `
-                        <div class="container-fluid" style="background-color: #333; color: white; padding: 100px 20px; text-align: center;">
-                            <h1 style="font-size: 3.5rem; margin-bottom: 20px;">Your Awesome Headline</h1>
-                            <p style="font-size: 1.25rem; margin-bottom: 30px;">A compelling sub-headline to engage your visitors.</p>
-                            <a href="#" class="btn btn-primary btn-lg" style="background-color: #007bff; border: none; padding: 15px 30px; font-size: 1.25rem; border-radius: 5px; text-decoration: none; color: white;">Call to Action</a>
-                        </div>
-                    `,
-                }, {
-                    id: 'feature-grid',
-                    label: '<b>Feature Grid</b>',
-                    category: 'Sections',
-                    content: `
-                        <div class="container py-5">
-                            <div class="row">
-                                <div class="col-md-6 mb-4">
-                                    <h4><i class="fas fa-cogs mr-2"></i> Feature One</h4>
-                                    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer nec odio. Praesent libero. Sed cursus ante dapibus diam.</p>
-                                </div>
-                                <div class="col-md-6 mb-4">
-                                    <h4><i class="fas fa-chart-line mr-2"></i> Feature Two</h4>
-                                    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer nec odio. Praesent libero. Sed cursus ante dapibus diam.</p>
-                                </div>
-                                <div class="col-md-6 mb-4">
-                                    <h4><i class="fas fa-users mr-2"></i> Feature Three</h4>
-                                    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer nec odio. Praesent libero. Sed cursus ante dapibus diam.</p>
-                                </div>
-                                <div class="col-md-6 mb-4">
-                                    <h4><i class="fas fa-shield-alt mr-2"></i> Feature Four</h4>
-                                    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer nec odio. Praesent libero. Sed cursus ante dapibus diam.</p>
-                                </div>
-                            </div>
-                        </div>
-                    `
-                }, {
-                    id: 'testimonial',
-                    label: '<b>Testimonial</b>',
-                    category: 'Sections',
-                    content: `
-                        <div class="container py-5 text-center">
-                            <img src="https://via.placeholder.com/100" class="rounded-circle mb-3" alt="Client photo">
-                            <p class="lead"><em>"This product is absolutely amazing! It has completely changed my workflow for the better. Highly recommended!"</em></p>
-                            <footer class="blockquote-footer"><strong>Jane Doe</strong>, CEO at Company Inc.</footer>
-                        </div>
-                    `
-                }, {
-                    id: 'footer',
-                    label: '<b>Footer</b>',
-                    category: 'Sections',
-                    content: `
-                        <footer class="container-fluid bg-dark text-white mt-5 py-4">
-                            <div class="container">
-                                <div class="row">
-                                    <div class="col-md-4">
-                                        <h5>WebBuilder Pro</h5>
-                                        <p>Create beautiful websites with ease.</p>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <h5>Links</h5>
-                                        <ul class="list-unstyled">
-                                            <li><a href="#" class="text-white">Home</a></li>
-                                            <li><a href="#" class="text-white">Features</a></li>
-                                            <li><a href="#" class="text-white">Pricing</a></li>
-                                        </ul>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <h5>Contact</h5>
-                                        <p>Email: contact@webbuilder.pro</p>
-                                        <p>Phone: (123) 456-7890</p>
-                                    </div>
-                                </div>
-                                <div class="text-center mt-3">
-                                    <small>Copyright © 2024 WebBuilder Pro</small>
-                                </div>
-                            </div>
-                        </footer>
-                    `
-                },
-                {
-                    id: 'navbar',
-                    label: '<b>Navbar</b>',
-                    category: 'Navigation',
-                    attributes: { class: 'gjs-block-section' },
-                    content: `
-                    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-                        <div class="container">
-                        <a class="navbar-brand" href="#">MyBrand</a>
-                        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                            <span class="navbar-toggler-icon"></span>
-                        </button>
-                        <div class="collapse navbar-collapse" id="navbarNav">
-                            <ul class="navbar-nav ml-auto">
-                            <li class="nav-item active"><a class="nav-link" href="#">Home</a></li>
-                            <li class="nav-item"><a class="nav-link" href="#">Features</a></li>
-                            <li class="nav-item"><a class="nav-link" href="#">Pricing</a></li>
-                            <li class="nav-item"><a class="nav-link disabled" href="#">Disabled</a></li>
-                            </ul>
-                        </div>
-                        </div>
-                    </nav>
-                    `,
-                }
-            ],
-        },
-        // Load bootstrap in canvas
-        canvas: {
-            styles: ['https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css'],
-            scripts: ['https://code.jquery.com/jquery-3.5.1.slim.min.js', 'https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js', 'https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js'],
-        },
-
-        assetManager: {
-        assets: [
-        'https://via.placeholder.com/350x250/78c5d6/fff',
-        'https://via.placeholder.com/350x250/459ba8/fff',
-        'https://via.placeholder.com/350x250/79c267/fff',
-        ],
-        upload: false,
-        uploadText: 'This is a demo, so remote uploading is not available. You can add image URLs below.',
-    }
-    });
-
-    // --- COMMANDS ---
-    // Device switch commands
-    editor.Commands.add('set-device-desktop', { run: editor => editor.setDevice('Desktop') });
-    editor.Commands.add('set-device-tablet', { run: editor => editor.setDevice('Tablet') });
-    editor.Commands.add('set-device-mobile', { run: editor => editor.setDevice('Mobile') });
-    
-    // Panel visibility commands
-    const hideAll = () => {
-        document.getElementById('layers-container').classList.remove('active');
-        document.getElementById('style-container').classList.remove('active');
-        document.getElementById('trait-container').classList.remove('active');
-    };
-
-
-    // Clear canvas command
-    editor.Commands.add('clear-canvas', {
-        run: editor => {
-            if (confirm('Are you sure you want to clear the canvas?')) {
-                editor.getComponents().clear();
-                setTimeout(() => localStorage.clear(), 0);
-            }
-        }
-    });
-
-    // --- THEME TOGGLE ---
-    const themeToggle = document.getElementById('theme-toggle');
-    const body = document.body;
-    const moonIcon = '<i class="fa-solid fa-moon"></i>';
-    const sunIcon = '<i class="fa-solid fa-sun"></i>';
-    
-    const setTheme = (theme) => {
-        if (theme === 'light') {
-            body.classList.add('light-theme');
-            themeToggle.innerHTML = moonIcon;
-            localStorage.setItem('theme', 'light');
-        } else {
-            body.classList.remove('light-theme');
-            themeToggle.innerHTML = sunIcon;
-            localStorage.setItem('theme', 'dark');
-        }
-    };
-
-    themeToggle.addEventListener('click', () => {
-        const isLight = body.classList.contains('light-theme');
-        setTheme(isLight ? 'dark' : 'light');
-    });
-
-    // Set initial theme from localStorage
-    const savedTheme = localStorage.getItem('theme') || 'dark';
-    setTheme(savedTheme);
-
-    editor.Commands.add('save-custom-block', {
-        run(editor) {
-            const selected = editor.getSelected();
-            if (!selected) {
-                alert('Please select a component first.');
-                return;
-            }
-
-            const blockName = prompt("Enter a name for your new block:");
-            if (!blockName) {
-                return;
-            }
-
-            editor.BlockManager.add(blockName.replace(/\s+/g, '-').toLowerCase(), {
-                label: `<b>${blockName}</b>`,
-                category: 'Custom',
-                content: selected.toHTML(),
-                attributes: { class: 'fa fa-cube' }
-            });
-
-            alert(`Block "${blockName}" has been saved! You can find it in the 'Custom' category.`);
-        }
-    });
-
-
-    // Set initial active panel
-    editor.on('load', () => {
-        editor.runCommand('show-layers');
-    });
-
-    // --- NEW INTELLIGENT PROPERTIES PANEL LOGIC ---
-
-    // Cache the panel sections
-    const traitsSection = document.getElementById('traits-section');
-    const styleSection = document.getElementById('style-section');
-    const layersSection = document.getElementById('layers-section');
-
-    const updatePanelVisibility = () => {
-        const selected = editor.getSelected();
-        if (selected) {
-            // Show sections relevant to a selected component
-            traitsSection.style.display = 'block';
-            styleSection.style.display = 'block';
-        } else {
-            // Show only the layer manager if nothing is selected
-            traitsSection.style.display = 'none';
-            styleSection.style.display = 'none';
-        }
-    };
-
-    // Update panels whenever a new component is selected
-    editor.on('component:select', () => updatePanelVisibility());
-    editor.on('component:deselect', () => updatePanelVisibility());
-
-    // On initial load, update visibility
-    editor.on('load', () => {
-        updatePanelVisibility();
-        // Your other 'load' event code from before, like the indicator, goes here
-        const indicator = document.getElementById('responsive-indicator');
-        indicator.innerHTML = `Styling: <strong>Desktop</strong>`;
-    });
-
-    // Replace the simple switcher button logic with this intelligent one.
-    // We are now just controlling which section is *scrolled to*, not hiding/showing panels.
-    const sections = {
-        'show-layers': layersSection,
-        'show-styles': styleSection,
-        'show-traits': traitsSection
-    };
-    const switcherButtons = editor.Panels.getButtons('panel__switcher');
-    switcherButtons.forEach(button => {
-        button.set('active', 0); // Reset all
-        button.on('change:active', () => {
-            if(button.get('active')) {
-                switcherButtons.forEach(b => b.id !== button.id && b.set('active', 0));
-                sections[button.id].scrollIntoView({ behavior: 'smooth' });
-            }
-        });
-    });
-
-    window.editor = editor;
-
-// ADD THIS ENTIRE SECTION OF CODE INSIDE THE DOMContentLoaded LISTENER
-
-// --- NEW COMMANDS FOR PROJECT SAVE/LOAD ---
-editor.Commands.add('save-project', {
-    run: editor => {
-        const projectName = prompt("Enter a name to save your project:");
-        if (!projectName) return;
-        
-        const data = {
-            html: editor.getHtml(),
-            css: editor.getCss(),
-        };
-
-        localStorage.setItem(`gjsProject-${projectName}`, JSON.stringify(data));
-        alert(`Project "${projectName}" saved successfully!`);
-    }
-});
-
-editor.Commands.add('load-project', {
-    run: editor => {
-        const projectName = prompt("Enter the name of the project to load:");
-        if (!projectName) return;
-
-        const data = localStorage.getItem(`gjsProject-${projectName}`);
-        if (!data) {
-            alert(`Project "${projectName}" not found!`);
-            return;
-        }
-
-        const parsedData = JSON.parse(data);
-        editor.setComponents(parsedData.html);
-        editor.setStyle(parsedData.css);
-        alert(`Project "${projectName}" loaded successfully!`);
-    }
-});
-
-
-// --- NEW EVENT LISTENERS FOR ADVANCED FEATURES ---
-
-// Add Responsive State Indicator logic
-const indicator = document.getElementById('responsive-indicator');
-editor.on('device:change', deviceName => {
-    indicator.innerHTML = `Styling: <strong>${deviceName}</strong>`;
-});
-
-
-// Add Context (Right-Click) Menu Logic
-const contextMenu = document.getElementById('context-menu');
-const canvas = editor.Canvas.getElement();
-
-canvas.addEventListener('contextmenu', e => {
-    e.preventDefault();
-    const selected = editor.getSelected();
-
-    if (selected) {
-        contextMenu.style.left = `${e.clientX}px`;
-        contextMenu.style.top = `${e.clientY}px`;
-        contextMenu.style.display = 'block';
-    }
-});
-
-// Hide context menu on click
-window.addEventListener('click', () => {
-    contextMenu.style.display = 'none';
-});
-
-// Context menu actions
-contextMenu.addEventListener('click', e => {
-    const action = e.target.closest('.context-menu-item').dataset.action;
-    const selected = editor.getSelected();
-    if (!selected) return;
-
-    if (action === 'delete') {
-        selected.remove();
-    } else if (action === 'clone') {
-        editor.select(selected.clone());
-    }
-    contextMenu.style.display = 'none';
-});
-
-
-// Update the initial responsive indicator on load
-editor.on('load', () => {
-    indicator.innerHTML = `Styling: <strong>Desktop</strong>`;
-});
-
-// --- TEMPLATE MODAL LOGIC ---
-const templates = [
-    {
-        name: 'SaaS Landing Page',
-        image: 'https://via.placeholder.com/300x200/4B0082/FFFFFF?text=SaaS+Template',
-        html: `<!-- Paste a full HTML structure for a SaaS page here -->
-               <div class="container text-center py-5"><h1 class="display-4">The Best SaaS Product</h1><p class="lead">Solve all your problems with our amazing tool.</p><a href="#" class="btn btn-primary btn-lg">Get Started Now</a></div>`
-    },
-    {
-        name: 'Portfolio Page',
-        image: 'https://via.placeholder.com/300x200/008080/FFFFFF?text=Portfolio',
-        html: `<!-- Paste a full HTML structure for a Portfolio page here -->
-               <div class="container text-center py-5"><h1 class="display-4">John Doe - Designer</h1><p class="lead">Check out my amazing work below.</p></div>`
-    },
-];
-
-const modal = document.getElementById('templates-modal');
-const templatesContainer = document.getElementById('templates-container');
-
-// Command to open the modal
-editor.Commands.add('open-templates', {
-    run: () => {
-        templatesContainer.innerHTML = ''; // Clear previous
-        templates.forEach(template => {
-            const card = document.createElement('div');
-            card.className = 'template-card';
-            card.innerHTML = `<img src="${template.image}" alt="${template.name}"><div class="template-card-name">${template.name}</div>`;
-            card.onclick = () => {
-                if(confirm(`Are you sure you want to load the "${template.name}" template? This will clear your current canvas.`)) {
-                    editor.setComponents(template.html);
-                    modal.style.display = 'none';
-                }
-            };
-            templatesContainer.appendChild(card);
-        });
-        modal.style.display = 'block';
-    }
-});
-
-// Logic to close the modal
-document.getElementById('templates-modal-close').onclick = () => modal.style.display = 'none';
-window.onclick = (event) => { if (event.target == modal) { modal.style.display = "none"; } };
-
-
-const originalContextHandler = contextMenu.onclick;
-contextMenu.onclick = (e) => {
-    if(originalContextHandler) originalContextHandler(e);
-    
-    const target = e.target.closest('.context-menu-item');
-    if (!target) return;
-    const action = target.dataset.action;
-    const selected = editor.getSelected();
-
-    if (action === 'move-up' && selected) {
-        selected.move(selected.get('index') - 1);
-    } else if (action === 'move-down' && selected) {
-        selected.move(selected.get('index') + 1);
-    }
+// ===== CONSTANTS AND CONFIGURATION =====
+const APP_CONFIG = {
+  version: '2.0.0',
+  name: 'WebBuilder Pro Enhanced',
+  storagePrefix: 'webbuilder-pro-',
+  autoSaveInterval: 30000, // 30 seconds
+  maxUndoSteps: 50
 };
 
-});
+// ===== MAIN APPLICATION CLASS =====
+class WebBuilderApp {
+  constructor() {
+    this.editor = null;
+    this.isInitialized = false;
+    this.autoSaveTimer = null;
+    this.contextMenu = null;
+    this.clipboard = null;
+    
+    // Bind methods to preserve context
+    this.handleContextMenu = this.handleContextMenu.bind(this);
+    this.handleKeyboardShortcuts = this.handleKeyboardShortcuts.bind(this);
+    this.handleAutoSave = this.handleAutoSave.bind(this);
+    
+    this.init();
+  }
+
+  async init() {
+    try {
+      // Show loading indicator
+      this.showLoadingIndicator();
+      
+      // Wait for DOM to be fully loaded
+      if (document.readyState === 'loading') {
+        await new Promise(resolve => document.addEventListener('DOMContentLoaded', resolve));
+      }
+
+      // Wait for GrapesJS to be available
+      await this.waitForGrapesJS();
+      
+      // Initialize the editor
+      await this.initializeEditor();
+      
+      // Setup additional features
+      this.setupContextMenu();
+      this.setupKeyboardShortcuts();
+      this.setupAutoSave();
+      this.setupEventListeners();
+      this.loadCustomBlocks();
+      
+      // Hide loading indicator
+      this.hideLoadingIndicator();
+      
+      this.isInitialized = true;
+      console.log(`${APP_CONFIG.name} v${APP_CONFIG.version} initialized successfully`);
+      
+      // Emit initialization event
+      if (window.WebBuilderUtils?.eventBus) {
+        window.WebBuilderUtils.eventBus.emit('app:initialized', this);
+      }
+      
+    } catch (error) {
+      console.error('Failed to initialize WebBuilder Pro:', error);
+      this.showError('Failed to initialize the application. Please refresh the page.');
+    }
+  }
+
+  async waitForGrapesJS() {
+    return new Promise((resolve, reject) => {
+      const checkGrapesJS = () => {
+        if (typeof grapesjs !== 'undefined') {
+          resolve();
+        } else {
+          setTimeout(checkGrapesJS, 100);
+        }
+      };
+      
+      checkGrapesJS();
+      
+      // Timeout after 10 seconds
+      setTimeout(() => reject(new Error('GrapesJS failed to load')), 10000);
+    });
+  }
+
+  async initializeEditor() {
+    const editorConfig = {
+      container: '#gjs',
+      fromElement: true,
+      height: '100%',
+      width: 'auto',
+      
+      // Storage configuration
+      storageManager: {
+        type: 'local',
+        autosave: false, // We'll handle this manually
+        stepsBeforeSave: 1,
+        options: {
+          local: { key: `${APP_CONFIG.storagePrefix}project` }
+        }
+      },
+
+      // Plugin configuration
+      plugins: [
+        'grapesjs-preset-webpage',
+        'gjs-blocks-basic',
+        'grapesjs-plugin-forms',
+        'grapesjs-plugin-export',
+        'grapesjs-component-code-editor',
+        'grapesjs-component-toolbar'
+      ],
+
+      pluginsOpts: {
+        'grapesjs-preset-webpage': {
+          modalImportTitle: 'Import Template',
+          modalImportLabel: '<div style="margin-bottom: 10px; font-size: 13px;">Paste here your HTML/CSS and click Import</div>',
+          modalImportContent: function(editor) {
+            return editor.getHtml() + '<style>' + editor.getCss() + '</style>';
+          }
+        },
+        'gjs-blocks-basic': { 
+          flexGrid: true,
+          stylePrefix: 'gjs-'
+        },
+        'grapesjs-component-toolbar': {
+          toolbar: [
+            { command: 'tlb-move', attributes: { title: 'Move', class: 'fa fa-arrows' } },
+            { command: 'tlb-clone', attributes: { title: 'Clone', class: 'fa fa-clone' } },
+            { command: 'tlb-delete', attributes: { title: 'Delete', class: 'fa fa-trash' } }
+          ]
+        }
+      },
+
+      // Panel configuration
+      panels: {
+        defaults: [
+          {
+            id: 'panel__devices',
+            el: '#panel__devices',
+            buttons: [
+              { 
+                id: 'device-desktop', 
+                command: 'set-device-desktop', 
+                label: '<i class="fas fa-desktop"></i>', 
+                active: true,
+                attributes: { title: 'Desktop View' }
+              },
+              { 
+                id: 'device-tablet', 
+                command: 'set-device-tablet', 
+                label: '<i class="fas fa-tablet-alt"></i>',
+                attributes: { title: 'Tablet View' }
+              },
+              { 
+                id: 'device-mobile', 
+                command: 'set-device-mobile', 
+                label: '<i class="fas fa-mobile-alt"></i>',
+                attributes: { title: 'Mobile View' }
+              }
+            ]
+          },
+          {
+            id: 'panel__options',
+            el: '#panel__options',
+            buttons: [
+              { 
+                id: 'preview', 
+                command: 'core:preview', 
+                context: 'core:preview', 
+                label: '<i class="fas fa-eye"></i>', 
+                attributes: { title: 'Preview' }
+              },
+              { 
+                id: 'fullscreen', 
+                command: 'fullscreen-toggle', 
+                label: '<i class="fas fa-expand"></i>', 
+                attributes: { title: 'Toggle Fullscreen' }
+              }
+            ]
+          },
+          {
+            id: 'panel__views',
+            el: '#panel__views',
+            buttons: [
+              { 
+                id: 'show-borders', 
+                command: 'core:component-outline', 
+                label: '<i class="fas fa-vector-square"></i>', 
+                attributes: { title: 'Show Component Borders' }
+              },
+              { 
+                id: 'open-code', 
+                command: 'core:open-code', 
+                label: '<i class="fas fa-code"></i>', 
+                attributes: { title: 'View Code' }
+              },
+              { 
+                id: 'undo', 
+                command: 'core:undo', 
+                label: '<i class="fas fa-undo"></i>', 
+                attributes: { title: 'Undo (Ctrl+Z)' }
+              },
+              { 
+                id: 'redo', 
+                command: 'core:redo', 
+                label: '<i class="fas fa-redo"></i>', 
+                attributes: { title: 'Redo (Ctrl+Y)' }
+              },
+              { 
+                id: 'open-templates', 
+                command: 'open-templates', 
+                label: '<i class="far fa-window-maximize"></i>', 
+                attributes: { title: 'Templates' }
+              },
+              { 
+                id: 'import-template', 
+                command: 'gjs-open-import-webpage', 
+                label: '<i class="fas fa-upload"></i>', 
+                attributes: { title: 'Import Template' }
+              },
+              { 
+                id: 'save-project', 
+                command: 'save-project', 
+                label: '<i class="fas fa-save"></i>', 
+                attributes: { title: 'Save Project (Ctrl+S)' }
+              },
+              { 
+                id: 'load-project', 
+                command: 'load-project', 
+                label: '<i class="fas fa-folder-open"></i>', 
+                attributes: { title: 'Load Project' }
+              },
+              { 
+                id: 'save-block', 
+                command: 'save-custom-block', 
+                label: '<i class="fas fa-cube"></i>', 
+                attributes: { title: 'Save as Custom Block' }
+              },
+              { 
+                id: 'export', 
+                command: 'export-project', 
+                label: '<i class="fas fa-file-export"></i>', 
+                attributes: { title: 'Export HTML' }
+              },
+              { 
+                id: 'clear-canvas', 
+                command: 'clear-canvas', 
+                label: '<i class="fas fa-trash"></i>', 
+                attributes: { title: 'Clear Canvas' }
+              },
+              { 
+                id: 'shortcuts', 
+                command: 'show-shortcuts', 
+                label: '<i class="fas fa-keyboard"></i>', 
+                attributes: { title: 'Keyboard Shortcuts (Ctrl+/)' }
+              }
+            ]
+          },
+          {
+            id: 'panel__switcher',
+            el: '#panel__switcher',
+            buttons: [
+              { 
+                id: 'show-layers', 
+                command: 'show-layers', 
+                active: true, 
+                label: '<i class="fas fa-layer-group"></i>', 
+                attributes: { title: 'Navigator', role: 'tab' }
+              },
+              { 
+                id: 'show-styles', 
+                command: 'show-styles', 
+                label: '<i class="fas fa-palette"></i>', 
+                attributes: { title: 'Styles', role: 'tab' }
+              },
+              { 
+                id: 'show-traits', 
+                command: 'show-traits', 
+                label: '<i class="fas fa-cog"></i>', 
+                attributes: { title: 'Settings', role: 'tab' }
+              }
+            ]
+          }
+        ]
+      },
+
+      // Manager configurations
+      layerManager: { appendTo: '#layers-container' },
+      traitManager: { appendTo: '#trait-container' },
+      blockManager: { appendTo: '#blocks' },
+      selectorManager: { appendTo: '#selector-manager-container' },
+      styleManager: { 
+        appendTo: '#style-properties-container',
+        sectors: [
+          {
+            name: 'General',
+            open: false,
+            properties: [
+              'display', 'position', 'top', 'right', 'left', 'bottom'
+            ]
+          },
+          {
+            name: 'Layout',
+            open: false,
+            properties: [
+              'width', 'height', 'max-width', 'min-height', 'margin', 'padding'
+            ]
+          },
+          {
+            name: 'Typography',
+            open: false,
+            properties: [
+              'font-family', 'font-size', 'font-weight', 'letter-spacing', 'color', 'line-height', 'text-align', 'text-decoration', 'text-shadow'
+            ]
+          },
+          {
+            name: 'Background',
+            open: false,
+            properties: [
+              'background-color', 'background-image', 'background-repeat', 'background-position', 'background-attachment', 'background-size'
+            ]
+          },
+          {
+            name: 'Border',
+            open: false,
+            properties: [
+              'border', 'border-radius', 'box-shadow'
+            ]
+          },
+          {
+            name: 'Effects',
+            open: false,
+            properties: [
+              'opacity', 'transform', 'transition', 'filter'
+            ]
+          }
+        ]
+      },
+
+      // Device manager
+      deviceManager: {
+        devices: [
+          { name: 'Desktop', width: '' },
+          { name: 'Tablet', width: '768px', widthMedia: '992px' },
+          { name: 'Mobile', width: '375px', widthMedia: '575px' }
+        ]
+      },
+
+      // Canvas configuration
+      canvas: {
+        styles: [
+          'https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css'
+        ],
+        scripts: [
+          'https://code.jquery.com/jquery-3.5.1.slim.min.js',
+          'https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js',
+          'https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js'
+        ]
+      },
+
+      // Asset manager
+      assetManager: {
+        assets: [
+          'https://via.placeholder.com/350x250/667eea/fff?text=Placeholder+1',
+          'https://via.placeholder.com/350x250/764ba2/fff?text=Placeholder+2',
+          'https://via.placeholder.com/350x250/f093fb/fff?text=Placeholder+3'
+        ],
+        upload: false,
+        uploadText: 'Drag & drop images here or click to upload'
+      }
+    };
+
+    // Initialize the editor
+    this.editor = grapesjs.init(editorConfig);
+
+    // Configure enhanced blocks
+    if (window.WebBuilderBlocks?.configureBlockManager) {
+      window.WebBuilderBlocks.configureBlockManager(this.editor);
+    }
+
+    // Register enhanced commands
+    if (window.WebBuilderCommands?.registerEnhancedCommands) {
+      window.WebBuilderCommands.registerEnhancedCommands(this.editor);
+    }
+
+    // Setup editor event listeners
+    this.setupEditorEvents();
+
+    return this.editor;
+  }
+
+  setupEditorEvents() {
+    // Component selection events
+    this.editor.on('component:selected', (component) => {
+      console.log('Component selected:', component);
+      
+      // Update properties panel
+      this.updatePropertiesPanel(component);
+      
+      // Emit event
+      if (window.WebBuilderUtils?.eventBus) {
+        window.WebBuilderUtils.eventBus.emit('component:selected', component);
+      }
+    });
+
+    // Component change events
+    this.editor.on('component:update', (component) => {
+      console.log('Component updated:', component);
+      this.scheduleAutoSave();
+    });
+
+    // Style change events
+    this.editor.on('style:update', (style) => {
+      console.log('Style updated:', style);
+      this.scheduleAutoSave();
+    });
+
+    // Device change events
+    this.editor.on('change:device', () => {
+      const device = this.editor.getDevice();
+      this.updateResponsiveIndicator(device);
+    });
+
+    // Canvas events
+    this.editor.on('canvas:drop', (dataTransfer, component) => {
+      console.log('Component dropped:', component);
+      this.scheduleAutoSave();
+    });
+  }
+
+  updatePropertiesPanel(component) {
+    // Show traits panel when component is selected
+    if (component && component.get('type') !== 'wrapper') {
+      this.editor.runCommand('show-traits');
+    }
+  }
+
+  updateResponsiveIndicator(device) {
+    const indicator = document.getElementById('responsive-indicator');
+    if (indicator) {
+      indicator.textContent = device;
+      indicator.className = `responsive-indicator device-${device.toLowerCase()}`;
+    }
+  }
+
+  setupContextMenu() {
+    const contextMenu = document.getElementById('context-menu');
+    if (!contextMenu) return;
+
+    this.contextMenu = contextMenu;
+
+    // Add context menu to canvas
+    const canvas = this.editor.Canvas.getElement();
+    if (canvas) {
+      canvas.addEventListener('contextmenu', this.handleContextMenu);
+    }
+
+    // Add click handlers for context menu items
+    contextMenu.addEventListener('click', (e) => {
+      const item = e.target.closest('.context-menu-item');
+      if (!item) return;
+
+      const action = item.dataset.action;
+      const selected = this.editor.getSelected();
+
+      switch (action) {
+        case 'clone':
+          if (selected) selected.clone();
+          break;
+        case 'delete':
+          if (selected) selected.remove();
+          break;
+        case 'move-up':
+          if (selected) {
+            const parent = selected.parent();
+            const index = parent.components().indexOf(selected);
+            if (index > 0) {
+              parent.components().remove(selected);
+              parent.components().add(selected, { at: index - 1 });
+            }
+          }
+          break;
+        case 'move-down':
+          if (selected) {
+            const parent = selected.parent();
+            const components = parent.components();
+            const index = components.indexOf(selected);
+            if (index < components.length - 1) {
+              components.remove(selected);
+              components.add(selected, { at: index + 1 });
+            }
+          }
+          break;
+        case 'copy':
+          this.editor.runCommand('copy-component');
+          break;
+        case 'cut':
+          this.editor.runCommand('copy-component');
+          if (selected) selected.remove();
+          break;
+        case 'paste':
+          this.editor.runCommand('paste-component');
+          break;
+        case 'wrap':
+          if (selected) {
+            const wrapper = selected.parent().append('<div class="wrapper"></div>')[0];
+            selected.remove();
+            wrapper.append(selected);
+          }
+          break;
+      }
+
+      this.hideContextMenu();
+    });
+
+    // Hide context menu when clicking elsewhere
+    document.addEventListener('click', () => this.hideContextMenu());
+  }
+
+  handleContextMenu(e) {
+    e.preventDefault();
+    
+    const selected = this.editor.getSelected();
+    if (!selected) return;
+
+    const contextMenu = this.contextMenu;
+    contextMenu.style.display = 'block';
+    contextMenu.style.left = `${e.pageX}px`;
+    contextMenu.style.top = `${e.pageY}px`;
+    contextMenu.setAttribute('aria-hidden', 'false');
+
+    // Adjust position if menu goes off-screen
+    const rect = contextMenu.getBoundingClientRect();
+    if (rect.right > window.innerWidth) {
+      contextMenu.style.left = `${e.pageX - rect.width}px`;
+    }
+    if (rect.bottom > window.innerHeight) {
+      contextMenu.style.top = `${e.pageY - rect.height}px`;
+    }
+  }
+
+  hideContextMenu() {
+    if (this.contextMenu) {
+      this.contextMenu.style.display = 'none';
+      this.contextMenu.setAttribute('aria-hidden', 'true');
+    }
+  }
+
+  setupKeyboardShortcuts() {
+    document.addEventListener('keydown', this.handleKeyboardShortcuts);
+  }
+
+  handleKeyboardShortcuts(e) {
+    // Ctrl+S - Save project
+    if (e.ctrlKey && e.key === 's') {
+      e.preventDefault();
+      this.editor.runCommand('save-project');
+    }
+    
+    // Ctrl+C - Copy component
+    if (e.ctrlKey && e.key === 'c' && this.editor.getSelected()) {
+      e.preventDefault();
+      this.editor.runCommand('copy-component');
+    }
+    
+    // Ctrl+V - Paste component
+    if (e.ctrlKey && e.key === 'v') {
+      e.preventDefault();
+      this.editor.runCommand('paste-component');
+    }
+    
+    // Delete - Remove selected component
+    if (e.key === 'Delete' && this.editor.getSelected()) {
+      e.preventDefault();
+      this.editor.getSelected().remove();
+    }
+    
+    // F11 - Toggle fullscreen
+    if (e.key === 'F11') {
+      e.preventDefault();
+      this.editor.runCommand('fullscreen-toggle');
+    }
+    
+    // Ctrl+/ - Show shortcuts
+    if (e.ctrlKey && e.key === '/') {
+      e.preventDefault();
+      this.editor.runCommand('show-shortcuts');
+    }
+    
+    // Escape - Deselect component
+    if (e.key === 'Escape') {
+      this.editor.select();
+      this.hideContextMenu();
+    }
+  }
+
+  setupAutoSave() {
+    // Auto-save every 30 seconds
+    this.autoSaveTimer = setInterval(this.handleAutoSave, APP_CONFIG.autoSaveInterval);
+    
+    // Save on page unload
+    window.addEventListener('beforeunload', () => {
+      this.handleAutoSave();
+    });
+  }
+
+  scheduleAutoSave() {
+    // Debounced auto-save
+    if (this.autoSaveTimeout) {
+      clearTimeout(this.autoSaveTimeout);
+    }
+    
+    this.autoSaveTimeout = setTimeout(() => {
+      this.handleAutoSave();
+    }, 5000); // Save 5 seconds after last change
+  }
+
+  handleAutoSave() {
+    if (!this.editor || !this.isInitialized) return;
+    
+    try {
+      const projectData = {
+        html: this.editor.getHtml(),
+        css: this.editor.getCss(),
+        components: this.editor.getComponents().toJSON(),
+        timestamp: Date.now(),
+        version: APP_CONFIG.version,
+        autoSaved: true
+      };
+
+      window.WebBuilderUtils?.StorageManager?.set('webbuilder-project-autosave', projectData);
+      console.log('Project auto-saved');
+    } catch (error) {
+      console.error('Auto-save failed:', error);
+    }
+  }
+
+  setupEventListeners() {
+    // Theme toggle
+    const themeToggle = document.getElementById('theme-toggle');
+    if (themeToggle) {
+      themeToggle.addEventListener('click', () => {
+        window.WebBuilderUtils?.themeManager?.toggle();
+      });
+    }
+
+    // Modal close buttons - use more specific event delegation
+    document.addEventListener('click', (e) => {
+      // Handle close button clicks
+      if (e.target.matches('#templates-modal-close, #custom-blocks-modal-close, .modal__close')) {
+        e.preventDefault();
+        e.stopPropagation();
+        const modal = e.target.closest('dialog');
+        if (modal) {
+          modal.close();
+          console.log('Modal closed via close button');
+        }
+      }
+    });
+
+    // Modal backdrop clicks - only close when clicking the backdrop itself
+    document.addEventListener('click', (e) => {
+      if (e.target.tagName === 'DIALOG' && e.target.open) {
+        const rect = e.target.getBoundingClientRect();
+        const isInDialog = (
+          e.clientX >= rect.left &&
+          e.clientX <= rect.right &&
+          e.clientY >= rect.top &&
+          e.clientY <= rect.bottom
+        );
+        
+        if (isInDialog) {
+          const modalContent = e.target.querySelector('.modal__content');
+          if (modalContent) {
+            const contentRect = modalContent.getBoundingClientRect();
+            const isInContent = (
+              e.clientX >= contentRect.left &&
+              e.clientX <= contentRect.right &&
+              e.clientY >= contentRect.top &&
+              e.clientY <= contentRect.bottom
+            );
+            
+            // Only close if clicking outside the content area
+            if (!isInContent) {
+              e.target.close();
+              console.log('Modal closed via backdrop click');
+            }
+          }
+        }
+      }
+    });
+
+    // ESC key to close modals
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const openModals = document.querySelectorAll('dialog[open]');
+        openModals.forEach(modal => {
+          modal.close();
+          console.log('Modal closed via ESC key');
+        });
+      }
+    });
+  }
+
+  loadCustomBlocks() {
+    const customBlocks = window.WebBuilderUtils?.StorageManager?.get('webbuilder-custom-blocks', []);
+    
+    customBlocks.forEach(block => {
+      this.editor.BlockManager.add(block.id, {
+        label: block.label,
+        category: 'Custom',
+        content: block.content,
+        attributes: { class: 'gjs-block-custom' }
+      });
+    });
+
+    if (customBlocks.length > 0) {
+      console.log(`Loaded ${customBlocks.length} custom blocks`);
+    }
+  }
+
+  showLoadingIndicator() {
+    const indicator = document.getElementById('loading-indicator');
+    if (indicator) {
+      indicator.setAttribute('aria-hidden', 'false');
+      indicator.style.opacity = '1';
+    }
+  }
+
+  hideLoadingIndicator() {
+    const indicator = document.getElementById('loading-indicator');
+    if (indicator) {
+      indicator.setAttribute('aria-hidden', 'true');
+      indicator.style.opacity = '0';
+    }
+  }
+
+  showError(message) {
+    const errorHtml = `
+      <div style="
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: var(--color-bg-panel);
+        color: var(--color-text-primary);
+        padding: 32px;
+        border-radius: var(--border-radius-xl);
+        box-shadow: var(--shadow-xl);
+        z-index: var(--z-modal);
+        max-width: 500px;
+        text-align: center;
+      ">
+        <h2 style="color: var(--color-error); margin: 0 0 16px 0;">Error</h2>
+        <p style="margin: 0 0 24px 0;">${message}</p>
+        <button onclick="location.reload()" style="
+          padding: 12px 24px;
+          background: var(--color-accent-primary);
+          color: white;
+          border: none;
+          border-radius: var(--border-radius-md);
+          cursor: pointer;
+        ">Reload Page</button>
+      </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', errorHtml);
+  }
+
+  // Public API methods
+  getEditor() {
+    return this.editor;
+  }
+
+  isReady() {
+    return this.isInitialized;
+  }
+
+  destroy() {
+    // Cleanup
+    if (this.autoSaveTimer) {
+      clearInterval(this.autoSaveTimer);
+    }
+    
+    if (this.autoSaveTimeout) {
+      clearTimeout(this.autoSaveTimeout);
+    }
+    
+    document.removeEventListener('keydown', this.handleKeyboardShortcuts);
+    
+    const canvas = this.editor?.Canvas?.getElement();
+    if (canvas) {
+      canvas.removeEventListener('contextmenu', this.handleContextMenu);
+    }
+    
+    this.isInitialized = false;
+  }
+}
+
+// ===== APPLICATION INITIALIZATION =====
+let webBuilderApp;
+
+// Initialize when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    webBuilderApp = new WebBuilderApp();
+  });
+} else {
+  webBuilderApp = new WebBuilderApp();
+}
+
+// Make app globally available
+window.WebBuilderApp = webBuilderApp;
+
+// Export for module systems
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = WebBuilderApp;
+}
 
