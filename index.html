@@ -458,6 +458,11 @@
                 this.init();
             }
 
+            getInnermostTextElement(element) {
+                if (!element) return null;
+                return element.querySelector('p, h1, h2, h3, h4, h5, h6, button, a, span');
+            }
+
             // ADD THIS ENTIRE NEW METHOD
             bindInteractiveEvents(el) {
                 // 1. Single Click to Select
@@ -688,76 +693,6 @@
                 this.setupResizing();
                 this.loadFromLocalStorage();
             }
-
-            _bindElementEvents(el){
-                // add 4 corner handles
-                ['nw','ne','sw','se'].forEach(pos=>{
-                    const h=document.createElement('div');
-                    h.className=`gjs-resizer ${pos}`;
-                    el.appendChild(h);
-                });
-
-                // click-to-select
-                el.addEventListener('click', e=>{
-                    e.stopPropagation();
-                    document.querySelectorAll('.canvas-element').forEach(x=>x.classList.remove('selected'));
-                    el.classList.add('selected');
-                    this.selectedElement = el;
-                    this.showProperties(el);
-                });
-
-                // instant grab-and-move
-                el.addEventListener('mousedown', e=>{
-                    if (e.target.classList.contains('gjs-resizer')) return;
-                    e.preventDefault();
-                    const sx=e.clientX, sy=e.clientY;
-                    const sl=parseFloat(el.style.left)||0, st=parseFloat(el.style.top)||0;
-                    const z=parseFloat(document.getElementById('zoom-slider').value)/100;
-                    const onMove = ev=>{
-                    el.style.left = sl+(ev.clientX-sx)/z+'px';
-                    el.style.top  = st+(ev.clientY-sy)/z+'px';
-                    };
-                    const onUp = ()=>{
-                    document.removeEventListener('mousemove',onMove);
-                    document.removeEventListener('mouseup',onUp);
-                    this.saveToHistory();
-                    };
-                    document.addEventListener('mousemove',onMove);
-                    document.addEventListener('mouseup',onUp);
-                });
-
-                // live corner resize
-                el.querySelectorAll('.gjs-resizer').forEach(h=>{
-                    h.addEventListener('mousedown', e=>{
-                    e.stopPropagation();
-                    const sx=e.clientX, sy=e.clientY;
-                    const rect=el.getBoundingClientRect();
-                    const z=parseFloat(document.getElementById('zoom-slider').value)/100;
-                    const w0=rect.width/z, h0=rect.height/z;
-                    const l0=parseFloat(el.style.left)||0, t0=parseFloat(el.style.top)||0;
-
-                    const onMove = ev=>{
-                        const dx=(ev.clientX-sx)/z, dy=(ev.clientY-sy)/z;
-                        let w=w0, h=h0, l=l0, t=t0;
-                        if(h.classList.contains('se')){ w=w0+dx; h=h0+dy; }
-                        if(h.classList.contains('sw')){ w=w0-dx; h=h0+dy; l=l0+dx; }
-                        if(h.classList.contains('ne')){ w=w0+dx; h=h0-dy; t=t0+dy; }
-                        if(h.classList.contains('nw')){ w=w0-dx; h=h0-dy; l=l0+dx; t=t0+dy; }
-                        el.style.width  = Math.max(10,w)+'px';
-                        el.style.height = Math.max(10,h)+'px';
-                        el.style.left   = l+'px';
-                        el.style.top    = t+'px';
-                    };
-                    const onUp = ()=>{
-                        document.removeEventListener('mousemove',onMove);
-                        document.removeEventListener('mouseup',onUp);
-                        this.saveToHistory();
-                    };
-                    document.addEventListener('mousemove',onMove);
-                    document.addEventListener('mouseup',onUp);
-                    });
-                });
-                }
             
             setupEventListeners() {
                 this.clipboard = null;
@@ -1628,9 +1563,11 @@
                 }
             }
 
+            // REPLACE the entire old method with this one.
             updateElementStyle(property, value) {
                 if (!this.selectedElement) return;
 
+                const typographyProps = ['color', 'fontFamily', 'fontSize', 'fontWeight', 'textAlign', 'lineHeight'];
                 let styles = {};
                 try {
                     styles = JSON.parse(this.selectedElement.dataset.styles || '{}');
@@ -1648,15 +1585,36 @@
 
                 this.selectedElement.dataset.styles = JSON.stringify(styles);
                 
-                this.applyAllStyles(this.selectedElement); // Re-apply all styles
+                // --- INTELLIGENT STYLE APPLICATION ---
+                const targetTextElement = this.getInnermostTextElement(this.selectedElement);
+                if (typographyProps.includes(property) && targetTextElement) {
+                    // If it's a typography property, apply it to the inner text element
+                    targetTextElement.style[property] = value;
+                } else {
+                    // Otherwise, apply it to the main container
+                    this.selectedElement.style[property] = value;
+                }
+                
+                this.applyAllStyles(this.selectedElement); // Re-apply all styles for consistency
+                this.updateSelectionBox(); // Update box in case width/height changed
                 this.saveToHistory();
             }
-
+            
+            // REPLACE the entire old method with this one.
             applyAllStyles(element) {
                 if (!element || !element.dataset.styles) return;
 
-                // Clear all previous inline styles to start fresh
-                element.style.cssText = '';
+                const typographyProps = ['color', 'fontFamily', 'fontSize', 'fontWeight', 'textAlign', 'lineHeight'];
+
+                // Get the main container and the inner text element
+                const mainContainer = element;
+                const textElement = this.getInnermostTextElement(element);
+
+                // Clear previous inline styles to start fresh
+                mainContainer.style.cssText = '';
+                if (textElement) {
+                    textElement.style.cssText = '';
+                }
 
                 let allStylesData = {};
                 try {
@@ -1666,36 +1624,45 @@
                 const baseStyles = allStylesData['base'] || {};
                 const hoverStyles = allStylesData['hover'] || {};
 
-                // 1. Apply base styles in cascading order (Desktop -> Tablet -> Mobile)
-                Object.assign(element.style, baseStyles['desktop'] || {});
-                if (this.currentBreakpoint === 'tablet' || this.currentBreakpoint === 'mobile') {
-                    Object.assign(element.style, baseStyles['tablet'] || {});
-                }
-                if (this.currentBreakpoint === 'mobile') {
-                    Object.assign(element.style, baseStyles['mobile'] || {});
-                }
+                // Function to apply a set of styles (base or hover)
+                const applySet = (styleSet) => {
+                    const desktop = styleSet['desktop'] || {};
+                    const tablet = styleSet['tablet'] || {};
+                    const mobile = styleSet['mobile'] || {};
 
-                // 2. Setup live hover preview in the editor
-                element.removeEventListener('mouseenter', this.applyHoverStyles);
-                element.removeEventListener('mouseleave', () => this.applyAllStyles(element)); // Re-apply base on leave
-
-                element.hoverStyleStore = hoverStyles; // Store hover styles on the element
-                element.applyHoverStyles = () => {
-                    const stylesToApply = element.hoverStyleStore;
-                    if (!stylesToApply) return;
-                    Object.assign(element.style, stylesToApply['desktop'] || {});
-                     if (this.currentBreakpoint === 'tablet' || this.currentBreakpoint === 'mobile') {
-                        Object.assign(element.style, stylesToApply['tablet'] || {});
+                    let styleObjects = [desktop];
+                    if (this.currentBreakpoint === 'tablet' || this.currentBreakpoint === 'mobile') {
+                        styleObjects.push(tablet);
                     }
                     if (this.currentBreakpoint === 'mobile') {
-                        Object.assign(element.style, stylesToApply['mobile'] || {});
+                        styleObjects.push(mobile);
+                    }
+
+                    for (const styles of styleObjects) {
+                        for (const prop in styles) {
+                            if (typographyProps.includes(prop) && textElement) {
+                                textElement.style[prop] = styles[prop];
+                            } else {
+                                mainContainer.style[prop] = styles[prop];
+                            }
+                        }
                     }
                 };
-                
-                element.addEventListener('mouseenter', element.applyHoverStyles);
-                element.addEventListener('mouseleave', () => this.applyAllStyles(element));
-            }
 
+                // 1. Apply base styles
+                applySet(baseStyles);
+                
+                // 2. Setup live hover preview
+                mainContainer.removeEventListener('mouseenter', mainContainer.applyHoverStyles);
+                mainContainer.removeEventListener('mouseleave', mainContainer.revertToBaseStyles);
+
+                mainContainer.applyHoverStyles = () => applySet(hoverStyles);
+                mainContainer.revertToBaseStyles = () => applySet(baseStyles);
+                
+                mainContainer.addEventListener('mouseenter', mainContainer.applyHoverStyles);
+                mainContainer.addEventListener('mouseleave', mainContainer.revertToBaseStyles);
+            }
+            
             updateElementContent(content) {
                 if (this.selectedElement) {
                     const textElement = this.selectedElement.querySelector('p, h1, h2, h3, h4, h5, h6, button, label');
