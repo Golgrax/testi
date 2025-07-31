@@ -17,6 +17,8 @@ class WebBuilderPro {
         ];
         this.globalStyles = {};
         this.currentState = 'base';
+        this.dropTarget = null;   // ADD THIS
+        this.dropPosition = null; // ADD THIS
         this.init();
     }
 
@@ -571,25 +573,50 @@ class WebBuilderPro {
 
         canvas.addEventListener('dragover', (e) => {
             e.preventDefault();
-            const targetContainer = e.target.closest('.drop-zone');
-            if (!targetContainer) return;
-
-            targetContainer.classList.add('drag-over');
             
-            const closestElement = e.target.closest('.canvas-element');
-            if (closestElement && closestElement !== this.draggedElement?.element) {
-                const rect = closestElement.getBoundingClientRect();
-                const position = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
-                
-                dropIndicator.classList.remove('hidden');
-                if (position === 'before') {
-                    dropIndicator.style.top = rect.top + 'px';
-                } else {
-                    dropIndicator.style.top = rect.bottom + 'px';
+            const dropIndicator = document.getElementById('drop-indicator');
+            const target = e.target;
+            
+            // Find the closest valid drop target
+            const dropZone = target.closest('.drop-zone');
+            const closestElement = target.closest('.canvas-element');
+            
+            // Clear previous hover states
+            document.querySelectorAll('.drop-zone.drag-over').forEach(el => el.classList.remove('drag-over'));
+            
+            this.dropTarget = null;
+            this.dropPosition = null;
+            
+            if (dropZone) {
+                // Scenario 1: Dropping inside an empty drop zone
+                if (dropZone.children.length === 0) {
+                    dropZone.classList.add('drag-over');
+                    dropIndicator.classList.add('hidden');
+                    this.dropTarget = dropZone;
+                    this.dropPosition = 'inside';
                 }
-                dropIndicator.style.left = rect.left + 'px';
-                dropIndicator.style.width = rect.width + 'px';
+                // Scenario 2: Dropping relative to an existing element
+                else if (closestElement) {
+                    const rect = closestElement.getBoundingClientRect();
+                    const isFirstHalf = e.clientY < rect.top + rect.height / 2;
+
+                    dropIndicator.classList.remove('hidden');
+                    dropIndicator.style.left = rect.left + 'px';
+                    dropIndicator.style.width = rect.width + 'px';
+
+                    if (isFirstHalf) {
+                        dropIndicator.style.top = rect.top + 'px';
+                        this.dropPosition = 'before';
+                    } else {
+                        dropIndicator.style.top = rect.bottom + 'px';
+                        this.dropPosition = 'after';
+                    }
+                    this.dropTarget = closestElement;
+                } else {
+                    dropIndicator.classList.add('hidden');
+                }
             } else {
+                // If we are not over any specific zone, hide the indicator
                 dropIndicator.classList.add('hidden');
             }
         });
@@ -643,10 +670,11 @@ class WebBuilderPro {
 
         this.components.set('two-columns', {
             name: 'Two Columns',
+            // Note the two separate drop-zone divs inside a flex parent
             html: `
-                <div style="display: flex; gap: 20px; padding: 10px;">
-                    <div class="col" style="flex: 1; min-height: 50px; border: 1px dashed #ccc; padding: 10px;">Column 1</div>
-                    <div class="col" style="flex: 1; min-height: 50px; border: 1px dashed #ccc; padding: 10px;">Column 2</div>
+                <div style="display: flex; gap: 20px; width: 100%;">
+                    <div class="drop-zone" style="flex: 1;"></div>
+                    <div class="drop-zone" style="flex: 1;"></div>
                 </div>
             `,
         });
@@ -698,23 +726,25 @@ class WebBuilderPro {
 
         this.components.set('container', {
             name: 'Container',
-            html: '<div class="container">Container content</div>',
+            // Note: It's now a drop-zone itself
+            html: '<div class="drop-zone p-4"></div>',
             defaultStyles: {
                 padding: '20px',
-                backgroundColor: '#f8f9fa',
-                border: '1px solid #e9ecef',
-                borderRadius: '6px',
-                minHeight: '100px'
+                backgroundColor: '#ffffff',
+                minHeight: '100px',
+                width: '100%', // Containers should be full-width by default
             }
         });
 
         this.components.set('row', {
             name: 'Row',
-            html: '<div class="row"><div class="col">Column 1</div><div class="col">Column 2</div></div>',
+            // It now contains other drop zones within it
+            html: '<div class="drop-zone p-4"></div>',
             defaultStyles: {
-                display: 'flex',
+                display: 'flex', // A row is a flex container
                 gap: '20px',
-                alignItems: 'stretch'
+                padding: '10px',
+                width: '100%',
             }
         });
 
@@ -822,43 +852,47 @@ class WebBuilderPro {
     }
 
     addComponent(componentType, event) {
-        const component = this.components.get(componentType);
-        if (!component) return;
+            const component = this.components.get(componentType);
+            if (!component) return;
 
-        const element = document.createElement('div');
-        element.className = 'canvas-element';
-        // **** IMPORTANT: All new elements must be positioned absolutely to be moved. ****
-        element.style.position = 'absolute';
-        element.innerHTML = component.html;
-        element.dataset.componentType = componentType;
-        element.dataset.elementId = this.generateId();
+            // Abort if our dragover logic didn't find a valid target
+            if (!this.dropTarget) {
+                console.warn("Drop aborted. No valid drop target found.");
+                return;
+            }
 
-        // ** NEW: Set draggable to true so it can be moved on the canvas **
-        element.draggable = true;
+            const element = document.createElement('div');
+            element.className = 'canvas-element';
+            element.innerHTML = component.html;
+            element.dataset.componentType = componentType;
+            element.dataset.elementId = this.generateId();
 
-        if (component.defaultStyles) {
-            Object.assign(element.style, component.defaultStyles);
+            // ** NEW: Default style logic **
+            // Layout components use flex/flow layout and do not need 'position: absolute'.
+            // Simple components can still be positioned absolutely *if* dropped into a container
+            // that allows it, but we'll default to flow layout for now.
+            if (component.defaultStyles) {
+                Object.assign(element.style, component.defaultStyles);
+            }
+
+            // Use our drop logic to place the element
+            if (this.dropPosition === 'inside') {
+                this.dropTarget.appendChild(element);
+            } else if (this.dropPosition === 'before') {
+                this.dropTarget.parentNode.insertBefore(element, this.dropTarget);
+            } else if (this.dropPosition === 'after') {
+                this.dropTarget.after(element);
+            }
+            
+            this.bindInteractiveEvents(element); // MUST be called *after* adding to DOM
+            this.selectElement(element);
+            this.saveToHistory();
+            this.updateLayersTree();
+            
+            // Reset drop state
+            this.dropTarget = null;
+            this.dropPosition = null;
         }
-        
-        // ** NEW: Calculate drop position correctly **
-        const canvasRect = document.getElementById('canvas').getBoundingClientRect();
-        const zoom = parseFloat(document.getElementById('zoom-slider').value) / 100;
-        const dropX = (event.clientX - canvasRect.left) / zoom;
-        const dropY = (event.clientY - canvasRect.top) / zoom;
-        element.style.left = dropX + 'px';
-        element.style.top = dropY + 'px';
-        
-        // This MUST be called *after* setting its properties and position
-        this.bindInteractiveEvents(element);
-
-        // Find drop position and append
-        const targetContainer = document.getElementById('canvas'); // Simplify to always drop on main canvas
-        targetContainer.appendChild(element);
-        
-        this.selectElement(element); // Select the newly created element
-        this.saveToHistory();
-        this.updateLayersTree();
-    }
 
     selectElement(element) {
         if (this.isResizing) return;
