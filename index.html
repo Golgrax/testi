@@ -464,42 +464,39 @@
             }
 
             // ADD THIS ENTIRE NEW METHOD
+            // REPLACE the entire old method with this one.
             bindInteractiveEvents(el) {
-                // 1. Single Click to Select
                 el.addEventListener('mousedown', (e) => {
-                    // Only trigger selection on a primary button click and not on a resizer handle
-                    if (e.button !== 0 || e.target.classList.contains('resizer')) {
+                    // Ignore clicks on resizers or controls
+                    if (e.button !== 0 || e.target.classList.contains('resizer') || e.target.closest('.element-controls')) {
                         return;
                     }
                     e.stopPropagation();
+                    
+                    // First, select the element
                     this.selectElement(el);
-                });
 
-                // 2. Drag to Move
-                el.addEventListener('mousedown', (e) => {
-                    if (e.button !== 0 || e.target.classList.contains('resizer')) {
-                        return;
-                    }
+                    // Then, prepare for dragging
                     e.preventDefault();
-                    e.stopPropagation();
-
-                    const initialX = e.clientX;
-                    const initialY = e.clientY;
-                    const initialTop = el.offsetTop;
-                    const initialLeft = el.offsetLeft;
                     const zoom = parseFloat(document.getElementById('zoom-slider').value) / 100;
+                    const initialMouseX = e.clientX;
+                    const initialMouseY = e.clientY;
+                    const initialStyleTop = parseFloat(el.style.top) || 0;
+                    const initialStyleLeft = parseFloat(el.style.left) || 0;
 
                     const onDragMove = (moveEvent) => {
-                        const dx = (moveEvent.clientX - initialX) / zoom;
-                        const dy = (moveEvent.clientY - initialY) / zoom;
-                        el.style.top = (initialTop + dy) + 'px';
-                        el.style.left = (initialLeft + dx) + 'px';
+                        const dx = (moveEvent.clientX - initialMouseX) / zoom;
+                        const dy = (moveEvent.clientY - initialMouseY) / zoom;
+                        el.style.top = (initialStyleTop + dy) + 'px';
+                        el.style.left = (initialStyleLeft + dx) + 'px';
                         this.updateSelectionBox();
                     };
 
                     const onDragEnd = () => {
                         document.removeEventListener('mousemove', onDragMove);
                         document.removeEventListener('mouseup', onDragEnd);
+                        this.updateElementStyle('top', el.style.top);
+                        this.updateElementStyle('left', el.style.left);
                         this.saveToHistory();
                     };
 
@@ -507,7 +504,7 @@
                     document.addEventListener('mouseup', onDragEnd);
                 });
             }
-
+            
             setupResizing() {
                 const selectionBox = document.getElementById('selection-box');
                 const resizers = selectionBox.querySelectorAll('.resizer');
@@ -1213,36 +1210,55 @@
                 document.getElementById('zoom-display').textContent = `${zoom}%`;
             }
 
+                        // REPLACE the entire old method with this one.
             addComponent(componentType, event) {
                 const component = this.components.get(componentType);
                 if (!component) return;
 
-
                 const element = document.createElement('div');
                 element.className = 'canvas-element';
-                element.style.position = 'absolute';
                 element.innerHTML = component.html;
                 element.dataset.componentType = componentType;
                 element.dataset.elementId = this.generateId();
-                element.draggable = true;
+
+                // --- NEW POSITIONING LOGIC STARTS HERE ---
+                const canvasRect = document.getElementById('canvas').getBoundingClientRect();
+                const scrollArea = document.getElementById('scroll-area');
+                const zoom = parseFloat(document.getElementById('zoom-slider').value) / 100;
+
+                // Calculate drop position relative to the canvas
+                const dropX = (event.clientX - canvasRect.left) / zoom;
+                const dropY = (event.clientY - canvasRect.top) / zoom;
+
+                element.style.position = 'absolute';
+                element.style.left = dropX + 'px';
+                element.style.top = dropY + 'px';
+                // --- NEW POSITIONING LOGIC ENDS HERE ---
 
                 if (component.defaultStyles) {
+                    // Apply default styles, but don't override our new position
                     Object.assign(element.style, component.defaultStyles);
+                    element.style.left = dropX + 'px';
+                    element.style.top = dropY + 'px';
                 }
 
                 const controls = document.createElement('div');
                 controls.className = 'element-controls';
                 controls.innerHTML = `<i class="fas fa-trash cursor-pointer" onclick="event.stopPropagation(); app.deleteElement(this.closest('.canvas-element'))"></i>`;
                 element.appendChild(controls);
+
                 this.bindInteractiveEvents(element);
 
-                // Find drop position and append
                 let targetContainer = event.target.closest('.drop-zone') || document.getElementById('canvas');
-                targetContainer.appendChild(element); // This MUST be before selectElement
+                targetContainer.appendChild(element);
+                
+                // Select the new element immediately after adding it
+                this.selectElement(element);
 
                 this.saveToHistory();
                 this.updateLayersTree();
             }
+            
 
             selectElement(element) {
                 if (this.isResizing) return;
@@ -1599,11 +1615,22 @@
                 this.updateSelectionBox(); // Update box in case width/height changed
                 this.saveToHistory();
             }
+            
+            // REPLACE the entire old method with this one.
             applyAllStyles(element) {
                 if (!element || !element.dataset.styles) return;
 
-                // Clear all previous inline styles to start fresh
-                element.style.cssText = '';
+                const typographyProps = ['color', 'fontFamily', 'fontSize', 'fontWeight', 'textAlign', 'lineHeight'];
+
+                // Get the main container and the inner text element
+                const mainContainer = element;
+                const textElement = this.getInnermostTextElement(element);
+
+                // Clear previous inline styles to start fresh
+                mainContainer.style.cssText = '';
+                if (textElement) {
+                    textElement.style.cssText = '';
+                }
 
                 let allStylesData = {};
                 try {
@@ -1613,34 +1640,43 @@
                 const baseStyles = allStylesData['base'] || {};
                 const hoverStyles = allStylesData['hover'] || {};
 
-                // 1. Apply base styles in cascading order (Desktop -> Tablet -> Mobile)
-                Object.assign(element.style, baseStyles['desktop'] || {});
-                if (this.currentBreakpoint === 'tablet' || this.currentBreakpoint === 'mobile') {
-                    Object.assign(element.style, baseStyles['tablet'] || {});
-                }
-                if (this.currentBreakpoint === 'mobile') {
-                    Object.assign(element.style, baseStyles['mobile'] || {});
-                }
+                // Function to apply a set of styles (base or hover)
+                const applySet = (styleSet) => {
+                    const desktop = styleSet['desktop'] || {};
+                    const tablet = styleSet['tablet'] || {};
+                    const mobile = styleSet['mobile'] || {};
 
-                // 2. Setup live hover preview in the editor
-                element.removeEventListener('mouseenter', this.applyHoverStyles);
-                element.removeEventListener('mouseleave', () => this.applyAllStyles(element)); // Re-apply base on leave
-
-                element.hoverStyleStore = hoverStyles; // Store hover styles on the element
-                element.applyHoverStyles = () => {
-                    const stylesToApply = element.hoverStyleStore;
-                    if (!stylesToApply) return;
-                    Object.assign(element.style, stylesToApply['desktop'] || {});
-                     if (this.currentBreakpoint === 'tablet' || this.currentBreakpoint === 'mobile') {
-                        Object.assign(element.style, stylesToApply['tablet'] || {});
+                    let styleObjects = [desktop];
+                    if (this.currentBreakpoint === 'tablet' || this.currentBreakpoint === 'mobile') {
+                        styleObjects.push(tablet);
                     }
                     if (this.currentBreakpoint === 'mobile') {
-                        Object.assign(element.style, stylesToApply['mobile'] || {});
+                        styleObjects.push(mobile);
+                    }
+
+                    for (const styles of styleObjects) {
+                        for (const prop in styles) {
+                            if (typographyProps.includes(prop) && textElement) {
+                                textElement.style[prop] = styles[prop];
+                            } else {
+                                mainContainer.style[prop] = styles[prop];
+                            }
+                        }
                     }
                 };
+
+                // 1. Apply base styles
+                applySet(baseStyles);
                 
-                element.addEventListener('mouseenter', element.applyHoverStyles);
-                element.addEventListener('mouseleave', () => this.applyAllStyles(element));
+                // 2. Setup live hover preview
+                mainContainer.removeEventListener('mouseenter', mainContainer.applyHoverStyles);
+                mainContainer.removeEventListener('mouseleave', mainContainer.revertToBaseStyles);
+
+                mainContainer.applyHoverStyles = () => applySet(hoverStyles);
+                mainContainer.revertToBaseStyles = () => applySet(baseStyles);
+                
+                mainContainer.addEventListener('mouseenter', mainContainer.applyHoverStyles);
+                mainContainer.addEventListener('mouseleave', mainContainer.revertToBaseStyles);
             }
 
             updateElementContent(content) {
