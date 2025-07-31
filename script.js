@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     { id: 'open-code', command: 'core:open-code', label: '<i class="fas fa-code"></i>', title: 'View Code' },
                     { id: 'undo', command: 'core:undo', label: '<i class="fas fa-undo"></i>', title: 'Undo' },
                     { id: 'redo', command: 'core:redo', label: '<i class="fas fa-redo"></i>', title: 'Redo' },
+                    { id: 'open-templates', command: 'open-templates', label: '<i class="far fa-window-maximize"></i>', title: 'Templates' },
                     { id: 'import-template', command: 'gjs-open-import-webpage', label: '<i class="fas fa-upload"></i>', title: 'Import Template' },
                     { id: 'save-project', command: 'save-project', label: '<i class="fas fa-hdd"></i>', title: 'Save Project' },
                     { id: 'load-project', command: 'load-project', label: '<i class="fas fa-folder-open"></i>', title: 'Load Project' },
@@ -52,7 +53,8 @@ document.addEventListener('DOMContentLoaded', () => {
         styleManager: { appendTo: '#style-container' },
         traitManager: { appendTo: '#trait-container' },
         blockManager: { appendTo: '#blocks' },
-        selectorManager: { appendTo: '#style-container' },
+        selectorManager: { appendTo: '#selector-manager-container' },
+        styleManager: { appendTo: '#style-properties-container', sectors: [] },
         deviceManager: {
             devices: [
                 { name: 'Desktop', width: '' },
@@ -88,6 +90,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         ],
         blockManager: {
+
+            
             appendTo: '#blocks',
             blocks: [
                 {
@@ -189,6 +193,30 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
                         </footer>
                     `
+                },
+                {
+                    id: 'navbar',
+                    label: '<b>Navbar</b>',
+                    category: 'Navigation',
+                    attributes: { class: 'gjs-block-section' },
+                    content: `
+                    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+                        <div class="container">
+                        <a class="navbar-brand" href="#">MyBrand</a>
+                        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                            <span class="navbar-toggler-icon"></span>
+                        </button>
+                        <div class="collapse navbar-collapse" id="navbarNav">
+                            <ul class="navbar-nav ml-auto">
+                            <li class="nav-item active"><a class="nav-link" href="#">Home</a></li>
+                            <li class="nav-item"><a class="nav-link" href="#">Features</a></li>
+                            <li class="nav-item"><a class="nav-link" href="#">Pricing</a></li>
+                            <li class="nav-item"><a class="nav-link disabled" href="#">Disabled</a></li>
+                            </ul>
+                        </div>
+                        </div>
+                    </nav>
+                    `,
                 }
             ],
         },
@@ -401,6 +429,66 @@ contextMenu.addEventListener('click', e => {
 editor.on('load', () => {
     indicator.innerHTML = `Styling: <strong>Desktop</strong>`;
 });
+
+// --- TEMPLATE MODAL LOGIC ---
+const templates = [
+    {
+        name: 'SaaS Landing Page',
+        image: 'https://via.placeholder.com/300x200/4B0082/FFFFFF?text=SaaS+Template',
+        html: `<!-- Paste a full HTML structure for a SaaS page here -->
+               <div class="container text-center py-5"><h1 class="display-4">The Best SaaS Product</h1><p class="lead">Solve all your problems with our amazing tool.</p><a href="#" class="btn btn-primary btn-lg">Get Started Now</a></div>`
+    },
+    {
+        name: 'Portfolio Page',
+        image: 'https://via.placeholder.com/300x200/008080/FFFFFF?text=Portfolio',
+        html: `<!-- Paste a full HTML structure for a Portfolio page here -->
+               <div class="container text-center py-5"><h1 class="display-4">John Doe - Designer</h1><p class="lead">Check out my amazing work below.</p></div>`
+    },
+];
+
+const modal = document.getElementById('templates-modal');
+const templatesContainer = document.getElementById('templates-container');
+
+// Command to open the modal
+editor.Commands.add('open-templates', {
+    run: () => {
+        templatesContainer.innerHTML = ''; // Clear previous
+        templates.forEach(template => {
+            const card = document.createElement('div');
+            card.className = 'template-card';
+            card.innerHTML = `<img src="${template.image}" alt="${template.name}"><div class="template-card-name">${template.name}</div>`;
+            card.onclick = () => {
+                if(confirm(`Are you sure you want to load the "${template.name}" template? This will clear your current canvas.`)) {
+                    editor.setComponents(template.html);
+                    modal.style.display = 'none';
+                }
+            };
+            templatesContainer.appendChild(card);
+        });
+        modal.style.display = 'block';
+    }
+});
+
+// Logic to close the modal
+document.getElementById('templates-modal-close').onclick = () => modal.style.display = 'none';
+window.onclick = (event) => { if (event.target == modal) { modal.style.display = "none"; } };
+
+
+const originalContextHandler = contextMenu.onclick;
+contextMenu.onclick = (e) => {
+    if(originalContextHandler) originalContextHandler(e);
+    
+    const target = e.target.closest('.context-menu-item');
+    if (!target) return;
+    const action = target.dataset.action;
+    const selected = editor.getSelected();
+
+    if (action === 'move-up' && selected) {
+        selected.move(selected.get('index') - 1);
+    } else if (action === 'move-down' && selected) {
+        selected.move(selected.get('index') + 1);
+    }
+};
 
 });
 

@@ -49,7 +49,10 @@
                     </button>
                 </div>
                 <div id="layers-container" class="panel__content"></div>
-                <div id="style-container" class="panel__content"></div>
+                <div id="style-container" class="panel__content">
+                    <div id="selector-manager-container"></div>
+                    <div id="style-properties-container"></div>
+                </div>
                 <div id="trait-container" class="panel__content"></div>
             </div>
         </div>
@@ -70,7 +73,19 @@
     <div id="context-menu" style="display:none; position:absolute;">
         <div class="context-menu-item" data-action="clone"><i class="fas fa-copy"></i> Clone</div>
         <div class="context-menu-item" data-action="delete"><i class="fas fa-trash"></i> Delete</div>
+        <div class="context-menu-item" data-action="move-up"><i class="fas fa-arrow-up"></i> Move Up</div>
+        <div class="context-menu-item" data-action="move-down"><i class="fas fa-arrow-down"></i> Move Down</div>
     </div>
-</body>
+    <div id="templates-modal" style="display:none;">
+        <div id="templates-modal-content">
+            <div id="templates-modal-header">
+                <h2>Page Templates</h2>
+                <button id="templates-modal-close">×</button>
+            </div>
+            <div id="templates-container">
+                <!-- Templates will be injected here by script.js -->
+            </div>
+        </div>
+    </div>
 </body>
 </html>

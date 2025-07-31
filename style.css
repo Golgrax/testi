@@ -157,3 +157,78 @@ input.gjs-field, select.gjs-field {
 
 /* Canvas */
 #gjs { border: none !important; background-color: var(--theme-bg-color) !important; }
+
+#templates-modal {
+    display: none;
+    position: fixed;
+    z-index: 10001;
+    left: 0; top: 0;
+    width: 100%; height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.6);
+}
+#templates-modal-content {
+    background-color: var(--theme-panel-bg);
+    margin: 5% auto;
+    padding: 0;
+    border: 1px solid var(--theme-border-color);
+    width: 80%;
+    max-width: 1200px;
+    border-radius: 8px;
+    box-shadow: 0 5px 25px rgba(0,0,0,0.4);
+}
+#templates-modal-header {
+    padding: 15px 25px;
+    background-color: var(--theme-bg-color-light);
+    color: var(--theme-text-color);
+    border-bottom: 1px solid var(--theme-border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+}
+#templates-modal-header h2 { margin: 0; }
+#templates-modal-close {
+    color: var(--theme-text-color-dim);
+    font-size: 28px;
+    font-weight: bold;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+#templates-modal-close:hover { color: var(--theme-text-color); }
+#templates-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 20px;
+    padding: 25px;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+.template-card {
+    border: 1px solid var(--theme-border-color);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    overflow: hidden;
+}
+.template-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    border-color: var(--theme-accent-color);
+}
+.template-card img {
+    width: 100%;
+    display: block;
+    background-color: var(--theme-bg-color-lighter);
+}
+.template-card-name {
+    padding: 10px;
+    background-color: var(--theme-bg-color-light);
+    font-weight: 500;
+}
+
+#selector-manager-container { padding: 10px; }
+#style-properties-container { padding: 10px; }
+.gjs-clm-tags, .gjs-sm-sectors { padding-top: 10px; }
