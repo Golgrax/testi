@@ -1,0 +1,197 @@
+/* ===== ENHANCED CONTEXT MENU STYLES ===== */
+/* This file extends the main context menu styles with additional enhancements */
+
+.context-menu {
+  /* Enhanced backdrop blur effect */
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.context-menu::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  right: -4px;
+  bottom: -4px;
+  background: linear-gradient(45deg, 
+    var(--color-accent-primary), 
+    var(--color-accent-secondary), 
+    var(--color-accent-primary)
+  );
+  border-radius: calc(var(--border-radius-md) + 4px);
+  z-index: -1;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.context-menu:hover::before {
+  opacity: 0.1;
+}
+
+/* Enhanced menu item interactions */
+.context-menu-item {
+  position: relative;
+  overflow: hidden;
+}
+
+.context-menu-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, 
+    transparent, 
+    rgba(255, 255, 255, 0.1), 
+    transparent
+  );
+  transition: left var(--transition-normal);
+}
+
+.context-menu-item:hover::before {
+  left: 100%;
+}
+
+/* Keyboard navigation enhancements */
+.context-menu-item:focus {
+  outline: 2px solid var(--color-accent-primary);
+  outline-offset: -2px;
+  background-color: var(--color-accent-primary);
+  color: white;
+}
+
+/* Disabled state */
+.context-menu-item[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Separator */
+.context-menu-separator {
+  height: 1px;
+  background-color: var(--color-border);
+  margin: var(--space-xs) var(--space-sm);
+  opacity: 0.5;
+}
+
+/* Submenu indicator */
+.context-menu-item[data-has-submenu="true"]::after {
+  content: '▶';
+  margin-left: auto;
+  font-size: var(--font-size-xs);
+  opacity: 0.7;
+  transition: transform var(--transition-fast);
+}
+
+.context-menu-item[data-has-submenu="true"]:hover::after {
+  transform: translateX(2px);
+}
+
+/* Enhanced animations for different menu actions */
+.context-menu-item[data-action="delete"]:hover {
+  background-color: var(--color-error);
+  color: white;
+}
+
+.context-menu-item[data-action="copy"],
+.context-menu-item[data-action="clone"] {
+  --item-color: var(--color-success);
+}
+
+.context-menu-item[data-action="cut"] {
+  --item-color: var(--color-warning);
+}
+
+.context-menu-item[data-action="paste"] {
+  --item-color: var(--color-accent-primary);
+}
+
+.context-menu-item[data-action="copy"]:hover,
+.context-menu-item[data-action="clone"]:hover,
+.context-menu-item[data-action="cut"]:hover,
+.context-menu-item[data-action="paste"]:hover {
+  background-color: var(--item-color, var(--color-accent-primary));
+  color: white;
+}
+
+/* Tooltip for context menu items */
+.context-menu-item[title] {
+  position: relative;
+}
+
+.context-menu-item[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: var(--color-bg-panel);
+  color: var(--color-text-primary);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-xs);
+  white-space: nowrap;
+  box-shadow: var(--shadow-md);
+  z-index: var(--z-tooltip);
+  margin-left: var(--space-sm);
+  animation: fadeIn var(--transition-fast);
+}
+
+/* Context menu positioning enhancements */
+.context-menu[data-position="top"] {
+  transform-origin: bottom center;
+}
+
+.context-menu[data-position="bottom"] {
+  transform-origin: top center;
+}
+
+.context-menu[data-position="left"] {
+  transform-origin: right center;
+}
+
+.context-menu[data-position="right"] {
+  transform-origin: left center;
+}
+
+/* Dark theme specific enhancements */
+body:not(.light-theme) .context-menu {
+  box-shadow: 
+    var(--shadow-xl),
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+}
+
+/* Light theme specific enhancements */
+body.light-theme .context-menu {
+  box-shadow: 
+    var(--shadow-xl),
+    0 0 0 1px rgba(0, 0, 0, 0.05) inset;
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+  .context-menu-item::before,
+  .context-menu-item[data-has-submenu="true"]::after {
+    transition: none;
+  }
+  
+  .context-menu {
+    animation: none;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .context-menu {
+    border: 2px solid currentColor;
+  }
+  
+  .context-menu-item:hover {
+    background-color: Highlight;
+    color: HighlightText;
+  }
+}
+
