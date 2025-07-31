@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebBuilder Pro - Visual Website Builder</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="/style.css" rel="stylesheet">
+        <!-- It's best practice to load scripts at the end of the body -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+</head>
+<body class="bg-gray-100 font-sans overflow-hidden">
+    <!-- Main Container -->
+    <div id="app" class="flex h-screen">
+        <!-- Left Sidebar - Components & Layers -->
+        <div class="w-80 bg-white shadow-lg flex flex-col">
+            <!-- Header -->
+            <div class="p-4 border-b">
+                <h1 class="text-xl font-bold text-gray-800">WebBuilder Pro</h1>
+                <div class="flex gap-2 mt-2">
+                    <button id="page-settings-btn" class="w-full text-left mt-3 text-sm text-gray-600 hover:text-blue-500">
+                        <i class="fas fa-cog mr-1"></i>Page Settings
+                    </button>
+                    <button id="save-btn" class="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">
+                        <i class="fas fa-save mr-1"></i>Save
+                    </button>
+                    <button id="export-btn" class="px-3 py-1 bg-green-500 text-white rounded text-sm hover:bg-green-600">
+                        <i class="fas fa-download mr-1"></i>Export
+                    </button>
+                    <button id="undo-btn" class="px-3 py-1 bg-gray-500 text-white rounded text-sm hover:bg-gray-600">
+                        <i class="fas fa-undo mr-1"></i>Undo
+                    </button>
+                    <button id="redo-btn" class="px-3 py-1 bg-gray-500 text-white rounded text-sm hover:bg-gray-600">
+                        <i class="fas fa-redo mr-1"></i>Redo
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="flex border-b">
+                <button class="tab-btn flex-1 py-2 px-4 text-sm font-medium active" data-tab="components">
+                    <i class="fas fa-cubes mr-1"></i>Components
+                </button>
+                <button class="tab-btn flex-1 py-2 px-4 text-sm font-medium" data-tab="layers">
+                    <i class="fas fa-layer-group mr-1"></i>Layers
+                </button>
+                <button class="tab-btn flex-1 py-2 px-4 text-sm font-medium" data-tab="assets">
+                    <i class="fas fa-images mr-1"></i>Assets
+                </button>
+                <button class="tab-btn flex-1 py-2 px-4 text-sm font-medium" data-tab="styles">
+                    <i class="fas fa-palette mr-1"></i>Styles
+                </button>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="flex-1 overflow-y-auto">
+                <!-- Components Tab -->
+                <div id="components-tab" class="tab-content">
+                    <div class="p-4">
+                        <h3 class="font-semibold mb-3">Basic Components</h3>
+                        <div class="grid grid-cols-2 gap-2 mb-4">
+                            <div class="component-item p-3 border rounded cursor-pointer hover:bg-gray-50" draggable="true" data-component="text">
+                                <i class="fas fa-font text-xl mb-1 block text-center text-blue-500"></i>
+                                <span class="text-xs block text-center">Text</span>
+                            </div>
+                            <div class="component-item p-3 border rounded cursor-pointer hover:bg-gray-50" draggable="true" data-component="heading">
+                                <i class="fas fa-heading text-xl mb-1 block text-center text-green-500"></i>
+                                <span class="text-xs block text-center">Heading</span>
+                            </div>
+                            <div class="component-item p-3 border rounded cursor-pointer hover:bg-gray-50" draggable="true" data-component="button">
+                                <i class="fas fa-mouse-pointer text-xl mb-1 block text-center text-purple-500"></i>
+                                <span class="text-xs block text-center">Button</span>
+                            </div>
+                            <div class="component-item p-3 border rounded cursor-pointer hover:bg-gray-50" draggable="true" data-component="image">
+                                <i class="fas fa-image text-xl mb-1 block text-center text-orange-500"></i>
+                                <span class="text-xs block text-center">Image</span>
+                            </div>
+                            <div class="component-item p-3 border rounded cursor-pointer hover:bg-gray-50" draggable="true" data-component="container">
+                                <i class="fas fa-square text-xl mb-1 block text-center text-gray-500"></i>
+                                <span class="text-xs block text-center">Container</span>
+                            </div>
+                            <div class="component-item p-3 border rounded cursor-pointer hover:bg-gray-50" draggable="true" data-component="row">
+                                <i class="fas fa-columns text-xl mb-1 block text-center text-indigo-500"></i>
+                                <span class="text-xs block text-center">Row</span>
+                            </div>
+                            <div class="component-item p-3 border rounded cursor-pointer hover:bg-gray-50" draggable="true" data-component="form">
+                                <i class="fas fa-wpforms text-xl mb-1 block text-center text-red-500"></i>
+                                <span class="text-xs block text-center">Form</span>
+                            </div>
+                            <div class="component-item p-3 border rounded cursor-pointer hover:bg-gray-50" draggable="true" data-component="video">
+                                <i class="fas fa-video text-xl mb-1 block text-center text-pink-500"></i>
+                                <span class="text-xs block text-center">Video</span>
+                            </div>
+                        </div>
+
+                        <h3 class="font-semibold mb-3">Layout Components</h3>
+                        <div class="grid grid-cols-2 gap-2 mb-4">
+                            <div class="component-item p-3 border rounded cursor-pointer hover:bg-gray-50" draggable="true" data-component="navbar">
+                                <i class="fas fa-bars text-xl mb-1 block text-center text-teal-500"></i>
+                                <span class="text-xs block text-center">Navbar</span>
+                            </div>
+                            <div class="component-item p-3 border rounded cursor-pointer hover:bg-gray-50" draggable="true" data-component="footer">
+                                <i class="fas fa-minus text-xl mb-1 block text-center text-yellow-500"></i>
+                                <span class="text-xs block text-center">Footer</span>
+                            </div>
+                            <div class="component-item p-3 border rounded cursor-pointer hover:bg-gray-50" draggable="true" data-component="card">
+                                <i class="fas fa-id-card text-xl mb-1 block text-center text-cyan-500"></i>
+                                <span class="text-xs block text-center">Card</span>
+                            </div>
+                            <div class="component-item p-3 border rounded cursor-pointer hover:bg-gray-50" draggable="true" data-component="gallery">
+                                <i class="fas fa-th text-xl mb-1 block text-center text-emerald-500"></i>
+                                <span class="text-xs block text-center">Gallery</span>
+                            </div>
+                            <div class="component-item p-3 border rounded cursor-pointer hover:bg-gray-50" draggable="true" data-component="two-columns">
+                                <i class="fas fa-columns text-xl mb-1 block text-center text-lime-500"></i>
+                                <span class="text-xs block text-center">Two Columns</span>
+                            </div>
+                            <div class="component-item p-3 border rounded cursor-pointer hover:bg-gray-50" draggable="true" data-component="hero-section">
+                                <i class="fas fa-star text-xl mb-1 block text-center text-amber-500"></i>
+                                <span class="text-xs block text-center">Hero Section</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Layers Tab -->
+                <div id="layers-tab" class="tab-content hidden">
+                    <div class="p-4">
+                        <h3 class="font-semibold mb-3">Page Structure</h3>
+                        <div id="layers-tree" class="space-y-1">
+                            <!-- Dynamic layer tree will be generated here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Assets Tab -->
+                <div id="assets-tab" class="tab-content hidden">
+                    <div class="p-4">
+                        <h3 class="font-semibold mb-3">Media Library</h3>
+                        <div class="mb-4">
+                            <input type="file" id="upload-asset" class="hidden" accept="image/*,video/*">
+                            <button onclick="document.getElementById('upload-asset').click()" class="w-full py-2 px-4 border-2 border-dashed border-gray-300 rounded hover:border-blue-500 hover:bg-blue-50">
+                                <i class="fas fa-cloud-upload-alt mr-2"></i>Upload Assets
+                            </button>
+                        </div>
+                        <div id="assets-grid" class="grid grid-cols-2 gap-2">
+                            <!-- Dynamic assets will be shown here -->
+                        </div>
+                    </div>
+                </div>
+
+                <div id="styles-tab" class="tab-content hidden">
+                    <div class="p-4">
+                        <h3 class="font-semibold mb-3">Class Manager</h3>
+                        <div class="mb-4">
+                            <input type="text" id="new-class-name" class="property-input" placeholder="Enter new class name...">
+                            <button id="add-class-btn" class="w-full mt-2 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Add Class</button>
+                        </div>
+                        <div id="class-manager-list" class="space-y-2">
+                            <!-- Saved classes will be listed here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="flex-1 flex flex-col">
+            <!-- Top Toolbar -->
+            <div class="bg-white shadow-sm border-b p-4 flex justify-between items-center">
+                <div class="flex items-center gap-4">
+                    <!-- Responsive Controls -->
+                    <div class="flex items-center gap-2">
+                        <div id="breadcrumbs" class="flex items-center gap-2 text-sm text-gray-500">
+                        </div>
+                        <span class="text-sm font-medium mr-2">Device:</span>
+                        <button class="breakpoint-button active" data-breakpoint="desktop">
+                            <i class="fas fa-desktop mr-1"></i>Desktop
+                        </button>
+                        <button class="breakpoint-button" data-breakpoint="tablet">
+                            <i class="fas fa-tablet-alt mr-1"></i>Tablet
+                        </button>
+                        <button class="breakpoint-button" data-breakpoint="mobile">
+                            <i class="fas fa-mobile-alt mr-1"></i>Mobile
+                        </button>
+                    </div>
+                </div>
+                <!-- View Controls -->
+                <div class="flex items-center gap-2">
+                    <button id="preview-btn" class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">
+                        <i class="fas fa-eye mr-1"></i>Preview
+                    </button>
+                    <button id="code-btn" class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600">
+                        <i class="fas fa-code mr-1"></i>Code
+                    </button>
+                    <div class="relative">
+                        <input type="range" id="zoom-slider" min="25" max="200" value="100" class="w-20">
+                        <span id="zoom-display" class="text-sm ml-2">100%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Canvas Area -->
+            <div class="flex-1 flex overflow-hidden">
+                <!-- Canvas Container -->
+                <div id="scroll-area" class="flex-1 p-4 overflow-auto bg-gray-50">
+
+
+                    <div class="mx-auto bg-white shadow-lg" id="canvas-container" style="width: 1024px; min-height: 600px;">
+                        <div id="canvas" class="drop-zone relative" style="min-height: 600px;">
+                            <!-- Canvas content will be dynamically added here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+
+
+        </div>
+
+        <!-- Right Sidebar - Properties -->
+        <div class="w-80 bg-white shadow-lg overflow-y-auto">
+            <div class="p-4 border-b">
+                <h2 class="font-semibold">Properties</h2>
+            </div>
+            
+            <div id="properties-panel">
+                <div class="p-4 text-center text-gray-500">
+                    <i class="fas fa-mouse-pointer text-3xl mb-2 block"></i>
+                    <p>Select an element to edit its properties</p>
+                </div>
+            </div>
+        </div>
+        </div>
+
+        <div id="selection-box" class="selection-box">
+            <div class="resizer top-left"></div>
+            <div class="resizer top-center"></div>
+            <div class="resizer top-right"></div>
+            <div class="resizer middle-left"></div>
+            <div class="resizer middle-right"></div>
+            <div class="resizer bottom-left"></div>
+            <div class="resizer bottom-center"></div>
+            <div class="resizer bottom-right"></div>
+        </div>
+
+        <div id="drop-indicator" class="fixed bg-blue-500 h-1 pointer-events-none hidden" style="z-index: 9999;"></div>
+        
+        <div id="context-menu" class="hidden fixed bg-white shadow-lg rounded-md p-2 text-sm z-50">
+            <div class="context-menu-item" id="context-duplicate">Duplicate</div>
+            <div class="context-menu-item" id="context-copy">Copy</div>
+            <div class="context-menu-item" id="context-paste">Paste</div>
+            <hr class="my-1">
+            <div class="context-menu-item text-red-500" id="context-delete">Delete</div>
+        </div>
+
+        <!-- Preview Modal -->
+        <div id="preview-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+            <div class="h-full flex flex-col">
+                <div class="bg-white p-4 flex justify-between items-center">
+                    <h3 class="font-semibold">Preview Mode</h3>
+                    <button id="close-preview" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <div class="flex-1 p-4">
+                    <iframe id="preview-frame" class="w-full h-full border-0 bg-white shadow-lg" sandbox="allow-scripts allow-same-origin"></iframe>
+                </div>
+            </div>
+        </div>
+
+        <!-- Code Editor Modal -->
+        <div id="code-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+            <div class="h-full flex flex-col m-4">
+                <div class="bg-white p-4 flex justify-between items-center rounded-t">
+                    <div class="flex gap-2">
+                        <button class="code-tab-btn px-3 py-1 bg-blue-500 text-white rounded text-sm" data-code-tab="html">HTML</button>
+                        <button class="code-tab-btn px-3 py-1 bg-gray-300 text-gray-700 rounded text-sm" data-code-tab="css">CSS</button>
+                        <button class="code-tab-btn px-3 py-1 bg-gray-300 text-gray-700 rounded text-sm" data-code-tab="js">JS</button>
+                    </div>
+                    <button id="close-code" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <div class="flex-1 bg-white rounded-b">
+                    <div id="code-editor" style="height: 100%;"></div>
+                </div>
+            </div>
+        </div>
+        <script src="/script.js"></script>
+</body>
+</html>

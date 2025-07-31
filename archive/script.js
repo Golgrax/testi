@@ -1690,6 +1690,427 @@ class WebBuilderPro {
         this.globalStyles[className] = {}; // Initialize empty style object
         this.renderStyleManager();
     }
+
+    generateId() {
+        return 'element-' + Math.random().toString(36).substr(2, 9);
+    }
+
+    // Add missing methods that are referenced in the code
+    selectElementById(elementId) {
+        const element = document.querySelector(`[data-element-id="${elementId}"]`);
+        if (element) {
+            this.selectElement(element);
+        }
+    }
+
+    handleCanvasClick(e) {
+        if (e.target.id === 'canvas' || e.target.id === 'canvas-container') {
+            this.selectedElement = null;
+            document.querySelectorAll('.canvas-element').forEach(el => el.classList.remove('selected'));
+            document.getElementById('selection-box').classList.remove('active');
+            this.showPropertiesPanel(null);
+            this.updateBreadcrumbs();
+        }
+    }
+
+    selectElement(element) {
+        // Remove selection from all elements
+        document.querySelectorAll('.canvas-element').forEach(el => el.classList.remove('selected'));
+        
+        // Select the new element
+        this.selectedElement = element;
+        element.classList.add('selected');
+        
+        // Update UI
+        this.updateSelectionBox();
+        this.showPropertiesPanel(element);
+        this.updateBreadcrumbs();
+    }
+
+    deleteElement(element) {
+        if (element) {
+            element.remove();
+            if (this.selectedElement === element) {
+                this.selectedElement = null;
+                document.getElementById('selection-box').classList.remove('active');
+                this.showPropertiesPanel(null);
+            }
+            this.saveToHistory();
+            this.updateLayersTree();
+        }
+    }
+
+    updateElementStyle(property, value) {
+        if (!this.selectedElement) return;
+        
+        // Store styles in dataset for responsive design
+        let styles = {};
+        try {
+            styles = JSON.parse(this.selectedElement.dataset.styles || '{}');
+        } catch (e) {
+            styles = {};
+        }
+        
+        if (!styles[this.currentState]) styles[this.currentState] = {};
+        if (!styles[this.currentState][this.currentBreakpoint]) styles[this.currentState][this.currentBreakpoint] = {};
+        
+        styles[this.currentState][this.currentBreakpoint][property] = value;
+        this.selectedElement.dataset.styles = JSON.stringify(styles);
+        
+        // Apply the style immediately
+        this.selectedElement.style[property] = value;
+        
+        this.saveToHistory();
+    }
+
+    updateElementContent(content) {
+        if (!this.selectedElement) return;
+        
+        const textElement = this.getInnermostTextElement(this.selectedElement);
+        if (textElement) {
+            textElement.innerHTML = content;
+            this.saveToHistory();
+        }
+    }
+
+    getElementText(element) {
+        const textElement = this.getInnermostTextElement(element);
+        return textElement ? textElement.innerHTML : '';
+    }
+
+    showPropertiesPanel(element) {
+        const panel = document.getElementById('properties-panel');
+        if (!element) {
+            panel.innerHTML = `
+                <div class="p-4 text-center text-gray-500">
+                    <i class="fas fa-mouse-pointer text-3xl mb-2 block"></i>
+                    <p>Select an element to edit its properties</p>
+                </div>
+            `;
+            return;
+        }
+        
+        panel.innerHTML = this.generatePropertiesHTML(element);
+    }
+
+    generatePropertiesHTML(element) {
+        const componentType = element.dataset.componentType || 'element';
+        let specificProperties = '';
+        
+        // Add component-specific properties
+        if (componentType === 'image') {
+            specificProperties = `
+                <div class="sidebar-section pb-4 mb-4">
+                    <h4 class="font-medium mb-2">Image Properties</h4>
+                    <div class="mb-2">
+                        <label class="text-xs text-gray-600">Source URL</label>
+                        <input type="text" class="property-input" value="${element.querySelector('img')?.src || ''}" oninput="app.updateChildElementStyle('img', 'src', this.value)">
+                    </div>
+                    <div class="mb-2">
+                        <label class="text-xs text-gray-600">Alt Text</label>
+                        <input type="text" class="property-input" value="${element.querySelector('img')?.alt || ''}" oninput="app.updateChildElementAttribute('img', 'alt', this.value)">
+                    </div>
+                </div>
+            `;
+        }
+        
+        return `
+            <div class="p-4">
+                <div class="mb-4">
+                    <h3 class="font-semibold">${componentType}</h3>
+                    <p class="text-xs text-gray-500">ID: ${element.dataset.elementId}</p>
+                </div>
+                
+                <!-- State Selector -->
+                <div class="mb-4">
+                    <label class="text-xs text-gray-600">State</label>
+                    <select class="property-input" onchange="app.currentState = this.value; app.showPropertiesPanel(app.selectedElement)">
+                        <option value="base" ${this.currentState === 'base' ? 'selected' : ''}>Base</option>
+                        <option value="hover" ${this.currentState === 'hover' ? 'selected' : ''}>Hover</option>
+                    </select>
+                </div>
+
+                <!-- Basic Properties -->
+                <div class="sidebar-section pb-4 mb-4">
+                    <h4 class="font-medium mb-2">Layout</h4>
+                    <div class="mb-2">
+                        <label class="text-xs text-gray-600">Display</label>
+                        <select class="property-input" oninput="app.updateElementStyle('display', this.value)">
+                            <option value="block" ${this.getCurrentStyle('display') === 'block' ? 'selected' : ''}>Block</option>
+                            <option value="flex" ${this.getCurrentStyle('display') === 'flex' ? 'selected' : ''}>Flex</option>
+                            <option value="inline-block" ${this.getCurrentStyle('display') === 'inline-block' ? 'selected' : ''}>Inline Block</option>
+                            <option value="none" ${this.getCurrentStyle('display') === 'none' ? 'selected' : ''}>None</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 mb-2">
+                        <div>
+                            <label class="text-xs text-gray-600">Width</label>
+                            <input type="text" class="property-input" value="${this.getCurrentStyle('width') || 'auto'}" oninput="app.updateElementStyle('width', this.value)">
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-600">Height</label>
+                            <input type="text" class="property-input" value="${this.getCurrentStyle('height') || 'auto'}" oninput="app.updateElementStyle('height', this.value)">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Typography -->
+                <div class="sidebar-section pb-4 mb-4">
+                    <h4 class="font-medium mb-2">Typography</h4>
+                    <div class="mb-2">
+                        <label class="text-xs text-gray-600">Font Size</label>
+                        <input type="text" class="property-input" value="${this.getCurrentStyle('fontSize') || '16px'}" oninput="app.updateElementStyle('fontSize', this.value)">
+                    </div>
+                    <div class="mb-2">
+                        <label class="text-xs text-gray-600">Color</label>
+                        <input type="color" class="property-input" value="${this.rgbToHex(this.getCurrentStyle('color')) || '#333333'}" oninput="app.updateElementStyle('color', this.value)">
+                    </div>
+                </div>
+
+                <!-- Background -->
+                <div class="sidebar-section pb-4 mb-4">
+                    <h4 class="font-medium mb-2">Background</h4>
+                    <div class="mb-2">
+                        <label class="text-xs text-gray-600">Background Color</label>
+                        <input type="color" class="property-input" value="${this.rgbToHex(this.getCurrentStyle('backgroundColor')) || '#ffffff'}" oninput="app.updateElementStyle('backgroundColor', this.value)">
+                    </div>
+                </div>
+
+                <!-- Content Editing -->
+                <div class="sidebar-section pb-4 mb-4">
+                    <h4 class="font-medium mb-2">Content</h4>
+                    <textarea class="property-input h-20" placeholder="Edit content..." oninput="app.updateElementContent(this.value)">${this.getElementText(element)}</textarea>
+                </div>
+
+                ${specificProperties}
+            </div>
+        `;
+    }
+
+    updateChildElementAttribute(selector, attribute, value) {
+        if (!this.selectedElement) return;
+        const child = this.selectedElement.querySelector(selector);
+        if (child) {
+            child.setAttribute(attribute, value);
+            this.saveToHistory();
+        }
+    }
+
+    rgbToHex(rgb) {
+        if (!rgb || rgb === 'transparent') return '#ffffff';
+        if (rgb.startsWith('#')) return rgb;
+        
+        const result = rgb.match(/\d+/g);
+        if (!result || result.length < 3) return '#ffffff';
+        
+        return '#' + result.slice(0, 3).map(x => {
+            const hex = parseInt(x).toString(16);
+            return hex.length === 1 ? '0' + hex : hex;
+        }).join('');
+    }
+
+    updateLayersTree() {
+        const tree = document.getElementById('layers-tree');
+        const canvas = document.getElementById('canvas');
+        tree.innerHTML = this.generateLayerHTML(canvas.children);
+    }
+
+    generateLayerHTML(elements) {
+        let html = '';
+        Array.from(elements).forEach(element => {
+            if (element.classList.contains('canvas-element')) {
+                const componentType = element.dataset.componentType || 'element';
+                const elementId = element.dataset.elementId;
+                html += `
+                    <div class="layer-item p-2 cursor-pointer hover:bg-gray-100 ${element === this.selectedElement ? 'active-layer' : ''}" 
+                         onclick="app.selectElementById('${elementId}')">
+                        <i class="fas fa-cube mr-2"></i>${componentType}
+                    </div>
+                `;
+            }
+        });
+        return html;
+    }
+
+    applyAllStyles(element) {
+        // This method would apply stored styles to an element
+        // Implementation depends on how styles are stored
+    }
+
+    save() {
+        const data = {
+            canvas: document.getElementById('canvas').innerHTML,
+            styles: this.globalStyles,
+            timestamp: Date.now()
+        };
+        localStorage.setItem('webbuilder-project', JSON.stringify(data));
+        
+        const notification = this.showNotification('Project saved!');
+        setTimeout(() => notification.remove(), 2000);
+    }
+
+    loadFromLocalStorage() {
+        try {
+            const saved = localStorage.getItem('webbuilder-project');
+            if (saved) {
+                const data = JSON.parse(saved);
+                document.getElementById('canvas').innerHTML = data.canvas || '';
+                this.globalStyles = data.styles || {};
+                this.reattachEventListeners();
+                this.updateLayersTree();
+            }
+        } catch (e) {
+            console.error('Failed to load project:', e);
+        }
+    }
+
+    showPreview() {
+        const modal = document.getElementById('preview-modal');
+        const frame = document.getElementById('preview-frame');
+        const html = this.generatePreviewHTML();
+        
+        frame.srcdoc = html;
+        modal.classList.remove('hidden');
+    }
+
+    hidePreview() {
+        document.getElementById('preview-modal').classList.add('hidden');
+    }
+
+    showCodeEditor() {
+        const modal = document.getElementById('code-modal');
+        modal.classList.remove('hidden');
+        
+        if (this.codeEditor) {
+            this.codeEditor.setValue(this.generatePreviewHTML());
+        }
+    }
+
+    hideCodeEditor() {
+        document.getElementById('code-modal').classList.add('hidden');
+    }
+
+    switchCodeTab(tab) {
+        // Update tab buttons
+        document.querySelectorAll('.code-tab-btn').forEach(btn => {
+            btn.classList.remove('bg-blue-500', 'text-white');
+            btn.classList.add('bg-gray-300', 'text-gray-700');
+        });
+        document.querySelector(`[data-code-tab="${tab}"]`).classList.add('bg-blue-500', 'text-white');
+        
+        this.currentCodeTab = tab;
+        
+        if (this.codeEditor) {
+            let content = '';
+            let language = 'html';
+            
+            switch (tab) {
+                case 'html':
+                    content = this.generatePreviewHTML();
+                    language = 'html';
+                    break;
+                case 'css':
+                    content = this.extractStyles();
+                    language = 'css';
+                    break;
+                case 'js':
+                    content = '// JavaScript code would go here';
+                    language = 'javascript';
+                    break;
+            }
+            
+            monaco.editor.setModelLanguage(this.codeEditor.getModel(), language);
+            this.codeEditor.setValue(content);
+        }
+    }
+
+    handleAssetUpload(e) {
+        const files = Array.from(e.target.files);
+        files.forEach(file => {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const asset = {
+                    id: this.generateId(),
+                    name: file.name,
+                    type: file.type,
+                    data: event.target.result
+                };
+                this.assets.push(asset);
+                this.renderAssets();
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    renderAssets() {
+        const grid = document.getElementById('assets-grid');
+        grid.innerHTML = this.assets.map(asset => `
+            <div class="asset-item border rounded p-2 cursor-pointer hover:bg-gray-50" 
+                 draggable="true" 
+                 data-asset-id="${asset.id}"
+                 ondragstart="app.draggedElement = {type: 'asset', assetId: '${asset.id}'}">
+                ${asset.type.startsWith('image/') ? 
+                    `<img src="${asset.data}" alt="${asset.name}" class="w-full h-16 object-cover mb-1">` :
+                    `<div class="w-full h-16 bg-gray-200 flex items-center justify-center mb-1">
+                        <i class="fas fa-file text-gray-500"></i>
+                    </div>`
+                }
+                <p class="text-xs truncate">${asset.name}</p>
+            </div>
+        `).join('');
+    }
+
+    camelToKebab(str) {
+        return str.replace(/([a-z0-9]|(?=[A-Z]))([A-Z])/g, '$1-$2').toLowerCase();
+    }
+
+    extractStyles() {
+        let css = '';
+        for (const className in this.globalStyles) {
+            const styleObj = this.globalStyles[className];
+            const styleString = Object.entries(styleObj).map(([prop, val]) => `${this.camelToKebab(prop)}: ${val};`).join(' ');
+            if (styleString) {
+                css += `.${className} { ${styleString} }\n`;
+            }
+        }
+        return css;
+    }
+
+    generatePreviewHTML() {
+        const canvas = document.getElementById('canvas');
+        const styles = this.extractStyles();
+        
+        return `
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Preview</title>
+                <style>
+                    body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
+                    ${styles}
+                </style>
+            </head>
+            <body>
+                ${this.getCleanHTML(canvas)}
+            </body>
+            </html>
+        `;
+    }
+
+    getCleanHTML(container) {
+        const clone = container.cloneNode(true);
+        
+        // Remove editor-specific elements
+        clone.querySelectorAll('.element-controls').forEach(el => el.remove());
+        clone.querySelectorAll('.canvas-element').forEach(el => {
+            el.classList.remove('canvas-element', 'selected');
+            el.removeAttribute('data-component-type');
+        });
+        
+        return clone.innerHTML;
+    }
 }
 
 // Initialize the application
