@@ -6,6 +6,10 @@
     display: none; /* Initially hidden */
 }
 
+.canvas-element > * {
+    pointer-events: none;
+}
+
 .selection-box.active {
     display: block;
 }
@@ -42,8 +46,10 @@ font-size: 12px;
 z-index: 11;
 }
 
+.canvas-element:hover {
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+}
 
-.canvas-element:hover{border-color:#3b82f6;}
 
 /* Add this to your <style> block */
 .layer-item.active-layer {

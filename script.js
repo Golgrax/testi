@@ -25,20 +25,16 @@ class WebBuilderPro {
         return element.querySelector('p, h1, h2, h3, h4, h5, h6, button, a, span');
     }
 
-    // ADD THIS ENTIRE NEW METHOD
+    // --- REPLACE the old bindInteractiveEvents method with this one ---
     bindInteractiveEvents(el) {
-        // We will use one 'mousedown' event to handle both selecting and initiating a drag.
         el.addEventListener('mousedown', (e) => {
-            if (e.button !== 0 || e.target.classList.contains('resizer')) {
-                return; // Do nothing for right-clicks or resizer handles.
-            }
+            if (e.button !== 0 || e.target.classList.contains('resizer')) return;
 
-            e.stopPropagation(); // Stop the event from bubbling up to the canvas.
+            e.stopPropagation();
             this.selectElement(el);
 
-            // ONLY start a "drag-to-move" if the element is absolutely positioned.
             if (el.style.position === 'absolute') {
-                e.preventDefault(); // Prevent text selection while dragging.
+                e.preventDefault();
 
                 const initialX = e.clientX;
                 const initialY = e.clientY;
@@ -51,12 +47,16 @@ class WebBuilderPro {
                     const dy = (moveEvent.clientY - initialY) / zoom;
                     el.style.top = (initialTop + dy) + 'px';
                     el.style.left = (initialLeft + dx) + 'px';
+                    
+                    // This is the key: Update the box position on every single mouse move.
                     this.updateSelectionBox();
                 };
 
                 const onDragEnd = () => {
                     document.removeEventListener('mousemove', onDragMove);
                     document.removeEventListener('mouseup', onDragEnd);
+                    // Final update to ensure it's perfectly positioned.
+                    this.updateSelectionBox();
                     this.saveToHistory();
                 };
 
@@ -133,24 +133,33 @@ class WebBuilderPro {
             this.saveToHistory();
         };
 
+        // --- At the end of the setupResizing method ---
         resizers.forEach(resizer => {
+            // This line makes sure the resizers are always clickable, overriding our CSS rule.
+            resizer.style.pointerEvents = 'all';
             resizer.addEventListener('mousedown', onResizeMouseDown);
         });
     }
 
+    // --- REPLACE the entire old updateSelectionBox method with this ---
     updateSelectionBox() {
         const selectionBox = document.getElementById('selection-box');
-        if (!this.selectedElement) {
+        if (!this.selectedElement || this.selectedElement.id === 'canvas-container') {
             selectionBox.classList.remove('active');
             return;
         }
-        const rect = this.selectedElement.getBoundingClientRect();
-        const canvasRect = document.getElementById('scroll-area').getBoundingClientRect();
 
-        selectionBox.style.left = (rect.left - canvasRect.left + document.getElementById('scroll-area').scrollLeft) + 'px';
-        selectionBox.style.top = (rect.top - canvasRect.top + document.getElementById('scroll-area').scrollTop) + 'px';
+        const rect = this.selectedElement.getBoundingClientRect();
+        const scrollArea = document.getElementById('scroll-area');
+        const scrollAreaRect = scrollArea.getBoundingClientRect();
+
+        // Calculate position relative to the scrollable canvas area
+        selectionBox.style.left = (rect.left - scrollAreaRect.left + scrollArea.scrollLeft) + 'px';
+        selectionBox.style.top = (rect.top - scrollAreaRect.top + scrollArea.scrollTop) + 'px';
         selectionBox.style.width = rect.width + 'px';
         selectionBox.style.height = rect.height + 'px';
+
+        // Always ensure it's active when an element is selected
         selectionBox.classList.add('active');
     }
 
