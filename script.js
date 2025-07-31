@@ -1,3 +1,5 @@
+// --- REPLACE YOUR ENTIRE EXISTING WebBuilderPro CLASS WITH THIS ---
+
 class WebBuilderPro {
     constructor() {
         this.selectedElement = null;
@@ -10,274 +12,35 @@ class WebBuilderPro {
         this.codeEditor = null;
         this.currentCodeTab = 'html';
         this.isResizing = false;
-        this.resizerInitialPos = {};
-        this.elementInitialSize = {};
         this.googleFonts = [
-            "Roboto", "Open Sans", "Lato", "Montserrat", "Oswald", "Source Sans Pro", "Raleway"
+            "Roboto", "Open Sans", "Lato", "Montserrat", "Oswald", "Raleway"
         ];
         this.globalStyles = {};
         this.currentState = 'base';
-        this.dropTarget = null;   // ADD THIS
-        this.dropPosition = null; // ADD THIS
+        this.dropTarget = null;
+        this.dropPosition = null;
         this.init();
     }
 
-    getInnermostTextElement(element) {
-        if (!element) return null;
-        return element.querySelector('p, h1, h2, h3, h4, h5, h6, button, a, span');
-    }
-
-    // --- REPLACE the old bindInteractiveEvents method with this one ---
-    // --- REPLACE the entire bindInteractiveEvents method ---
-    bindInteractiveEvents(el) {
-        // --- DRAG TO RE-ORDER ---
-        el.draggable = true; // Make every canvas element draggable
-        el.addEventListener('dragstart', (e) => {
-            e.stopPropagation();
-            e.dataTransfer.effectAllowed = 'move';
-            this.draggedElement = {
-                type: 'element-reorder',
-                element: el // Keep track of the actual element being moved
-            };
-            // Optional: add a visual effect
-            setTimeout(() => el.classList.add('opacity-50'), 0);
-        });
-
-        // Clear visual effect on drag end
-        el.addEventListener('dragend', (e) => {
-            e.stopPropagation();
-            // This is just a cleanup for all elements
-            document.querySelectorAll('.opacity-50').forEach(elem => elem.classList.remove('opacity-50'));
-        });
-        
-        // --- CLICK TO SELECT ---
-        el.addEventListener('mousedown', (e) => {
-            if (e.button !== 0 || e.target.classList.contains('resizer')) return;
-            e.stopPropagation();
-            this.selectElement(el);
-        });
-    }
-
-
-    setupResizing() {
-        const selectionBox = document.getElementById('selection-box');
-        const resizers = selectionBox.querySelectorAll('.resizer');
-        let initialRect;
-        let currentResizer;
-
-        const onResizeMouseDown = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            currentResizer = e.target;
-            this.isResizing = true;
-            initialRect = this.selectedElement.getBoundingClientRect();
-
-            document.addEventListener('mousemove', onResizeMouseMove);
-            document.addEventListener('mouseup', onResizeMouseUp);
-        };
-
-        const onResizeMouseMove = (e) => {
-            if (!this.isResizing || !this.selectedElement) return;
-
-            const style = this.selectedElement.style;
-            const isAbsolute = style.position === 'absolute';
-            
-            // Use deltas for smoother resizing
-            const dx = e.clientX - initialRect.left;
-            const dy = e.clientY - initialRect.top;
-            const dWidth = e.clientX - initialRect.right;
-            const dHeight = e.clientY - initialRect.bottom;
-
-            if (currentResizer.classList.contains('bottom-right')) {
-                style.width = initialRect.width + dWidth + 'px';
-                style.height = initialRect.height + dHeight + 'px';
-            } else if (currentResizer.classList.contains('bottom-left')) {
-                style.width = initialRect.width - dx + 'px';
-                style.height = initialRect.height + dHeight + 'px';
-                if (isAbsolute) style.left = initialRect.left + dx + 'px';
-            } else if (currentResizer.classList.contains('top-right')) {
-                style.width = initialRect.width + dWidth + 'px';
-                style.height = initialRect.height - dy + 'px';
-                if (isAbsolute) style.top = initialRect.top + dy + 'px';
-            } else if (currentResizer.classList.contains('top-left')) {
-                style.width = initialRect.width - dx + 'px';
-                style.height = initialRect.height - dy + 'px';
-                if (isAbsolute) {
-                    style.top = initialRect.top + dy + 'px';
-                    style.left = initialRect.left + dx + 'px';
-                }
-            }
-            this.updateSelectionBox();
-        };
-
-        const onResizeMouseUp = () => {
-            this.isResizing = false;
-            document.removeEventListener('mousemove', onResizeMouseMove);
-            document.removeEventListener('mouseup', onResizeMouseUp);
-            this.saveToHistory();
-        };
-
-        // --- At the end of the setupResizing method ---
-        resizers.forEach(resizer => {
-            // This line makes sure the resizers are always clickable, overriding our CSS rule.
-            resizer.style.pointerEvents = 'all';
-            resizer.addEventListener('mousedown', onResizeMouseDown);
-        });
-    }
-
-    // --- REPLACE the entire old updateSelectionBox method with this ---
-    updateSelectionBox() {
-        const selectionBox = document.getElementById('selection-box');
-        if (!this.selectedElement || this.selectedElement.id === 'canvas-container') {
-            selectionBox.classList.remove('active');
-            return;
-        }
-
-        const rect = this.selectedElement.getBoundingClientRect();
-        const scrollArea = document.getElementById('scroll-area');
-        const scrollAreaRect = scrollArea.getBoundingClientRect();
-
-        // Calculate position relative to the scrollable canvas area
-        selectionBox.style.left = (rect.left - scrollAreaRect.left + scrollArea.scrollLeft) + 'px';
-        selectionBox.style.top = (rect.top - scrollAreaRect.top + scrollArea.scrollTop) + 'px';
-        selectionBox.style.width = rect.width + 'px';
-        selectionBox.style.height = rect.height + 'px';
-
-        // Always ensure it's active when an element is selected
-        selectionBox.classList.add('active');
-    }
-
-    updateChildElementStyle(selector, property, value) {
-        if (!this.selectedElement) return;
-        const child = this.selectedElement.querySelector(selector);
-        if (child) {
-            child.style[property] = value;
-            this.saveToHistory();
-        }
-    }
-
-    updateElementClasses(classString) {
-        if (!this.selectedElement) return;
-        // Keep our essential classes, but replace all user-defined ones
-        this.selectedElement.className = 'canvas-element selected ' + classString.trim();
-        this.saveToHistory();
-    }
-
-    showNotification(message) {
-        const notification = document.createElement('div');
-        notification.className = 'fixed top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded shadow-lg z-50';
-        notification.textContent = message;
-        document.body.appendChild(notification);
-        return notification;
-    }
-
-    hasBreakpointSpecificStyle(property) {
-        if (!this.selectedElement || this.currentBreakpoint === 'desktop') return false;
-        let styles = {};
-        try {
-            styles = JSON.parse(this.selectedElement.dataset.styles || '{}');
-        } catch(e) { return false; }
-        
-        return !!styles[this.currentBreakpoint]?.[property];
-    }
-
-    loadGoogleFont(fontName) {
-        const fontId = `font-${fontName.replace(/\s+/g, '-')}`;
-        if (document.getElementById(fontId)) return; // Don't load the same font twice
-
-        const link = document.createElement('link');
-        link.id = fontId;
-        link.rel = 'stylesheet';
-        link.href = `https://fonts.googleapis.com/css2?family=${fontName.replace(/\s+/g, '+')}:wght@400;700&display=swap`;
-        document.head.appendChild(link);
-    }
-
-    updateBreadcrumbs() {
-        const breadcrumbsContainer = document.getElementById('breadcrumbs');
-        if (!this.selectedElement) {
-            breadcrumbsContainer.innerHTML = '';
-            return;
-        }
-
-        let crumbsHTML = '';
-        let current = this.selectedElement;
-        while (current && current.id !== 'canvas') {
-            if (current.classList.contains('canvas-element')) {
-                const componentType = current.dataset.componentType || 'element';
-                const elementId = current.dataset.elementId;
-                crumbsHTML = `
-                    <span class="hover:text-blue-500 cursor-pointer" onclick="app.selectElementById('${elementId}')">${componentType}</span>
-                    <i class="fas fa-chevron-right text-xs"></i>
-                    ${crumbsHTML}
-                `;
-            }
-            current = current.parentElement;
-        }
-        breadcrumbsContainer.innerHTML = `<span class="hover:text-blue-500 cursor-pointer" onclick="app.handleCanvasClick({target: document.getElementById('canvas')})">body</span> <i class="fas fa-chevron-right text-xs"></i> ${crumbsHTML}`;
-        // Remove the last chevron
-        breadcrumbsContainer.querySelector('i:last-of-type')?.remove();
-    }
-
-    getCurrentStyle(property) {
-        if (!this.selectedElement) return '';
-
-        let styles = {};
-        try {
-            styles = JSON.parse(this.selectedElement.dataset.styles || '{}');
-        } catch (e) {
-            return this.selectedElement.style[property] || '';
-        }
-
-        // Correctly get style from the current state and breakpoint
-        return styles[this.currentState]?.[this.currentBreakpoint]?.[property] 
-            || styles['base']?.[this.currentBreakpoint]?.[property] // Fallback to base style for this breakpoint
-            || styles['base']?.['desktop']?.[property] // Ultimate fallback to desktop base
-            || '';
-    }
-
-
-    
     init() {
+        this.loadComponents();
         this.setupEventListeners();
         this.setupDragAndDrop();
-        this.loadComponents();
         this.setupMonacoEditor();
         this.setupResizing();
         this.loadFromLocalStorage();
     }
-    
+
+    //
+    // --- CORE INTERACTION LOGIC ---
+    //
+
     setupEventListeners() {
-        this.clipboard = null;
-        // Tab switching
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const tab = e.target.dataset.tab;
-                this.switchTab(tab);
-            });
-        });
-
-        document.getElementById('canvas').addEventListener('click', (e) => {
-            if (!e.target.closest('.canvas-element')) {
-                this.handleCanvasClick(e);
-            }
-        });
-
-        document.getElementById('page-settings-btn').addEventListener('click', () => {
-            const canvasBody = document.getElementById('canvas-container');
-            canvasBody.dataset.componentType = 'Page Body';
-            if (!canvasBody.dataset.elementId) {
-                canvasBody.dataset.elementId = this.generateId();
-            }
-            this.selectElement(canvasBody);
-        });
-
-        // Breakpoint switching
-        document.querySelectorAll('.breakpoint-button').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                this.switchBreakpoint(e.target.dataset.breakpoint);
-            });
-        });
-
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => this.switchTab(btn.dataset.tab)));
+        document.getElementById('canvas').addEventListener('click', e => { if (!e.target.closest('.canvas-element')) this.handleCanvasClick(e); });
+        document.getElementById('page-settings-btn').addEventListener('click', () => this.selectPageBody());
+        document.querySelectorAll('.breakpoint-button').forEach(btn => btn.addEventListener('click', () => this.switchBreakpoint(btn.dataset.breakpoint)));
+        
         // Buttons
         document.getElementById('save-btn').addEventListener('click', () => this.save());
         document.getElementById('export-btn').addEventListener('click', () => this.export());
@@ -287,613 +50,43 @@ class WebBuilderPro {
         document.getElementById('code-btn').addEventListener('click', () => this.showCodeEditor());
         document.getElementById('close-preview').addEventListener('click', () => this.hidePreview());
         document.getElementById('close-code').addEventListener('click', () => this.hideCodeEditor());
-
-        // Code tabs
-        document.querySelectorAll('.code-tab-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                this.switchCodeTab(e.target.dataset.codeTab);
-            });
-        });
-
-        // Zoom
-        const zoomSlider = document.getElementById('zoom-slider');
-        zoomSlider.addEventListener('input', (e) => {
-            const zoom = e.target.value;
-            this.setZoom(zoom);
-        });
-
-        // Asset upload
-        document.getElementById('upload-asset').addEventListener('change', (e) => {
-            this.handleAssetUpload(e);
-        });
-
-        // Canvas click
-        document.getElementById('canvas').addEventListener('click', (e) => {
-            this.handleCanvasClick(e);
-        });
-
-        document.getElementById('canvas').addEventListener('dblclick', (e) => {
-            const target = e.target.closest('.canvas-element');
-            if (!target) return;
-
-            const textElement = target.querySelector('p, h1, h2, h3, h4, h5, h6, a, span:not([class])');
-            if (textElement && !target.quill) {
-                e.stopPropagation();
-                this.selectElement(target);
-
-                // Hide the original element and create a temporary editor div
-                textElement.style.display = 'none';
-                const editorDiv = document.createElement('div');
-                editorDiv.innerHTML = textElement.innerHTML;
-                textElement.after(editorDiv);
-
-                const quill = new Quill(editorDiv, {
-                    theme: 'snow',
-                    modules: {
-                        toolbar: [
-                            ['bold', 'italic', 'underline', 'strike'],
-                            ['link'],
-                            [{ 'list': 'ordered'}, { 'list': 'bullet' }]
-                        ]
-                    }
-                });
-                target.quill = quill; // Store instance to prevent re-initialization
-
-                quill.focus();
-
-                quill.on('text-change', () => {
-                    // Live update the original element
-                    textElement.innerHTML = quill.root.innerHTML;
-                });
-
-                // When the editor loses focus, clean up
-                quill.root.addEventListener('blur', () => {
-                    textElement.innerHTML = quill.root.innerHTML;
-                    textElement.style.display = '';
-                    editorDiv.remove();
-                    delete target.quill;
-                    this.saveToHistory();
-                }, { once: true });
-            }
-        });
-
-        // --- CONTEXT MENU LOGIC ---
-        document.getElementById('canvas').addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            const targetElement = e.target.closest('.canvas-element');
-            if (!targetElement) return;
-
-            this.selectElement(targetElement);
-
-            const menu = document.getElementById('context-menu');
-            menu.classList.remove('hidden');
-            menu.style.top = `${e.clientY}px`;
-            menu.style.left = `${e.clientX}px`;
-
-            document.getElementById('context-duplicate').onclick = () => {
-                const clone = this.selectedElement.cloneNode(true);
-                clone.dataset.elementId = this.generateId();
-                this.reattachEventListenersToElement(clone);
-                this.selectedElement.after(clone);
-                this.saveToHistory();
-            };
-            document.getElementById('context-copy').onclick = () => {
-                if(this.selectedElement) {
-                    this.clipboard = {
-                        html: this.selectedElement.innerHTML,
-                        styles: this.selectedElement.dataset.styles,
-                        componentType: this.selectedElement.dataset.componentType
-                    };
-                    // Optional: give user feedback
-                    const notification = this.showNotification('Copied to clipboard!');
-                    setTimeout(() => notification.remove(), 2000);
-                }
-            };
-            document.getElementById('context-paste').onclick = () => {
-                if(this.clipboard && this.selectedElement) {
-                    const newElement = document.createElement('div');
-                    newElement.className = 'canvas-element';
-                    newElement.innerHTML = this.clipboard.html;
-                    newElement.dataset.styles = this.clipboard.styles;
-                    newElement.dataset.componentType = this.clipboard.componentType;
-                    newElement.dataset.elementId = this.generateId();
-                    
-                    this.reattachEventListenersToElement(newElement);
-                    this.selectedElement.after(newElement);
-                    this.saveToHistory();
-                }
-            };
-            document.getElementById('context-delete').onclick = () => this.deleteElement(this.selectedElement);
-            // Copy/Paste actions can be added here later
-        });
-
-        window.addEventListener('click', () => {
-            document.getElementById('context-menu').classList.add('hidden');
-        }, true);
-        // --- END CONTEXT MENU LOGIC ---
-
-        // Keyboard shortcuts
-        // --- INSIDE THE setupEventListeners METHOD ---
-
-        document.addEventListener('keydown', (e) => {
-            // --- REMOVE the old 'keydown' event listener logic ---
-            // --- ADD the following new logic ---
-
-            // Don't trigger shortcuts if user is typing in an input/textarea
-            if (e.target.matches('input, textarea, [contenteditable="true"]')) {
-                return;
-            }
-
-            // 1. Handle element movement with arrow keys
-            if (this.selectedElement && !this.isResizing) {
-                const moveKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
-                if (moveKeys.includes(e.key)) {
-                    e.preventDefault(); // Prevent browser from scrolling
-                    const moveAmount = e.shiftKey ? 10 : 1; // Move by 10px if Shift is held
-
-                    // Ensure the element's position is not static
-                    if (this.selectedElement.style.position === 'absolute') {
-                        switch(e.key) {
-                            case 'ArrowUp':
-                                this.selectedElement.style.top = (parseInt(this.selectedElement.style.top, 10) || 0) - moveAmount + 'px';
-                                break;
-                            case 'ArrowDown':
-                                this.selectedElement.style.top = (parseInt(this.selectedElement.style.top, 10) || 0) + moveAmount + 'px';
-                                break;
-                            case 'ArrowLeft':
-                                this.selectedElement.style.left = (parseInt(this.selectedElement.style.left, 10) || 0) - moveAmount + 'px';
-                                break;
-                            case 'ArrowRight':
-                                this.selectedElement.style.left = (parseInt(this.selectedElement.style.left, 10) || 0) + moveAmount + 'px';
-                                break;
-                        }
-                        this.updateSelectionBox(); // Instantly update the selection box
-                        // Defer history save until mouse up or key up to group movements
-                        // For now, saving on each move is okay for simplicity
-                        this.saveToHistory();
-                    }
-                }
-            }
-
-            // 2. Handle Ctrl/Meta key combinations
-            if (e.ctrlKey || e.metaKey) {
-                switch(e.key.toLowerCase()) {
-                    case 'z':
-                        e.preventDefault();
-                        e.shiftKey ? this.redo() : this.undo();
-                        break;
-                    case 's':
-                        e.preventDefault();
-                        this.save();
-                        break;
-                    case 'd':
-                        e.preventDefault();
-                        if (this.selectedElement) {
-                            const clone = this.selectedElement.cloneNode(true);
-                            clone.dataset.elementId = this.generateId();
-
-                            // Reset position slightly to see the new element
-                            if(clone.style.position === 'absolute'){
-                            clone.style.top = (parseInt(clone.style.top, 10) || 0) + 10 + 'px';
-                            clone.style.left = (parseInt(clone.style.left, 10) || 0) + 10 + 'px';
-                            }
-                            
-                            // We must re-bind all events to the new clone and its children
-                            this.reattachEventListenersToElement(clone);
-
-                            this.selectedElement.after(clone);
-                            this.selectElement(clone); // Select the new duplicated element
-                            this.saveToHistory();
-                        }
-                        break;
-                    case 'c':
-                        if (this.selectedElement) {
-                            e.preventDefault();
-                            this.clipboard = {
-                                html: this.selectedElement.innerHTML,
-                                styles: this.selectedElement.dataset.styles,
-                                componentType: this.selectedElement.dataset.componentType,
-                                fullHTML: this.selectedElement.outerHTML,
-                            };
-                            const notification = this.showNotification('Copied to clipboard!');
-                            setTimeout(() => notification.remove(), 2000);
-                        }
-                        break;
-                    case 'v':
-                        if(this.clipboard && this.selectedElement?.parentElement) {
-                            e.preventDefault();
-                            const newElement = document.createElement('div');
-                            newElement.outerHTML = this.clipboard.fullHTML;
-                            const pastedElement = newElement; // We actually need the element itself
-                            pastedElement.dataset.elementId = this.generateId();
-                            
-                            this.reattachEventListenersToElement(pastedElement);
-                            this.selectedElement.parentElement.appendChild(pastedElement);
-                            this.selectElement(pastedElement);
-                            this.saveToHistory();
-                        }
-                        break;
-
-                }
-            }
-            
-            // 3. Handle Delete key
-            if (e.key === 'Delete' || e.key === 'Backspace') {
-                if (this.selectedElement) {
-                    e.preventDefault();
-                    this.deleteElement(this.selectedElement);
-                }
-            }
-        });
-
-        // --- End of new keydown listener logic ---
-
-        document.getElementById('add-class-btn').addEventListener('click', () => {
-            const classNameInput = document.getElementById('new-class-name');
-            const className = classNameInput.value.trim();
-            if (className) {
-                this.addNewGlobalClass(className);
-                classNameInput.value = '';
-            }
-        });
+        document.querySelectorAll('.code-tab-btn').forEach(btn => btn.addEventListener('click', () => this.switchCodeTab(btn.dataset.codeTab)));
+        
+        // Interactions
+        document.getElementById('zoom-slider').addEventListener('input', e => this.setZoom(e.target.value));
+        document.getElementById('upload-asset').addEventListener('change', e => this.handleAssetUpload(e));
+        document.getElementById('canvas').addEventListener('dblclick', e => this.handleDoubleClick(e));
+        document.getElementById('canvas').addEventListener('contextmenu', e => this.handleContextMenu(e));
+        window.addEventListener('click', () => document.getElementById('context-menu').classList.add('hidden'), true);
+        document.addEventListener('keydown', e => this.handleKeyboardShortcuts(e));
     }
 
-    setupDragAndDrop() {
-        document.querySelectorAll('.component-item').forEach(item => {
-            item.addEventListener('dragstart', (e) => {
-                this.draggedElement = {
-                    type: 'component',
-                    componentType: e.target.dataset.component
-                };
-                e.dataTransfer.effectAllowed = 'copy';
-            });
-        });
-
-        const canvas = document.getElementById('canvas');
-        const dropIndicator = document.getElementById('drop-indicator');
-
-
-        canvas.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            
-            const dropIndicator = document.getElementById('drop-indicator');
-            const target = e.target;
-            
-            // Find the closest valid drop target
-            const dropZone = target.closest('.drop-zone');
-            const closestElement = target.closest('.canvas-element');
-            
-            // Clear previous hover states
-            document.querySelectorAll('.drop-zone.drag-over').forEach(el => el.classList.remove('drag-over'));
-            
-            this.dropTarget = null;
-            this.dropPosition = null;
-            
-            if (dropZone) {
-                // Scenario 1: Dropping inside an empty drop zone
-                if (dropZone.children.length === 0) {
-                    dropZone.classList.add('drag-over');
-                    dropIndicator.classList.add('hidden');
-                    this.dropTarget = dropZone;
-                    this.dropPosition = 'inside';
-                }
-                // Scenario 2: Dropping relative to an existing element
-                else if (closestElement) {
-                    const rect = closestElement.getBoundingClientRect();
-                    const isFirstHalf = e.clientY < rect.top + rect.height / 2;
-
-                    dropIndicator.classList.remove('hidden');
-                    dropIndicator.style.left = rect.left + 'px';
-                    dropIndicator.style.width = rect.width + 'px';
-
-                    if (isFirstHalf) {
-                        dropIndicator.style.top = rect.top + 'px';
-                        this.dropPosition = 'before';
-                    } else {
-                        dropIndicator.style.top = rect.bottom + 'px';
-                        this.dropPosition = 'after';
-                    }
-                    this.dropTarget = closestElement;
-                } else {
-                    dropIndicator.classList.add('hidden');
-                }
-            } else {
-                // If we are not over any specific zone, hide the indicator
-                dropIndicator.classList.add('hidden');
-            }
-        });
-
-        canvas.addEventListener('dragleave', () => {
-            canvas.classList.remove('drag-over');
-            dropIndicator.classList.add('hidden');
-        });
-
-        // --- In setupDragAndDrop(), REPLACE the canvas.addEventListener('drop', ...) ---
-        canvas.addEventListener('drop', (e) => {
-            e.preventDefault();
+    bindInteractiveEvents(el) {
+        el.draggable = true;
+        el.addEventListener('dragstart', e => {
             e.stopPropagation();
-            document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
-            document.getElementById('drop-indicator').classList.add('hidden');
-
-            if (!this.draggedElement || !this.dropTarget) return;
-
-            // SCENARIO 1: Dropping a NEW component from the left panel
-            if (this.draggedElement.type === 'component') {
-                this.addComponent(this.draggedElement.componentType, e);
-            }
-            // SCENARIO 2: RE-ORDERING an EXISTING element
-            else if (this.draggedElement.type === 'element-reorder') {
-                const elToMove = this.draggedElement.element;
-                if (this.dropPosition === 'inside') this.dropTarget.appendChild(elToMove);
-                else if (this.dropPosition === 'before') this.dropTarget.parentNode.insertBefore(elToMove, this.dropTarget);
-                else if (this.dropPosition === 'after') this.dropTarget.after(elToMove);
-                this.saveToHistory();
-            }
-
-            // Cleanup
-            this.draggedElement = null;
-            this.dropTarget = null;
-            this.dropPosition = null;
+            e.dataTransfer.effectAllowed = 'move';
+            this.draggedElement = { type: 'element-reorder', element: el };
+            setTimeout(() => el.classList.add('opacity-50'), 0);
         });
-    }
-
-    loadComponents() {
-        
-        
-        this.components.set('text', {
-            name: 'Text',
-            html: '<p>Sample text content</p>',
-            defaultStyles: {
-                fontSize: '16px',
-                color: '#333333',
-                fontFamily: 'Arial, sans-serif'
-            }
+        el.addEventListener('dragend', e => {
+            e.stopPropagation();
+            document.querySelectorAll('.opacity-50').forEach(elem => elem.classList.remove('opacity-50'));
         });
-
-        this.components.set('two-columns', {
-            name: 'Two Columns',
-            // Note: the HTML is now two distinct child components.
-            html: `
-                <div class="canvas-element" data-component-type="column" style="flex: 1; min-height: 50px;">
-                    <div class="drop-zone p-2"></div>
-                </div>
-                <div class="canvas-element" data-component-type="column" style="flex: 1; min-height: 50px;">
-                    <div class="drop-zone p-2"></div>
-                </div>`,
-            defaultStyles: {
-                display: 'flex',
-                gap: '16px',
-                width: '100%',
-                padding: '10px'
-            },
+        el.addEventListener('mousedown', e => {
+            if (e.button !== 0 || e.target.classList.contains('resizer')) return;
+            e.stopPropagation();
+            this.selectElement(el);
         });
-
-        this.components.set('hero-section', {
-            name: 'Hero Section',
-            // We've simplified the HTML to be cleaner.
-            html: `
-                <h1 class="text-4xl font-bold">Hero Title</h1>
-                <p class="mt-2">This is a paragraph describing your hero section.</p>
-                <button class="mt-4 px-4 py-2 bg-blue-500 text-white rounded">Call to Action</button>
-            `,
-            defaultStyles: {
-                padding: '60px 20px',
-                textAlign: 'center',
-                backgroundColor: '#f3f4f6',
-                width: '100%'
-            },
-        });
-
-        this.components.set('heading', {
-            name: 'Heading',
-            html: '<h2>Sample Heading</h2>',
-            defaultStyles: {
-                fontSize: '32px',
-                color: '#333333',
-                fontWeight: 'bold',
-                margin: '20px 0'
-            }
-        });
-
-        this.components.set('button', {
-            name: 'Button',
-            html: '<button>Click Me</button>',
-            defaultStyles: {
-                padding: '12px 24px',
-                backgroundColor: '#3b82f6',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '16px'
-            }
-        });
-
-        this.components.set('image', {
-            name: 'Image',
-            html: '<img src="https://via.placeholder.com/300x200" alt="Placeholder">',
-            defaultStyles: {
-                maxWidth: '100%',
-                height: 'auto'
-            }
-        });
-
-        this.components.set('container', {
-            name: 'Container',
-            html: '<div class="drop-zone p-4">Add elements inside</div>', // It is its OWN drop-zone.
-            defaultStyles: {
-                padding: '20px',
-                backgroundColor: 'rgba(240, 240, 240, 0.5)',
-                width: '100%',
-                minHeight: '100px',
-            }
-        });
-
-        this.components.set('row', {
-            name: 'Row',
-            html: '<div class="drop-zone p-4">Drop columns or elements here</div>', // A single drop-zone.
-            defaultStyles: {
-                display: 'flex', // THE PARENT .canvas-element IS NOW THE FLEX CONTAINER
-                gap: '16px',
-                padding: '10px',
-                width: '100%',
-                minHeight: '80px',
-            }
-});
-
-        this.components.set('navbar', {
-            name: 'Navigation Bar',
-            html: '<nav><div class="nav-brand">Brand</div><ul class="nav-menu"><li><a href="#">Home</a></li><li><a href="#">About</a></li><li><a href="#">Contact</a></li></ul></nav>',
-            defaultStyles: {
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '15px 30px',
-                backgroundColor: '#ffffff',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-            }
-        });
-
-        this.components.set('card', {
-            name: 'Card',
-            html: '<div class="card"><div class="card-header">Card Title</div><div class="card-body">Card content goes here</div></div>',
-            defaultStyles: {
-                border: '1px solid #e9ecef',
-                borderRadius: '8px',
-                overflow: 'hidden',
-                backgroundColor: 'white',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-            }
-        });
-
-        this.components.set('form', {
-            name: 'Form',
-            html: '<form><div class="form-group"><label>Name:</label><input type="text" placeholder="Enter your name"></div><div class="form-group"><label>Email:</label><input type="email" placeholder="Enter your email"></div><button type="submit">Submit</button></form>',
-            defaultStyles: {
-                padding: '20px',
-                border: '1px solid #e9ecef',
-                borderRadius: '8px'
-            }
-        });
-
-        this.components.set('video', {
-            name: 'Video',
-            html: '<video controls><source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4">Your browser does not support the video tag.</video>',
-            defaultStyles: {
-                width: '100%',
-                maxWidth: '600px'
-            }
-        });
-    }
-
-    setupMonacoEditor() {
-        require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs' } });
-        require(['vs/editor/editor.main'], () => {
-            this.codeEditor = monaco.editor.create(document.getElementById('code-editor'), {
-                value: '',
-                language: 'html',
-                theme: 'vs-dark',
-                automaticLayout: true
-            });
-        });
-    }
-
-    switchTab(tabName) {
-        // Update tab buttons
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.classList.remove('active', 'bg-blue-500', 'text-white');
-            btn.classList.add('text-gray-600');
-        });
-        document.querySelector(`[data-tab="${tabName}"]`).classList.add('active', 'bg-blue-500', 'text-white');
-
-        // Show/hide tab content
-        document.querySelectorAll('.tab-content').forEach(content => {
-            content.classList.add('hidden');
-        });
-        document.getElementById(`${tabName}-tab`).classList.remove('hidden');
-
-        if (tabName === 'layers') {
-            this.updateLayersTree();
-        }
-    }
-
-    switchBreakpoint(breakpoint) {
-        document.querySelectorAll('.breakpoint-button').forEach(btn => {
-            btn.classList.remove('active', 'bg-blue-500', 'text-white');
-        });
-        document.querySelector(`[data-breakpoint="${breakpoint}"]`).classList.add('active', 'bg-blue-500', 'text-white');
-        
-        this.currentBreakpoint = breakpoint;
-        this.updateCanvasSize();
-    }
-
-    updateCanvasSize() {
-        const container = document.getElementById('canvas-container');
-        const sizes = {
-            desktop: '1024px',
-            tablet: '768px',
-            mobile: '375px'
-        };
-        container.style.width = sizes[this.currentBreakpoint];
-    }
-
-    setZoom(zoom) {
-        const container = document.getElementById('canvas-container');
-        container.style.transform = `scale(${zoom / 100})`;
-        container.style.transformOrigin = 'top left';
-        document.getElementById('zoom-display').textContent = `${zoom}%`;
-    }
-
-    addComponent(componentType, event) {
-        const component = this.components.get(componentType);
-        if (!component || !this.dropTarget) return;
-
-        const element = document.createElement('div');
-        element.className = 'canvas-element';
-        element.dataset.componentType = componentType;
-        element.dataset.elementId = this.generateId();
-        
-        // This is key: assign styles directly to the main element
-        if (component.defaultStyles) {
-            Object.assign(element.style, component.defaultStyles);
-        }
-        
-        // Use a temporary container to process the HTML
-        const tempContainer = document.createElement('div');
-        tempContainer.innerHTML = component.html;
-        
-        // Move children from temp to the actual element
-        while (tempContainer.firstChild) {
-            element.appendChild(tempContainer.firstChild);
-        }
-        
-        // Place the new element in the DOM
-        if (this.dropPosition === 'inside') this.dropTarget.appendChild(element);
-        else if (this.dropPosition === 'before') this.dropTarget.parentNode.insertBefore(element, this.dropTarget);
-        else if (this.dropPosition === 'after') this.dropTarget.after(element);
-        
-        // **** IMPORTANT NEW STEP ****
-        // After inserting the element, we must find ALL canvas elements
-        // within it (for nested components like 'two-columns') and attach listeners.
-        this.reattachEventListenersToElement(element);
-        
-        this.selectElement(element);
-        this.saveToHistory();
-        this.updateLayersTree();
-        
-        this.dropTarget = null;
-        this.dropPosition = null;
     }
 
     selectElement(element) {
-        if (this.isResizing) return;
         if (this.selectedElement) {
             this.selectedElement.classList.remove('selected');
         }
-
         this.selectedElement = element;
         this.selectedElement.classList.add('selected');
-        
+
         this.showProperties(element);
         this.updateBreadcrumbs();
         this.updateSelectionBox();
@@ -903,227 +96,269 @@ class WebBuilderPro {
         if (activeLayer) activeLayer.classList.add('active-layer');
 
         const selectionBox = document.getElementById('selection-box');
-            // HIDE the resizers if the element is not explicitly positioned
-            if (getComputedStyle(element).position === 'static' && !element.style.width) {
-                selectionBox.querySelectorAll('.resizer').forEach(r => r.style.display = 'none');
+        const isStatic = getComputedStyle(element).position === 'static';
+        const canResize = element.style.width && element.style.height;
+        if (isStatic && !canResize) {
+            selectionBox.querySelectorAll('.resizer').forEach(r => r.style.display = 'none');
+        } else {
+            selectionBox.querySelectorAll('.resizer').forEach(r => r.style.display = 'block');
+        }
+    }
+    
+    handleCanvasClick(e) {
+        this.selectedElement?.classList.remove('selected');
+        this.selectedElement = null;
+        this.showProperties(null);
+        this.updateSelectionBox();
+        this.updateBreadcrumbs();
+    }
+
+    handleKeyboardShortcuts(e) {
+        if (e.target.matches('input, textarea, [contenteditable="true"]')) return;
+        
+        if (e.ctrlKey || e.metaKey) {
+            switch (e.key.toLowerCase()) {
+                case 'z': e.preventDefault(); e.shiftKey ? this.redo() : this.undo(); break;
+                case 's': e.preventDefault(); this.save(); break;
+            }
+        } else if (e.key === 'Delete' || e.key === 'Backspace') {
+            if (this.selectedElement) {
+                e.preventDefault();
+                this.deleteElement(this.selectedElement);
+            }
+        }
+    }
+    
+    //
+    // --- DRAG & DROP LOGIC ---
+    //
+
+    setupDragAndDrop() {
+        document.querySelectorAll('.component-item').forEach(item => {
+            item.addEventListener('dragstart', e => {
+                this.draggedElement = { type: 'component', componentType: e.target.dataset.component };
+                e.dataTransfer.effectAllowed = 'copy';
+            });
+        });
+        const canvas = document.getElementById('canvas');
+        canvas.addEventListener('dragover', e => this.handleDragOver(e));
+        canvas.addEventListener('dragleave', () => this.handleDragLeave());
+        canvas.addEventListener('drop', e => this.handleDrop(e));
+    }
+    
+    handleDragOver(e) {
+        e.preventDefault();
+        const dropIndicator = document.getElementById('drop-indicator');
+        const target = e.target;
+        const dropZone = target.closest('.drop-zone');
+        const closestElement = target.closest('.canvas-element');
+        
+        document.querySelectorAll('.drop-zone.drag-over').forEach(el => el.classList.remove('drag-over'));
+        
+        this.dropTarget = null;
+        this.dropPosition = null;
+
+        if (!dropZone) {
+            dropIndicator.classList.add('hidden');
+            return;
+        }
+
+        const dropZoneChildren = Array.from(dropZone.children).filter(c => c.classList.contains('canvas-element'));
+
+        if (dropZoneChildren.length === 0) {
+            dropZone.classList.add('drag-over');
+            dropIndicator.classList.add('hidden');
+            this.dropTarget = dropZone;
+            this.dropPosition = 'inside';
+        } else if (closestElement && closestElement.parentElement === dropZone) {
+            const rect = closestElement.getBoundingClientRect();
+            const isFirstHalf = e.clientY < rect.top + rect.height / 2;
+            dropIndicator.classList.remove('hidden');
+            dropIndicator.style.left = rect.left + 'px';
+            dropIndicator.style.width = rect.width + 'px';
+
+            if (isFirstHalf) {
+                dropIndicator.style.top = rect.top + 'px';
+                this.dropPosition = 'before';
             } else {
-                selectionBox.querySelectorAll('.resizer').forEach(r => r.style.display = 'block');
+                dropIndicator.style.top = rect.bottom + 'px';
+                this.dropPosition = 'after';
             }
-    }    
-        handleCanvasClick(e) {
-            // This function is now the single source of truth for deselection.
-            // It's called when clicking on the canvas directly.
-            const clickedElement = e.target.closest('.canvas-element');
+            this.dropTarget = closestElement;
+        } else {
+             dropIndicator.classList.add('hidden');
+        }
+    }
 
-            if (!clickedElement && this.selectedElement) {
-                this.selectedElement.classList.remove('selected');
+    handleDragLeave() {
+        document.querySelectorAll('.drop-zone.drag-over').forEach(el => el.classList.remove('drag-over'));
+        document.getElementById('drop-indicator').classList.add('hidden');
+    }
+    
+    handleDrop(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.handleDragLeave(); // Cleanup UI
+
+        if (!this.draggedElement || !this.dropTarget) return;
+
+        if (this.draggedElement.type === 'component') {
+            this.addComponent(this.draggedElement.componentType);
+        } else if (this.draggedElement.type === 'element-reorder') {
+            const elToMove = this.draggedElement.element;
+            if (this.dropPosition === 'inside') this.dropTarget.appendChild(elToMove);
+            else if (this.dropPosition === 'before') this.dropTarget.parentNode.insertBefore(elToMove, this.dropTarget);
+            else if (this.dropPosition === 'after') this.dropTarget.after(elToMove);
+            this.saveToHistory();
+        }
+        
+        this.draggedElement = null;
+        this.dropTarget = null;
+        this.dropPosition = null;
+    }
+
+    //
+    // --- COMPONENT & ELEMENT LOGIC ---
+    //
+    
+    addComponent(componentType) {
+        const component = this.components.get(componentType);
+        if (!component || !this.dropTarget) return;
+
+        const element = document.createElement('div');
+        element.className = 'canvas-element';
+        element.dataset.componentType = componentType;
+        element.dataset.elementId = this.generateId();
+        
+        if (component.defaultStyles) Object.assign(element.style, component.defaultStyles);
+        
+        const tempContainer = document.createElement('div');
+        tempContainer.innerHTML = component.html;
+        while (tempContainer.firstChild) {
+            element.appendChild(tempContainer.firstChild);
+        }
+        
+        if (this.dropPosition === 'inside') this.dropTarget.appendChild(element);
+        else if (this.dropPosition === 'before') this.dropTarget.parentNode.insertBefore(element, this.dropTarget);
+        else if (this.dropPosition === 'after') this.dropTarget.after(element);
+        
+        this.reattachEventListenersToElement(element);
+        this.selectElement(element);
+        this.saveToHistory();
+        this.updateLayersTree();
+    }
+    
+    deleteElement(element) {
+        if (element) {
+            element.remove();
+            if(this.selectedElement === element) {
                 this.selectedElement = null;
-
-                // Hide the properties panel and selection box
-                document.getElementById('properties-panel').innerHTML = `<div class="p-4 text-center text-gray-500"><i class="fas fa-mouse-pointer text-3xl mb-2 block"></i><p>Select an element to edit its properties</p></div>`;
-                this.updateSelectionBox(); // Hides the box
-                this.updateBreadcrumbs();
-
-                // Clear active layer in the layers panel
-                document.querySelectorAll('.layer-item.active-layer').forEach(item => item.classList.remove('active-layer'));
+                this.showProperties(null);
+                this.updateSelectionBox();
             }
+            this.saveToHistory();
+            this.updateLayersTree();
         }
-          
-        showProperties(element) {
-            const panel = document.getElementById('properties-panel');
-            if (!element) {
-                panel.innerHTML = '<div class="p-4 text-center text-gray-500"><p>Select an element to edit its properties</p></div>';
-                return;
-            }
+    }
 
-            const componentType = element.dataset.componentType || 'element';
+    //
+    // --- PROPERTIES PANEL UI LOGIC (Corrected & Complete) ---
+    //
 
-            let propertiesHTML = `
-                <div class="p-4">
-                    <div class="mb-4">
-                        <label class="text-sm font-medium">State</label>
-                        <select id="state-selector" class="property-input mt-1" onchange="app.currentState = this.value; app.showProperties(app.selectedElement);">
-                            <option value="base" ${this.currentState === 'base' ? 'selected' : ''}>Base</option>
-                            <option value="hover" ${this.currentState === 'hover' ? 'selected' : ''}>Hover</option>
-                        </select>
-                    </div>
-                    <div class="sidebar-section pb-4 mb-4">
-                        <h4 class="font-medium mb-2">CSS Classes</h4>
-                        <input type="text" id="class-input" class="property-input" placeholder="e.g. btn btn-primary"
-                            value="${(element.className || '').replace(/canvas-element|selected/g, '').trim()}"
-                            onchange="app.updateElementClasses(this.value)">
-                    </div>
-                    <h3 class="font-semibold mb-4">${componentType.charAt(0).toUpperCase() + componentType.slice(1)} Properties</h3>
-
-                    ${this.generateFlexChildPropertiesHTML(element)}
-                    ${this.generateLayoutPropertiesHTML(element)}
-                    ${this.generateTypographyPropertiesHTML(element)}
-                    ${this.generateBackgroundPropertiesHTML(element)}
-                    ${this.generateContentEditingHTML(element)}
-                </div>
-            `;
-            
-            panel.innerHTML = propertiesHTML;
-
-            // Re-add event listeners for any dropdowns/inputs if necessary
-            const displaySelect = panel.querySelector('#display-select');
-            if(displaySelect) {
-                displaySelect.value = this.getCurrentStyle('display') || 'block';
-            }
-            const positionSelect = panel.querySelector('#position-select');
-            if(positionSelect) {
-                positionSelect.value = this.getCurrentStyle('position') || 'static';
-            }
+    showProperties(element) {
+        const panel = document.getElementById('properties-panel');
+        if (!element) {
+            panel.innerHTML = '<div class="p-4 text-center text-gray-500"><p>Select an element</p></div>';
+            return;
         }
-
-        generateFlexChildPropertiesHTML(element) {
-            const parent = element.parentElement;
-            // Check if the parent is a canvas element AND has display: flex
-            if (parent && parent.classList.contains('canvas-element') && getComputedStyle(parent).display === 'flex') {
-                return `
-                    <div class="sidebar-section pb-4 mb-4">
-                        <h4 class="font-medium mb-2">Flex Child</h4>
-                        <div class="grid grid-cols-2 gap-2 mb-2">
-                            <div>
-                                <label class="text-xs">Grow</label>
-                                <input type="number" class="property-input" placeholder="0" value="${this.getCurrentStyle('flexGrow') || ''}" oninput="app.updateElementStyle('flexGrow', this.value)">
-                            </div>
-                            <div>
-                                <label class="text-xs">Shrink</label>
-                                <input type="number" class="property-input" placeholder="1" value="${this.getCurrentStyle('flexShrink') || ''}" oninput="app.updateElementStyle('flexShrink', this.value)">
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
-            return '';
-        }
-
-        generateLayoutPropertiesHTML(element) {
-            const flexParentControls = getComputedStyle(element).display === 'flex' ? `
-                <h4 class="font-medium mb-2 mt-4 border-t pt-4">Flex Container</h4>
-                <div class="grid grid-cols-2 gap-2 mb-2">
-                    <div>
-                        <label class="text-xs">Direction</label>
-                        <select class="property-input" oninput="app.updateElementStyle('flexDirection', this.value)">
-                            <option value="row" ${this.getCurrentStyle('flexDirection') === 'row' ? 'selected' : ''}>Row</option>
-                            <option value="column" ${this.getCurrentStyle('flexDirection') === 'column' ? 'selected' : ''}>Column</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="text-xs">Align Items</label>
-                        <select class="property-input" oninput="app.updateElementStyle('alignItems', this.value)">
-                            <option value="stretch" ${this.getCurrentStyle('alignItems') === 'stretch' ? 'selected' : ''}>Stretch</option>
-                            <option value="flex-start" ${this.getCurrentStyle('alignItems') === 'flex-start' ? 'selected' : ''}>Start</option>
-                            <option value="center" ${this.getCurrentStyle('alignItems') === 'center' ? 'selected' : ''}>Center</option>
-                            <option value="flex-end" ${this.getCurrentStyle('alignItems') === 'flex-end' ? 'selected' : ''}>End</option>
-                        </select>
-                    </div>
-                </div>` : '';
-                
-            return `
-            <div class="sidebar-section pb-4 mb-4">
-                <h4 class="font-medium mb-2">Layout & Sizing</h4>
-                <div class="grid grid-cols-2 gap-2 mb-2">
-                    <div>
-                        <label class="text-xs">Display</label>
-                        <select id="display-select" class="property-input" oninput="app.updateElementStyle('display', this.value)">
-                            <option value="block">Block</option>
-                            <option value="flex">Flex</option>
-                            <option value="inline-block">Inline-Block</option>
-                            <option value="none">None</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="text-xs">Position</label>
-                        <select id="position-select" class="property-input" oninput="app.updateElementStyle('position', this.value)">
-                            <option value="static">Static</option>
-                            <option value="relative">Relative</option>
-                            <option value="absolute">Absolute</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-2">
-                    <div><label class="text-xs">Width</label><input type="text" class="property-input" value="${this.getCurrentStyle('width') || 'auto'}" oninput="app.updateElementStyle('width', this.value)"></div>
-                    <div><label class="text-xs">Height</label><input type="text" class="property-input" value="${this.getCurrentStyle('height') || 'auto'}" oninput="app.updateElementStyle('height', this.value)"></div>
-                    <div><label class="text-xs">Margin</label><input type="text" class="property-input" value="${this.getCurrentStyle('margin') || ''}" oninput="app.updateElementStyle('margin', this.value)"></div>
-                    <div><label class="text-xs">Padding</label><input type="text" class="property-input" value="${this.getCurrentStyle('padding') || ''}" oninput="app.updateElementStyle('padding', this.value)"></div>
-                </div>
-                ${flexParentControls}
-            </div>`;
-        }
-
-        generateTypographyPropertiesHTML(element) {
-            return `
-            <div class="sidebar-section pb-4 mb-4">
-                <h4 class="font-medium mb-2">Typography</h4>
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="text-xs">Size</label>
-                        <input type="text" class="property-input" value="${this.getCurrentStyle('fontSize') || ''}" oninput="app.updateElementStyle('fontSize', this.value)">
-                    </div>
-                    <div>
-                        <label class="text-xs">Color</label>
-                        <input type="color" class="w-full h-8 p-0 border-0" value="${this.rgbToHex(this.getCurrentStyle('color'))}" oninput="app.updateElementStyle('color', this.value)">
-                    </div>
-                </div>
-            </div>`;
-        }
-
-        generateBackgroundPropertiesHTML(element) {
-            return `
-            <div class="sidebar-section pb-4 mb-4">
-                <h4 class="font-medium mb-2">Background</h4>
+        const componentType = element.dataset.componentType || 'element';
+        let propertiesHTML = `
+            <div class="p-4 space-y-4">
+                <h3 class="font-semibold">${componentType.charAt(0).toUpperCase() + componentType.slice(1)}</h3>
                 <div>
-                    <label class="text-xs">Color</label>
-                    <input type="color" class="w-full h-8 p-0 border-0" value="${this.rgbToHex(this.getCurrentStyle('backgroundColor'))}" oninput="app.updateElementStyle('backgroundColor', this.value)">
+                    <label class="text-sm font-medium">State</label>
+                    <select class="property-input mt-1" onchange="app.currentState = this.value; app.showProperties(app.selectedElement);">
+                        <option value="base" ${this.currentState === 'base' ? 'selected' : ''}>Base</option>
+                        <option value="hover" ${this.currentState === 'hover' ? 'selected' : ''}>Hover</option>
+                    </select>
                 </div>
+                ${this.generateFlexChildPropertiesHTML(element)}
+                ${this.generateLayoutPropertiesHTML(element)}
+                ${this.generateTypographyPropertiesHTML(element)}
+                ${this.generateBackgroundPropertiesHTML(element)}
+                ${this.generateContentEditingHTML(element)}
             </div>`;
-        }
+        panel.innerHTML = propertiesHTML;
+    }
 
-        generateContentEditingHTML(element) {
-            if (!this.getInnermostTextElement(element)) return '';
-            return `
-            <div class="sidebar-section pb-4 mb-4">
-                <h4 class="font-medium mb-2">Content</h4>
-                <textarea class="property-input h-20" oninput="app.updateElementContent(this.value)">${this.getElementText(element)}</textarea>
-            </div>`;
+    generateFlexChildPropertiesHTML(element) {
+        const parent = element.parentElement;
+        if (parent && getComputedStyle(parent).display === 'flex') {
+            return `<div class="sidebar-section">
+                <h4 class="font-medium mb-2">Flex Child</h4>
+                <div class="grid grid-cols-2 gap-2">
+                    <div><label class="text-xs">Grow</label><input type="number" class="property-input" placeholder="0" value="${this.getCurrentStyle('flexGrow') || ''}" oninput="app.updateElementStyle('flexGrow', this.value)"></div>
+                    <div><label class="text-xs">Shrink</label><input type="number" class="property-input" placeholder="1" value="${this.getCurrentStyle('flexShrink') || ''}" oninput="app.updateElementStyle('flexShrink', this.value)"></div>
+                </div></div>`;
         }
+        return '';
+    }
 
-    // --- REPLACE the existing updateElementStyle method ---
+    generateLayoutPropertiesHTML(element) {
+        const flexParentControls = getComputedStyle(element).display === 'flex' ? `<h4 class="font-medium my-2 border-t pt-2">Flex Container</h4><div class="grid grid-cols-2 gap-2">
+            <div><label class="text-xs">Direction</label><select class="property-input" oninput="app.updateElementStyle('flexDirection', this.value)" value="${this.getCurrentStyle('flexDirection') || 'row'}"><option value="row">Row</option><option value="column">Column</option></select></div>
+            <div><label class="text-xs">Align Items</label><select class="property-input" oninput="app.updateElementStyle('alignItems', this.value)" value="${this.getCurrentStyle('alignItems') || 'stretch'}"><option value="stretch">Stretch</option><option value="flex-start">Start</option><option value="center">Center</option><option value="flex-end">End</option></select></div>
+            <div><label class="text-xs">Justify Content</label><select class="property-input" oninput="app.updateElementStyle('justifyContent', this.value)" value="${this.getCurrentStyle('justifyContent') || 'flex-start'}"><option value="flex-start">Start</option><option value="center">Center</option><option value="flex-end">End</option><option value="space-between">Space Between</option></select></div>
+        </div>` : '';
+            
+        return `<div class="sidebar-section"><h4 class="font-medium mb-2">Layout & Sizing</h4><div class="grid grid-cols-2 gap-2 mb-2">
+            <div><label class="text-xs">Display</label><select class="property-input" oninput="app.updateElementStyle('display', this.value)" value="${this.getCurrentStyle('display') || 'block'}"><option value="block">Block</option><option value="flex">Flex</option><option value="inline-block">Inline-Block</option><option value="none">None</option></select></div>
+            <div><label class="text-xs">Position</label><select class="property-input" oninput="app.updateElementStyle('position', this.value)" value="${this.getCurrentStyle('position') || 'static'}"><option value="static">Static</option><option value="relative">Relative</option><option value="absolute">Absolute</option></select></div>
+            <div><label class="text-xs">Width</label><input type="text" class="property-input" value="${this.getCurrentStyle('width') || 'auto'}" oninput="app.updateElementStyle('width', this.value)"></div>
+            <div><label class="text-xs">Height</label><input type="text" class="property-input" value="${this.getCurrentStyle('height') || 'auto'}" oninput="app.updateElementStyle('height', this.value)"></div>
+            <div><label class="text-xs">Margin</label><input type="text" class="property-input" value="${this.getCurrentStyle('margin') || ''}" oninput="app.updateElementStyle('margin', this.value)"></div>
+            <div><label class="text-xs">Padding</label><input type="text" class="property-input" value="${this.getCurrentStyle('padding') || ''}" oninput="app.updateElementStyle('padding', this.value)"></div>
+        </div>${flexParentControls}</div>`;
+    }
+
+    generateTypographyPropertiesHTML(element) {
+        return `<div class="sidebar-section"><h4 class="font-medium mb-2">Typography</h4><div class="grid grid-cols-2 gap-2">
+            <div><label class="text-xs">Size</label><input type="text" class="property-input" value="${this.getCurrentStyle('fontSize') || ''}" oninput="app.updateElementStyle('fontSize', this.value)"></div>
+            <div><label class="text-xs">Color</label><input type="color" class="w-full h-8" value="${this.rgbToHex(this.getCurrentStyle('color'))}" oninput="app.updateElementStyle('color', this.value)"></div>
+        </div></div>`;
+    }
+
+    generateBackgroundPropertiesHTML(element) {
+        return `<div class="sidebar-section"><h4 class="font-medium mb-2">Background</h4>
+            <label class="text-xs">Color</label><input type="color" class="w-full h-8" value="${this.rgbToHex(this.getCurrentStyle('backgroundColor'))}" oninput="app.updateElementStyle('backgroundColor', this.value)">
+        </div>`;
+    }
+
+    generateContentEditingHTML(element) {
+         if (!this.getInnermostTextElement(element)) return '';
+         return `<div class="sidebar-section"><h4 class="font-medium mb-2">Content</h4>
+            <textarea class="property-input h-20" oninput="app.updateElementContent(this.value)">${this.getElementText(element)}</textarea>
+         </div>`;
+    }
+
+    //
+    // --- STYLING & STATE LOGIC ---
+    //
+    
     updateElementStyle(property, value) {
         if (!this.selectedElement) return;
-
         let styles = {};
-        try {
-            styles = JSON.parse(this.selectedElement.dataset.styles || '{}');
-        } catch (e) {
-            styles = { base: {}, hover: {} };
-        }
+        try { styles = JSON.parse(this.selectedElement.dataset.styles || '{}'); } catch (e) { styles = {}; }
 
-        // Ensure the nested structure for state and breakpoint exists
         if (!styles[this.currentState]) styles[this.currentState] = {};
         if (!styles[this.currentState][this.currentBreakpoint]) styles[this.currentState][this.currentBreakpoint] = {};
 
-        // Save the style value to our data object
         styles[this.currentState][this.currentBreakpoint][property] = value;
-
-        // Save font for loading in final export
-        if (property === 'fontFamily' && value) {
-            this.loadGoogleFont(value.split(',')[0].replace(/'/g, '').trim());
-        }
-
-        // Write the updated styles back to the element's dataset
         this.selectedElement.dataset.styles = JSON.stringify(styles);
-        
-        // Re-apply all styles to reflect the change immediately
         this.applyAllStyles(this.selectedElement);
-        
-        // Update the properties panel to show responsive indicators if needed
-        this.showProperties(this.selectedElement);
-        
         this.saveToHistory();
     }
+    
 
 
     // --- REPLACE the existing applyAllStyles method ---

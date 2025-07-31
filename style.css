@@ -49,14 +49,6 @@ font-size: 12px;
 z-index: 11;
 }
 
-/* Add this new block of CSS */
-.canvas-element .drop-zone {
-    min-height: 50px;
-    padding: 1rem;
-    border: 2px dashed #cbd5e1; /* A lighter gray border */
-    background-color: rgba(241, 245, 249, 0.6);
-    transition: background-color 0.2s ease-in-out;
-}
 
 .canvas-element .drop-zone.drag-over {
     background-color: rgba(59, 130, 246, 0.1);
