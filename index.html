@@ -11,6 +11,38 @@
     <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
     <style>
 
+        .selection-box {
+            position: absolute;
+            border: 2px solid #3b82f6;
+            pointer-events: none; /* The box itself shouldn't be interactive */
+            z-index: 100;
+            display: none; /* Initially hidden */
+        }
+
+        .selection-box.active {
+            display: block;
+        }
+
+        .resizer {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #3b82f6;
+            border: 1px solid white;
+            border-radius: 50%;
+            pointer-events: all; /* Resizers MUST be interactive */
+            z-index: 101;
+        }
+
+        .resizer.top-left { top: -5px; left: -5px; cursor: nwse-resize; }
+        .resizer.top-center { top: -5px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
+        .resizer.top-right { top: -5px; right: -5px; cursor: nesw-resize; }
+        .resizer.middle-left { top: 50%; left: -5px; transform: translateY(-50%); cursor: ew-resize; }
+        .resizer.middle-right { top: 50%; right: -5px; transform: translateY(-50%); cursor: ew-resize; }
+        .resizer.bottom-left { bottom: -5px; left: -5px; cursor: nesw-resize; }
+        .resizer.bottom-center { bottom: -5px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
+        .resizer.bottom-right { bottom: -5px; right: -5px; cursor: nwse-resize; }
+
         .canvas-element .element-controls {
         position: absolute;
         top: -20px;
@@ -31,15 +63,6 @@
         .canvas-element.selected{
         outline:2px solid #3b82f6; outline-offset:2px; background:rgba(59,130,246,.05);
         }
-        .gjs-resizer{
-        position:absolute; width:10px; height:10px; background:#3b82f6;
-        border:1px solid #fff; border-radius:50%; z-index:10; display:none;
-        }
-        .canvas-element.selected .gjs-resizer{display:block;}
-        .gjs-resizer.nw{top:-5px;left:-5px;cursor:nwse-resize;}
-        .gjs-resizer.ne{top:-5px;right:-5px;cursor:nesw-resize;}
-        .gjs-resizer.sw{bottom:-5px;left:-5px;cursor:nesw-resize;}
-        .gjs-resizer.se{bottom:-5px;right:-5px;cursor:nwse-resize;}
 
         /* Add this to your <style> block */
         .layer-item.active-layer {
@@ -89,31 +112,6 @@
             border-radius: 50%;
             pointer-events: all;
         }
-        .resizer.top-left { top: 0; left: 0; cursor: nwse-resize; transform: translate(-50%, -50%); }
-        .resizer.top-right { top: 0; right: 0; cursor: nesw-resize; transform: translate(50%, -50%); }
-        .resizer.bottom-left { bottom: 0; left: 0; cursor: nesw-resize; transform: translate(-50%, 50%); }
-        .resizer.bottom-right { bottom: 0; right: 0; cursor: nwse-resize; transform: translate(50%, 50%); }
-        .resizer.top-center { top: 0; left: 50%; cursor: ns-resize; transform: translate(-50%, -50%); }
-        .resizer.bottom-center { bottom: 0; left: 50%; cursor: ns-resize; transform: translate(-50%, 50%); }
-        .resizer.left-center { top: 50%; left: 0; cursor: ew-resize; transform: translate(-50%, -50%); }
-        .resizer.right-center { top: 50%; right: 0; cursor: ew-resize; transform: translate(50%, -50%); }
-        .resizer.top-left { top: -5px; left: -5px; cursor: nwse-resize; }
-        .resizer.top-right { top: -5px; right: -5px; cursor: nesw-resize; }
-        .resizer.bottom-left { bottom: -5px; left: -5px; cursor: nesw-resize; }
-        .resizer.bottom-right { bottom: -5px; right: -5px; cursor: nwse-resize; }
-        .resizer.top-center { top: -5px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
-        .resizer.bottom-center { bottom: -5px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
-        .resizer.left-center { top: 50%; left: -5px; transform: translateY(-50%); cursor: ew-resize; }
-        .resizer.right-center { top: 50%; right: -5px; transform: translateY(-50%); cursor: ew-resize; }
-
-        .resizer.top-left { top: 0; left: 0; cursor: nwse-resize; }
-        .resizer.top-right { top: 0; right: 0; cursor: nesw-resize; }
-        .resizer.bottom-left { bottom: 0; left: 0; cursor: nesw-resize; }
-        .resizer.bottom-right { bottom: 0; right: 0; cursor: nwse-resize; }
-        .resizer.top-center { top: 0; left: 50%; cursor: ns-resize; }
-        .resizer.bottom-center { bottom: 0; left: 50%; cursor: ns-resize; }
-        .resizer.left-center { top: 50%; left: 0; cursor: ew-resize; }
-        .resizer.right-center { top: 50%; right: 0; cursor: ew-resize; }
 
         .component-item {
             transition: all 0.2s ease;
@@ -381,6 +379,19 @@
                     </div>
                 </div>
             </div>
+
+                <div id="selection-box" class="selection-box">
+                    <div class="resizer top-left"></div>
+                    <div class="resizer top-center"></div>
+                    <div class="resizer top-right"></div>
+                    <div class="resizer middle-left"></div>
+                    <div class="resizer middle-right"></div>
+                    <div class="resizer bottom-left"></div>
+                    <div class="resizer bottom-center"></div>
+                    <div class="resizer bottom-right"></div>
+                </div>
+
+
         </div>
 
         <!-- Right Sidebar - Properties -->
@@ -463,6 +474,93 @@
                 this.globalStyles = {};
                 this.currentState = 'base';
                 this.init();
+            }
+
+            setupResizing() {
+                const selectionBox = document.getElementById('selection-box');
+                const resizers = selectionBox.querySelectorAll('.resizer');
+                let initialRect;
+                let currentResizer;
+
+                const onResizeMouseDown = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    currentResizer = e.target;
+                    this.isResizing = true;
+                    initialRect = this.selectedElement.getBoundingClientRect();
+
+                    document.addEventListener('mousemove', onResizeMouseMove);
+                    document.addEventListener('mouseup', onResizeMouseUp);
+                };
+
+                const onResizeMouseMove = (e) => {
+                    if (!this.isResizing || !this.selectedElement) return;
+
+                    const style = this.selectedElement.style;
+                    const zoom = parseFloat(document.getElementById('zoom-slider').value) / 100;
+
+                    const deltaX = (e.clientX - initialRect.left) / zoom;
+                    const deltaY = (e.clientY - initialRect.top) / zoom;
+                    const startX = e.clientX;
+                    const startY = e.clientY;
+
+
+                    if (currentResizer.classList.contains('bottom-right')) {
+                        style.width = initialRect.width / zoom + (e.clientX - initialRect.right) / zoom + 'px';
+                        style.height = initialRect.height / zoom + (e.clientY - initialRect.bottom) / zoom + 'px';
+                    } else if (currentResizer.classList.contains('bottom-left')) {
+                        style.width = initialRect.width / zoom - (e.clientX - initialRect.left) / zoom + 'px';
+                        style.height = initialRect.height / zoom + (e.clientY - initialRect.bottom) / zoom + 'px';
+                        style.left = initialRect.left + (e.clientX - initialRect.left) + 'px';
+                    } else if (currentResizer.classList.contains('top-right')) {
+                        style.width = initialRect.width / zoom + (e.clientX - initialRect.right) / zoom + 'px';
+                        style.height = initialRect.height / zoom - (e.clientY - initialRect.top) / zoom + 'px';
+                        style.top = initialRect.top + (e.clientY - initialRect.top) + 'px';
+                    } else if (currentResizer.classList.contains('top-left')) {
+                        style.width = initialRect.width / zoom - (e.clientX - initialRect.left) / zoom + 'px';
+                        style.height = initialRect.height / zoom - (e.clientY - initialRect.top) / zoom + 'px';
+                        style.left = initialRect.left + (e.clientX - initialRect.left) + 'px';
+                        style.top = initialRect.top + (e.clientY - initialRect.top) + 'px';
+                    } else if (currentResizer.classList.contains('top-center')) {
+                        style.height = initialRect.height / zoom - (e.clientY - initialRect.top) / zoom + 'px';
+                        style.top = initialRect.top + (e.clientY - initialRect.top) + 'px';
+                    } else if (currentResizer.classList.contains('bottom-center')) {
+                        style.height = initialRect.height / zoom + (e.clientY - initialRect.bottom) / zoom + 'px';
+                    } else if (currentResizer.classList.contains('middle-left')) {
+                        style.width = initialRect.width / zoom - (e.clientX - initialRect.left) / zoom + 'px';
+                        style.left = initialRect.left + (e.clientX - initialRect.left) + 'px';
+                    } else if (currentResizer.classList.contains('middle-right')) {
+                        style.width = initialRect.width / zoom + (e.clientX - initialRect.right) / zoom + 'px';
+                    }
+                    this.updateSelectionBox(); // Update the box position as we resize
+                };
+
+                const onResizeMouseUp = () => {
+                    this.isResizing = false;
+                    document.removeEventListener('mousemove', onResizeMouseMove);
+                    document.removeEventListener('mouseup', onResizeMouseUp);
+                    this.saveToHistory();
+                };
+
+                resizers.forEach(resizer => {
+                    resizer.addEventListener('mousedown', onResizeMouseDown);
+                });
+            }
+
+            updateSelectionBox() {
+                const selectionBox = document.getElementById('selection-box');
+                if (!this.selectedElement) {
+                    selectionBox.classList.remove('active');
+                    return;
+                }
+                const rect = this.selectedElement.getBoundingClientRect();
+                const canvasRect = document.getElementById('scroll-area').getBoundingClientRect();
+
+                selectionBox.style.left = (rect.left - canvasRect.left + document.getElementById('scroll-area').scrollLeft) + 'px';
+                selectionBox.style.top = (rect.top - canvasRect.top + document.getElementById('scroll-area').scrollTop) + 'px';
+                selectionBox.style.width = rect.width + 'px';
+                selectionBox.style.height = rect.height + 'px';
+                selectionBox.classList.add('active');
             }
 
             updateChildElementStyle(selector, property, value) {
@@ -560,7 +658,7 @@
                 this.setupDragAndDrop();
                 this.loadComponents();
                 this.setupMonacoEditor();
-            //    this.setupResizing();
+                this.setupResizing();
                 this.loadFromLocalStorage();
             }
 
@@ -1134,53 +1232,36 @@
             }
 
             selectElement(element) {
-                if (this.selectedElement === element) return; 
-
-                const selectionWrapper = document.getElementById('selection-wrapper');
-
-                // --- CRITICAL: Fully reset the PREVIOUSLY selected element ---
+                if (this.isResizing) return;
                 if (this.selectedElement) {
-                    this.selectedElement.classList.remove('selected', 'is-editing');
-                    this.selectedElement.draggable = true; // Ensure it's always draggable when not selected
-                    const oldEditIcon = this.selectedElement.querySelector('.fa-check');
-                    if (oldEditIcon) oldEditIcon.classList.replace('fa-check', 'fa-edit');
+                    this.selectedElement.classList.remove('selected');
                 }
-                // --- END RESET ---
 
-                // Select the new element in a clean state
-                element.classList.add('selected');
-                document.getElementById('selection-wrapper').classList.add('hidden');
                 this.selectedElement = element;
+                this.selectedElement.classList.add('selected');
                 
                 this.showProperties(element);
-                selectionWrapper.classList.add('hidden'); 
                 this.updateBreadcrumbs();
-                
+                this.updateSelectionBox();
+
                 document.querySelectorAll('.layer-item.active-layer').forEach(item => item.classList.remove('active-layer'));
                 const activeLayer = document.querySelector(`.layer-item[data-element-id="${element.dataset.elementId}"]`);
                 if (activeLayer) activeLayer.classList.add('active-layer');
             }
-
+            
             handleCanvasClick(e) {
-                // If the click is on any element or its controls, do nothing.
-                if (e.target.closest('.canvas-element, .element-controls')) return;
-                selectionWrapper.classList.remove('hidden');
+                if (e.target.closest('.canvas-element')) return;
 
                 if (this.selectedElement) {
-                    // Fully reset the element's state when deselecting.
-                    this.selectedElement.classList.remove('selected', 'is-editing');
-                    const oldEditIcon = this.selectedElement.querySelector('.fa-check');
-                    if(oldEditIcon) oldEditIcon.classList.replace('fa-check', 'fa-edit');
+                    this.selectedElement.classList.remove('selected');
                     this.selectedElement = null;
                 }
                 
-                // Reset the entire UI to its default state.
                 document.getElementById('properties-panel').innerHTML = `<div class="p-4 text-center text-gray-500"><i class="fas fa-mouse-pointer text-3xl mb-2 block"></i><p>Select an element to edit its properties</p></div>`;
-                document.getElementById('selection-wrapper').classList.add('hidden');
+                this.updateSelectionBox(); // This will hide the box
                 this.updateBreadcrumbs();
                 document.querySelectorAll('.layer-item.active-layer').forEach(item => item.classList.remove('active-layer'));
-            }
-            
+            }            
             showProperties(element) {
                 const panel = document.getElementById('properties-panel');
                 const componentType = element.dataset.componentType;
@@ -1469,7 +1550,6 @@
                 }
             }
 
-            // MODIFY this entire function
             updateElementStyle(property, value) {
                 if (!this.selectedElement) return;
 
@@ -1478,48 +1558,66 @@
                     styles = JSON.parse(this.selectedElement.dataset.styles || '{}');
                 } catch (e) { styles = {}; }
 
+                // Ensure state and breakpoint objects exist
                 if (!styles[this.currentState]) styles[this.currentState] = {};
                 if (!styles[this.currentState][this.currentBreakpoint]) styles[this.currentState][this.currentBreakpoint] = {};
 
                 styles[this.currentState][this.currentBreakpoint][property] = value;
-
+                
                 if (property === 'fontFamily' && value) {
                     this.loadGoogleFont(value.split(',')[0].replace(/'/g, ''));
                 }
 
                 this.selectedElement.dataset.styles = JSON.stringify(styles);
-
-                this.applyAllStyles(this.selectedElement);
+                
+                this.applyAllStyles(this.selectedElement); // Re-apply all styles
+                this.saveToHistory();
             }
-            
+
             applyAllStyles(element) {
+                if (!element || !element.dataset.styles) return;
+
                 // Clear all previous inline styles to start fresh
                 element.style.cssText = '';
 
                 let allStylesData = {};
                 try {
-                    // Load the entire style object (which includes 'base', 'hover', etc.)
                     allStylesData = JSON.parse(element.dataset.styles || '{}');
                 } catch (e) { return; }
 
-                // Specifically get the 'base' styles, which are the default
                 const baseStyles = allStylesData['base'] || {};
+                const hoverStyles = allStylesData['hover'] || {};
 
-                // Apply styles in the correct cascading order
-                // 1. Always start with desktop base styles
+                // 1. Apply base styles in cascading order (Desktop -> Tablet -> Mobile)
                 Object.assign(element.style, baseStyles['desktop'] || {});
-
-                // 2. If on tablet, apply tablet styles over desktop ones
-                if (this.currentBreakpoint === 'tablet') {
+                if (this.currentBreakpoint === 'tablet' || this.currentBreakpoint === 'mobile') {
                     Object.assign(element.style, baseStyles['tablet'] || {});
                 }
-                
-                // 3. If on mobile, apply tablet styles, then mobile styles to override
                 if (this.currentBreakpoint === 'mobile') {
-                    Object.assign(element.style, baseStyles['tablet'] || {});
                     Object.assign(element.style, baseStyles['mobile'] || {});
                 }
+
+                // 2. Setup live hover preview in the editor
+                element.removeEventListener('mouseenter', this.applyHoverStyles);
+                element.removeEventListener('mouseleave', () => this.applyAllStyles(element)); // Re-apply base on leave
+
+                element.hoverStyleStore = hoverStyles; // Store hover styles on the element
+                element.applyHoverStyles = () => {
+                    const stylesToApply = element.hoverStyleStore;
+                    if (!stylesToApply) return;
+                    Object.assign(element.style, stylesToApply['desktop'] || {});
+                     if (this.currentBreakpoint === 'tablet' || this.currentBreakpoint === 'mobile') {
+                        Object.assign(element.style, stylesToApply['tablet'] || {});
+                    }
+                    if (this.currentBreakpoint === 'mobile') {
+                        Object.assign(element.style, stylesToApply['mobile'] || {});
+                    }
+                };
+                
+                element.addEventListener('mouseenter', element.applyHoverStyles);
+                element.addEventListener('mouseleave', () => this.applyAllStyles(element));
             }
+
             updateElementContent(content) {
                 if (this.selectedElement) {
                     const textElement = this.selectedElement.querySelector('p, h1, h2, h3, h4, h5, h6, button, label');
@@ -1920,7 +2018,15 @@
 
             reattachEventListeners() {
                 document.querySelectorAll('.canvas-element').forEach(element => {
-                    this._bindElementEvents(element);
+                    // The old _bindElementEvents is gone, so we don't call it.
+                    // Instead, we add a click listener to select the element.
+                    element.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.selectElement(e.currentTarget);
+                    });
+                    
+                    // CRITICAL: Re-apply styles to make sure hover effects and responsive design works on load.
+                    this.applyAllStyles(element);
                 });
             }
 
