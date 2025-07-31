@@ -27,45 +27,48 @@ class WebBuilderPro {
 
     // ADD THIS ENTIRE NEW METHOD
     bindInteractiveEvents(el) {
-        // We will use one 'mousedown' event to handle both selecting and initiating a drag.
+        // 1. Single Click to Select
+        el.addEventListener('mousedown', (e) => {
+            // Only trigger selection on a primary button click and not on a resizer handle
+            if (e.button !== 0 || e.target.classList.contains('resizer')) {
+                return;
+            }
+            e.stopPropagation();
+            this.selectElement(el);
+        });
+
+        // 2. Drag to Move
         el.addEventListener('mousedown', (e) => {
             if (e.button !== 0 || e.target.classList.contains('resizer')) {
-                return; // Do nothing for right-clicks or resizer handles.
+                return;
             }
+            e.preventDefault();
+            e.stopPropagation();
 
-            e.stopPropagation(); // Stop the event from bubbling up to the canvas.
-            this.selectElement(el);
+            const initialX = e.clientX;
+            const initialY = e.clientY;
+            const initialTop = el.offsetTop;
+            const initialLeft = el.offsetLeft;
+            const zoom = parseFloat(document.getElementById('zoom-slider').value) / 100;
 
-            // ONLY start a "drag-to-move" if the element is absolutely positioned.
-            if (el.style.position === 'absolute') {
-                e.preventDefault(); // Prevent text selection while dragging.
+            const onDragMove = (moveEvent) => {
+                const dx = (moveEvent.clientX - initialX) / zoom;
+                const dy = (moveEvent.clientY - initialY) / zoom;
+                el.style.top = (initialTop + dy) + 'px';
+                el.style.left = (initialLeft + dx) + 'px';
+                this.updateSelectionBox();
+            };
 
-                const initialX = e.clientX;
-                const initialY = e.clientY;
-                const initialTop = el.offsetTop;
-                const initialLeft = el.offsetLeft;
-                const zoom = parseFloat(document.getElementById('zoom-slider').value) / 100;
+            const onDragEnd = () => {
+                document.removeEventListener('mousemove', onDragMove);
+                document.removeEventListener('mouseup', onDragEnd);
+                this.saveToHistory();
+            };
 
-                const onDragMove = (moveEvent) => {
-                    const dx = (moveEvent.clientX - initialX) / zoom;
-                    const dy = (moveEvent.clientY - initialY) / zoom;
-                    el.style.top = (initialTop + dy) + 'px';
-                    el.style.left = (initialLeft + dx) + 'px';
-                    this.updateSelectionBox();
-                };
-
-                const onDragEnd = () => {
-                    document.removeEventListener('mousemove', onDragMove);
-                    document.removeEventListener('mouseup', onDragEnd);
-                    this.saveToHistory();
-                };
-
-                document.addEventListener('mousemove', onDragMove);
-                document.addEventListener('mouseup', onDragEnd);
-            }
+            document.addEventListener('mousemove', onDragMove);
+            document.addEventListener('mouseup', onDragEnd);
         });
     }
-
 
     setupResizing() {
         const selectionBox = document.getElementById('selection-box');
@@ -420,120 +423,80 @@ class WebBuilderPro {
         // --- END CONTEXT MENU LOGIC ---
 
         // Keyboard shortcuts
-        // --- INSIDE THE setupEventListeners METHOD ---
-
         document.addEventListener('keydown', (e) => {
-            // --- REMOVE the old 'keydown' event listener logic ---
-            // --- ADD the following new logic ---
+            // --- START ADDING/MODIFYING HERE ---
 
-            // Don't trigger shortcuts if user is typing in an input/textarea
-            if (e.target.matches('input, textarea, [contenteditable="true"]')) {
-                return;
-            }
+            // 1. Check for a selected element first
+            if (this.selectedElement && !e.target.matches('input, textarea')) {
+                // Prevent browser default action for arrow keys when an element is selected
+                if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                        e.preventDefault();
+                }
 
-            // 1. Handle element movement with arrow keys
-            if (this.selectedElement && !this.isResizing) {
-                const moveKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
-                if (moveKeys.includes(e.key)) {
-                    e.preventDefault(); // Prevent browser from scrolling
-                    const moveAmount = e.shiftKey ? 10 : 1; // Move by 10px if Shift is held
-
-                    // Ensure the element's position is not static
-                    if (this.selectedElement.style.position === 'absolute') {
-                        switch(e.key) {
-                            case 'ArrowUp':
-                                this.selectedElement.style.top = (parseInt(this.selectedElement.style.top, 10) || 0) - moveAmount + 'px';
-                                break;
-                            case 'ArrowDown':
-                                this.selectedElement.style.top = (parseInt(this.selectedElement.style.top, 10) || 0) + moveAmount + 'px';
-                                break;
-                            case 'ArrowLeft':
-                                this.selectedElement.style.left = (parseInt(this.selectedElement.style.left, 10) || 0) - moveAmount + 'px';
-                                break;
-                            case 'ArrowRight':
-                                this.selectedElement.style.left = (parseInt(this.selectedElement.style.left, 10) || 0) + moveAmount + 'px';
-                                break;
-                        }
-                        this.updateSelectionBox(); // Instantly update the selection box
-                        // Defer history save until mouse up or key up to group movements
-                        // For now, saving on each move is okay for simplicity
-                        this.saveToHistory();
-                    }
+                // Arrow Key Movement
+                const moveAmount = e.shiftKey ? 10 : 1; // Move by 10px if Shift is held
+                switch(e.key) {
+                    case 'ArrowUp':
+                        this.selectedElement.style.top = (parseFloat(this.selectedElement.style.top) || 0) - moveAmount + 'px';
+                        break;
+                    case 'ArrowDown':
+                        this.selectedElement.style.top = (parseFloat(this.selectedElement.style.top) || 0) + moveAmount + 'px';
+                        break;
+                    case 'ArrowLeft':
+                        this.selectedElement.style.left = (parseFloat(this.selectedElement.style.left) || 0) - moveAmount + 'px';
+                        break;
+                    case 'ArrowRight':
+                        this.selectedElement.style.left = (parseFloat(this.selectedElement.style.left) || 0) + moveAmount + 'px';
+                        break;
+                }
+                // Update the selection box after moving
+                if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                    this.updateSelectionBox();
+                    // We can choose to save on every move, or on mouseup after moving. For simplicity, we save now.
+                    this.saveToHistory();
                 }
             }
 
             // 2. Handle Ctrl/Meta key combinations
             if (e.ctrlKey || e.metaKey) {
-                switch(e.key.toLowerCase()) {
+                switch(e.key.toLowerCase()) { // Use toLowerCase to catch 'd' and 'D'
                     case 'z':
                         e.preventDefault();
-                        e.shiftKey ? this.redo() : this.undo();
+                        if (e.shiftKey) {
+                            this.redo();
+                        } else {
+                            this.undo();
+                        }
                         break;
                     case 's':
                         e.preventDefault();
                         this.save();
                         break;
+                    // Add new case for Duplication
+                    // Replace this entire case block
                     case 'd':
                         e.preventDefault();
                         if (this.selectedElement) {
                             const clone = this.selectedElement.cloneNode(true);
                             clone.dataset.elementId = this.generateId();
-
-                            // Reset position slightly to see the new element
-                            if(clone.style.position === 'absolute'){
-                            clone.style.top = (parseInt(clone.style.top, 10) || 0) + 10 + 'px';
-                            clone.style.left = (parseInt(clone.style.left, 10) || 0) + 10 + 'px';
-                            }
                             
-                            // We must re-bind all events to the new clone and its children
-                            this.reattachEventListenersToElement(clone);
+                            // Apply styles AND BIND EVENTS to the new clone
+                            this.applyAllStyles(clone); 
+                            this.bindInteractiveEvents(clone);
 
                             this.selectedElement.after(clone);
-                            this.selectElement(clone); // Select the new duplicated element
-                            this.saveToHistory();
-                        }
-                        break;
-                    case 'c':
-                        if (this.selectedElement) {
-                            e.preventDefault();
-                            this.clipboard = {
-                                html: this.selectedElement.innerHTML,
-                                styles: this.selectedElement.dataset.styles,
-                                componentType: this.selectedElement.dataset.componentType,
-                                fullHTML: this.selectedElement.outerHTML,
-                            };
-                            const notification = this.showNotification('Copied to clipboard!');
-                            setTimeout(() => notification.remove(), 2000);
-                        }
-                        break;
-                    case 'v':
-                        if(this.clipboard && this.selectedElement?.parentElement) {
-                            e.preventDefault();
-                            const newElement = document.createElement('div');
-                            newElement.outerHTML = this.clipboard.fullHTML;
-                            const pastedElement = newElement; // We actually need the element itself
-                            pastedElement.dataset.elementId = this.generateId();
-                            
-                            this.reattachEventListenersToElement(pastedElement);
-                            this.selectedElement.parentElement.appendChild(pastedElement);
-                            this.selectElement(pastedElement);
+                            this.selectElement(clone); // Select the new element
                             this.saveToHistory();
                         }
                         break;
 
                 }
             }
-            
-            // 3. Handle Delete key
-            if (e.key === 'Delete' || e.key === 'Backspace') {
-                if (this.selectedElement) {
-                    e.preventDefault();
-                    this.deleteElement(this.selectedElement);
-                }
+            if (e.key === 'Delete' && this.selectedElement) {
+                this.deleteElement(this.selectedElement);
             }
+            // --- END ADDING/MODIFYING HERE ---
         });
-
-        // --- End of new keydown listener logic ---
 
         document.getElementById('add-class-btn').addEventListener('click', () => {
             const classNameInput = document.getElementById('new-class-name');
@@ -816,37 +779,29 @@ class WebBuilderPro {
         const component = this.components.get(componentType);
         if (!component) return;
 
+
         const element = document.createElement('div');
         element.className = 'canvas-element';
-        // **** IMPORTANT: All new elements must be positioned absolutely to be moved. ****
         element.style.position = 'absolute';
         element.innerHTML = component.html;
         element.dataset.componentType = componentType;
         element.dataset.elementId = this.generateId();
-
-        // ** NEW: Set draggable to true so it can be moved on the canvas **
         element.draggable = true;
 
         if (component.defaultStyles) {
             Object.assign(element.style, component.defaultStyles);
         }
-        
-        // ** NEW: Calculate drop position correctly **
-        const canvasRect = document.getElementById('canvas').getBoundingClientRect();
-        const zoom = parseFloat(document.getElementById('zoom-slider').value) / 100;
-        const dropX = (event.clientX - canvasRect.left) / zoom;
-        const dropY = (event.clientY - canvasRect.top) / zoom;
-        element.style.left = dropX + 'px';
-        element.style.top = dropY + 'px';
-        
-        // This MUST be called *after* setting its properties and position
+
+        const controls = document.createElement('div');
+        controls.className = 'element-controls';
+        controls.innerHTML = `<i class="fas fa-trash cursor-pointer" onclick="event.stopPropagation(); app.deleteElement(this.closest('.canvas-element'))"></i>`;
+        element.appendChild(controls);
         this.bindInteractiveEvents(element);
 
         // Find drop position and append
-        const targetContainer = document.getElementById('canvas'); // Simplify to always drop on main canvas
-        targetContainer.appendChild(element);
-        
-        this.selectElement(element); // Select the newly created element
+        let targetContainer = event.target.closest('.drop-zone') || document.getElementById('canvas');
+        targetContainer.appendChild(element); // This MUST be before selectElement
+
         this.saveToHistory();
         this.updateLayersTree();
     }
@@ -867,26 +822,21 @@ class WebBuilderPro {
         document.querySelectorAll('.layer-item.active-layer').forEach(item => item.classList.remove('active-layer'));
         const activeLayer = document.querySelector(`.layer-item[data-element-id="${element.dataset.elementId}"]`);
         if (activeLayer) activeLayer.classList.add('active-layer');
-    }    
-        handleCanvasClick(e) {
-            // This function is now the single source of truth for deselection.
-            // It's called when clicking on the canvas directly.
-            const clickedElement = e.target.closest('.canvas-element');
+    }
+    
+    handleCanvasClick(e) {
+        if (e.target.closest('.canvas-element')) return;
 
-            if (!clickedElement && this.selectedElement) {
-                this.selectedElement.classList.remove('selected');
-                this.selectedElement = null;
-
-                // Hide the properties panel and selection box
-                document.getElementById('properties-panel').innerHTML = `<div class="p-4 text-center text-gray-500"><i class="fas fa-mouse-pointer text-3xl mb-2 block"></i><p>Select an element to edit its properties</p></div>`;
-                this.updateSelectionBox(); // Hides the box
-                this.updateBreadcrumbs();
-
-                // Clear active layer in the layers panel
-                document.querySelectorAll('.layer-item.active-layer').forEach(item => item.classList.remove('active-layer'));
-            }
+        if (this.selectedElement) {
+            this.selectedElement.classList.remove('selected');
+            this.selectedElement = null;
         }
-          
+        
+        document.getElementById('properties-panel').innerHTML = `<div class="p-4 text-center text-gray-500"><i class="fas fa-mouse-pointer text-3xl mb-2 block"></i><p>Select an element to edit its properties</p></div>`;
+        this.updateSelectionBox(); // This will hide the box
+        this.updateBreadcrumbs();
+        document.querySelectorAll('.layer-item.active-layer').forEach(item => item.classList.remove('active-layer'));
+    }            
     showProperties(element) {
         const panel = document.getElementById('properties-panel');
         const componentType = element.dataset.componentType;
@@ -1175,102 +1125,84 @@ class WebBuilderPro {
         }
     }
 
-    // --- REPLACE the existing updateElementStyle method ---
+    // REPLACE the entire old method with this one.
     updateElementStyle(property, value) {
         if (!this.selectedElement) return;
 
+        const typographyProps = ['color', 'fontFamily', 'fontSize', 'fontWeight', 'textAlign', 'lineHeight'];
         let styles = {};
         try {
             styles = JSON.parse(this.selectedElement.dataset.styles || '{}');
-        } catch (e) {
-            styles = { base: {}, hover: {} };
-        }
+        } catch (e) { styles = {}; }
 
-        // Ensure the nested structure for state and breakpoint exists
+        // Ensure state and breakpoint objects exist
         if (!styles[this.currentState]) styles[this.currentState] = {};
         if (!styles[this.currentState][this.currentBreakpoint]) styles[this.currentState][this.currentBreakpoint] = {};
 
-        // Save the style value to our data object
         styles[this.currentState][this.currentBreakpoint][property] = value;
-
-        // Save font for loading in final export
+        
         if (property === 'fontFamily' && value) {
-            this.loadGoogleFont(value.split(',')[0].replace(/'/g, '').trim());
+            this.loadGoogleFont(value.split(',')[0].replace(/'/g, ''));
         }
 
-        // Write the updated styles back to the element's dataset
         this.selectedElement.dataset.styles = JSON.stringify(styles);
         
-        // Re-apply all styles to reflect the change immediately
-        this.applyAllStyles(this.selectedElement);
+        // --- INTELLIGENT STYLE APPLICATION ---
+        const targetTextElement = this.getInnermostTextElement(this.selectedElement);
+        if (typographyProps.includes(property) && targetTextElement) {
+            // If it's a typography property, apply it to the inner text element
+            targetTextElement.style[property] = value;
+        } else {
+            // Otherwise, apply it to the main container
+            this.selectedElement.style[property] = value;
+        }
         
-        // Update the properties panel to show responsive indicators if needed
-        this.showProperties(this.selectedElement);
-        
+        this.applyAllStyles(this.selectedElement); // Re-apply all styles for consistency
+        this.updateSelectionBox(); // Update box in case width/height changed
         this.saveToHistory();
     }
-
-
-    // --- REPLACE the existing applyAllStyles method ---
     applyAllStyles(element) {
-        if (!element || !element.dataset) return;
+        if (!element || !element.dataset.styles) return;
+
+        // Clear all previous inline styles to start fresh
+        element.style.cssText = '';
 
         let allStylesData = {};
         try {
             allStylesData = JSON.parse(element.dataset.styles || '{}');
         } catch (e) { return; }
 
-        const baseStyles = allStylesData.base || {};
+        const baseStyles = allStylesData['base'] || {};
+        const hoverStyles = allStylesData['hover'] || {};
 
-        // 1. Reset all inline styles to start from a clean slate
-        element.style.cssText = '';
-        const innerTextElement = this.getInnermostTextElement(element);
-        if (innerTextElement) {
-        innerTextElement.style.cssText = '';
+        // 1. Apply base styles in cascading order (Desktop -> Tablet -> Mobile)
+        Object.assign(element.style, baseStyles['desktop'] || {});
+        if (this.currentBreakpoint === 'tablet' || this.currentBreakpoint === 'mobile') {
+            Object.assign(element.style, baseStyles['tablet'] || {});
+        }
+        if (this.currentBreakpoint === 'mobile') {
+            Object.assign(element.style, baseStyles['mobile'] || {});
         }
 
+        // 2. Setup live hover preview in the editor
+        element.removeEventListener('mouseenter', this.applyHoverStyles);
+        element.removeEventListener('mouseleave', () => this.applyAllStyles(element)); // Re-apply base on leave
 
-        // 2. Build the final style object by cascading breakpoints
-        const finalStyle = {
-            ...(baseStyles.desktop || {}),
-            ...(baseStyles.tablet || {}),
-            ...(baseStyles.mobile || {}),
+        element.hoverStyleStore = hoverStyles; // Store hover styles on the element
+        element.applyHoverStyles = () => {
+            const stylesToApply = element.hoverStyleStore;
+            if (!stylesToApply) return;
+            Object.assign(element.style, stylesToApply['desktop'] || {});
+                if (this.currentBreakpoint === 'tablet' || this.currentBreakpoint === 'mobile') {
+                Object.assign(element.style, stylesToApply['tablet'] || {});
+            }
+            if (this.currentBreakpoint === 'mobile') {
+                Object.assign(element.style, stylesToApply['mobile'] || {});
+            }
         };
         
-        const typographyProps = ['color', 'fontFamily', 'fontSize', 'fontWeight', 'textAlign', 'lineHeight', 'textDecoration', 'fontStyle'];
-
-        // 3. Apply the final calculated styles
-        Object.entries(finalStyle).forEach(([prop, val]) => {
-            // If it is a typography property and an inner text element exists, apply there
-            if (typographyProps.includes(prop) && innerTextElement) {
-                innerTextElement.style[prop] = val;
-            } else { // Otherwise, apply to the main container element
-                element.style[prop] = val;
-            }
-        });
-
-        // 4. Manage hover effects dynamically for live preview in the editor
-        element.onmouseenter = () => {
-            const hoverStyles = allStylesData.hover || {};
-            if (Object.keys(hoverStyles).length === 0) return;
-
-            const finalHoverStyle = {
-                ...(hoverStyles.desktop || {}),
-                ...(hoverStyles.tablet || {}),
-                ...(hoverStyles.mobile || {}),
-            };
-
-            Object.entries(finalHoverStyle).forEach(([prop, val]) => {
-                if (typographyProps.includes(prop) && innerTextElement) {
-                    innerTextElement.style[prop] = val;
-                } else {
-                    element.style[prop] = val;
-                }
-            });
-        };
-
-        // On mouse leave, re-apply the base styles
-        element.onmouseleave = () => this.applyAllStyles(element);
+        element.addEventListener('mouseenter', element.applyHoverStyles);
+        element.addEventListener('mouseleave', () => this.applyAllStyles(element));
     }
 
     updateElementContent(content) {
@@ -1510,46 +1442,75 @@ class WebBuilderPro {
         return clone.innerHTML;
     }
 
-
     extractStyles() {
         let css = '';
-        const elements = document.querySelectorAll('.canvas-element[data-element-id]');
-
-        // --- Inside extractStyles() ---
-        const processStyles = (stylesObject, id) => { // <-- ADD "id" as an argument here
-            let resultCss = '';
-            for (const state in stylesObject) { // states: 'base', 'hover'
-                const pseudoClass = state === 'hover' ? ':hover' : '';
-                for (const breakpoint in stylesObject[state]) { // breakpoints: 'desktop', 'tablet', 'mobile'
-                    const styles = stylesObject[state][breakpoint];
-                    // The selector now correctly uses the 'id' passed into the function
-                    const selector = `[data-element-id="${id}"]${pseudoClass}`;
-                    const styleString = Object.entries(styles).map(([p, v]) => `${this.camelToKebab(p)}: ${v};`).join(' ');
-
-                    if (!styleString) continue;
-
-                    let finalCss = `${selector} { ${styleString} }\n`;
-                    if(breakpoint === 'tablet'){
-                        resultCss += `@media (max-width: 1023px) { ${finalCss} } \n`;
-                    } else if (breakpoint === 'mobile'){
-                        resultCss += `@media (max-width: 767px) { ${finalCss} } \n`;
-                    } else {
-                        resultCss += finalCss;
-                    }
-                }
+        for (const className in this.globalStyles) {
+            const styleObj = this.globalStyles[className];
+            const styleString = Object.entries(styleObj).map(([prop, val]) => `${this.camelToKebab(prop)}: ${val};`).join(' ');
+            if (styleString) {
+                css += `.${className} { ${styleString} }\n`;
             }
-            return resultCss;
-        };
+        }
+
+        const elements = document.querySelectorAll('.canvas-element');
+        const desktopStyles = new Map();
+        const tabletStyles = new Map();
+        const mobileStyles = new Map();
 
         elements.forEach(element => {
-            const id = element.dataset.elementId;
+            const elementId = element.dataset.elementId;
+            if (!elementId) return;
             let styles = {};
             try {
                 styles = JSON.parse(element.dataset.styles || '{}');
-            } catch(e) { return; }
+            } catch (e) { return; }
+            
+            // Add styles for the BASE state
+            if (styles.base?.desktop) desktopStyles.set(elementId, styles.base.desktop);
+            if (styles.base?.tablet) tabletStyles.set(elementId, styles.base.tablet);
+            if (styles.base?.mobile) mobileStyles.set(elementId, styles.base.mobile);
 
-            css += processStyles(styles, id); // <-- PASS the "id" to the function
+            // --- ADD THIS NEW BLOCK FOR HOVER STATE ---
+            if (styles.hover) {
+                // We'll generate a separate hover CSS string
+                let hoverCss = '';
+                const hoverDesktop = styles.hover?.desktop || {};
+                const hoverTablet = styles.hover?.tablet || {};
+                const hoverMobile = styles.hover?.mobile || {};
+
+                const hoverDesktopString = Object.entries(hoverDesktop).map(([p, v]) => `${this.camelToKebab(p)}: ${v};`).join(' ');
+                if (hoverDesktopString) css += `[data-element-id="${elementId}"]:hover { ${hoverDesktopString} }\n`;
+                
+                const hoverTabletString = Object.entries(hoverTablet).map(([p, v]) => `${this.camelToKebab(p)}: ${v};`).join(' ');
+                if (hoverTabletString) css += `@media (max-width: 1023px) { [data-element-id="${elementId}"]:hover { ${hoverTabletString} } }\n`;
+
+                const hoverMobileString = Object.entries(hoverMobile).map(([p, v]) => `${this.camelToKebab(p)}: ${v};`).join(' ');
+                if (hoverMobileString) css += `@media (max-width: 767px) { [data-element-id="${elementId}"]:hover { ${hoverMobileString} } }\n`;
+            }
         });
+
+        desktopStyles.forEach((styleObj, id) => {
+            const styleString = Object.entries(styleObj).map(([prop, val]) => `${this.camelToKebab(prop)}: ${val};`).join(' ');
+            css += `[data-element-id="${id}"] { ${styleString} }\n`;
+        });
+
+        if (tabletStyles.size > 0) {
+            css += '@media (max-width: 1023px) {\n';
+            tabletStyles.forEach((styleObj, id) => {
+                const styleString = Object.entries(styleObj).map(([prop, val]) => `${this.camelToKebab(prop)}: ${val};`).join(' ');
+                css += `  [data-element-id="${id}"] { ${styleString} }\n`;
+            });
+            css += '}\n';
+        }
+
+        if (mobileStyles.size > 0) {
+            css += '@media (max-width: 767px) {\n';
+            mobileStyles.forEach((styleObj, id) => {
+                const styleString = Object.entries(styleObj).map(([prop, val]) => `${this.camelToKebab(prop)}: ${val};`).join(' ');
+                css += `  [data-element-id="${id}"] { ${styleString} }\n`;
+            });
+            css += '}\n';
+        }
         
         return css;
     }
@@ -1654,35 +1615,8 @@ class WebBuilderPro {
     }
 
     reattachEventListenersToElement(element) {
-        // This needs to be applied to the parent and all its descendant canvas elements
         const elements = [element, ...element.querySelectorAll('.canvas-element')];
-
         elements.forEach(el => {
-            // Remove old listeners to prevent duplication if ever run twice
-            // Note: This is harder without named functions. We'll rely on the fresh clone for now.
-
-            // 1. Add interactive events (selection, drag)
-            this.bindInteractiveEvents(el);
-            
-            // 2. Re-apply any special component logic or hover effects
-            this.applyAllStyles(el);
-
-            // 3. Re-add delete buttons or other UI overlays if they got lost
-            if (!el.querySelector('.element-controls')) {
-                const controls = document.createElement('div');
-                controls.className = 'element-controls';
-                controls.innerHTML = `<i class="fas fa-trash cursor-pointer"></i>`;
-                controls.querySelector('.fa-trash').addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.deleteElement(el);
-                });
-                el.appendChild(controls);
-            } else {
-                el.querySelector('.fa-trash')?.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.deleteElement(el);
-                });
-            }
         });
     }
 
@@ -1758,7 +1692,8 @@ class WebBuilderPro {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    const app = new WebBuilderPro();
-    window.app = app;
-});
+// Initialize the application
+const app = new WebBuilderPro();
+
+// Make app globally accessible for onclick handlers
+window.app = app;
