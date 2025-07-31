@@ -546,68 +546,7 @@
             }
 
 
-            setupResizing() {
-                const selectionWrapper = document.getElementById('selection-wrapper');
-                selectionWrapper.querySelectorAll('.resizer').forEach(resizer => {
-                    resizer.addEventListener('mousedown', (e) => {
-                        e.stopPropagation(); 
-                        e.preventDefault();
-
-                        // We are now resizing, so the element itself should not be draggable.
-                        if (this.selectedElement) this.selectedElement.draggable = false;
-                        this.isResizing = true;
-                        
-                        // ... (rest of the initial position calculation code is the same)
-                        const computedStyle = window.getComputedStyle(this.selectedElement);
-                        const initialRect = this.selectedElement.getBoundingClientRect();
-                        const scrollContainer = document.getElementById('scroll-area');
-                        const scrollRect = scrollContainer.getBoundingClientRect();
-                        this.elementInitialSize = {
-                            width: parseFloat(computedStyle.width), height: parseFloat(computedStyle.height),
-                            top: initialRect.top - scrollRect.top + scrollContainer.scrollTop,
-                            left: initialRect.left - scrollRect.left + scrollContainer.scrollLeft
-                        };
-                        this.resizerInitialPos = { x: e.clientX, y: e.clientY };
-
-                        const handleMouseMove = (moveEvent) => {
-                            if (!this.isResizing) return;
-                            const zoom = parseFloat(document.getElementById('zoom-slider').value) / 100;
-                            const dx = (moveEvent.clientX - this.resizerInitialPos.x) / zoom;
-                            const dy = (moveEvent.clientY - this.resizerInitialPos.y) / zoom;
-                            let newWidth = this.elementInitialSize.width, newHeight = this.elementInitialSize.height,
-                                newTop = this.elementInitialSize.top, newLeft = this.elementInitialSize.left;
-                            const direction = resizer.dataset.resizer;
-
-                            if (direction.includes('right')) newWidth += dx;
-                            else if (direction.includes('left')) { newWidth -= dx; newLeft += dx; }
-                            if (direction.includes('bottom')) newHeight += dy;
-                            else if (direction.includes('top')) { newHeight -= dy; newTop += dy; }
-
-                            this.updateElementStyle('width', `${Math.max(10, newWidth).toFixed(0)}px`);
-                            this.updateElementStyle('height', `${Math.max(10, newHeight).toFixed(0)}px`);
-                            this.updateElementStyle('top', `${newTop.toFixed(0)}px`);
-                            this.updateElementStyle('left', `${newLeft.toFixed(0)}px`);
-                        //    this.repositionSelectionWrapper(); 
-                        };
-
-                        const handleMouseUp = () => {
-                            // --- CRITICAL: Reset state after resizing is done ---
-                            this.isResizing = false;
-                            // The element is still in edit mode, so it should remain NOT draggable
-                            // until the user explicitly exits edit mode or starts a move.
-                            // So, we DO NOT set draggable back to true here.
-                            
-                            window.removeEventListener('mousemove', handleMouseMove);
-                            window.removeEventListener('mouseup', handleMouseUp);
-                            this.saveToHistory();
-                        };
-
-                        window.addEventListener('mousemove', handleMouseMove);
-                        window.addEventListener('mouseup', handleMouseUp, { once: true });
-                    });
-                });
-            }
-            
+           
             init() {
                 this.setupEventListeners();
                 this.setupDragAndDrop();
@@ -617,73 +556,75 @@
                 this.loadFromLocalStorage();
             }
 
-            _bindElementEvents(element) {
+            _bindElementEvents(el){
+                // add 4 corner handles
                 ['nw','ne','sw','se'].forEach(pos=>{
                     const h=document.createElement('div');
                     h.className=`gjs-resizer ${pos}`;
-                    element.appendChild(h);
-                //    this._bindResizeHandles(element);
+                    el.appendChild(h);
                 });
-                // Main click event for selecting the element
-                element.addEventListener('click', (e) => {
+
+                // click-to-select
+                el.addEventListener('click', e=>{
                     e.stopPropagation();
-                    this.selectElement(element);
+                    document.querySelectorAll('.canvas-element').forEach(x=>x.classList.remove('selected'));
+                    el.classList.add('selected');
+                    this.selectedElement = el;
+                    this.showProperties(el);
                 });
 
-                // --- Control Buttons Logic ---
-                const controls = element.querySelector('.element-controls');
-                if (controls) {
-                    const moveBtn = controls.querySelector('.fa-arrows-alt');
-                    if (moveBtn) {
-                        moveBtn.addEventListener('mousedown', (e) => {
-                            if (element.classList.contains('is-editing')) return;
-                            e.stopPropagation();
-                        //    this.initiateDrag(e, element);
-                        });
-                    }
-
-                    const editBtn = controls.querySelector('.fa-edit');
-                    if (editBtn) {
-                        editBtn.addEventListener('click', (e) => { 
-                            e.stopPropagation(); 
-                            this.editElement(element); 
-                        });
-                    }
-                    
-                    const deleteBtn = controls.querySelector('.fa-trash');
-                    if (deleteBtn) {
-                        deleteBtn.addEventListener('click', (e) => { 
-                            e.stopPropagation(); 
-                            this.deleteElement(element); 
-                        });
-                    }
-                }
-
-                // === GRAB & MOVE ===
-                element.addEventListener('mousedown', (e) => {
-                    if (e.target.closest('.gjs-resizer')) return; // let resize handle it
+                // instant grab-and-move
+                el.addEventListener('mousedown', e=>{
+                    if (e.target.classList.contains('gjs-resizer')) return;
                     e.preventDefault();
-                    const startX = e.clientX;
-                    const startY = e.clientY;
-                    const startLeft = parseFloat(element.style.left) || 0;
-                    const startTop  = parseFloat(element.style.top)  || 0;
-                    const zoom = parseFloat(document.getElementById('zoom-slider').value) / 100;
-
-                    const move = (ev) => {
-                        element.style.position = 'absolute';
-                        element.style.left = (startLeft + (ev.clientX - startX)/zoom) + 'px';
-                        element.style.top  = (startTop  + (ev.clientY - startY)/zoom) + 'px';
+                    const sx=e.clientX, sy=e.clientY;
+                    const sl=parseFloat(el.style.left)||0, st=parseFloat(el.style.top)||0;
+                    const z=parseFloat(document.getElementById('zoom-slider').value)/100;
+                    const onMove = ev=>{
+                    el.style.left = sl+(ev.clientX-sx)/z+'px';
+                    el.style.top  = st+(ev.clientY-sy)/z+'px';
                     };
-                    const up = () => {
-                        document.removeEventListener('mousemove', move);
-                        document.removeEventListener('mouseup', up);
+                    const onUp = ()=>{
+                    document.removeEventListener('mousemove',onMove);
+                    document.removeEventListener('mouseup',onUp);
+                    this.saveToHistory();
+                    };
+                    document.addEventListener('mousemove',onMove);
+                    document.addEventListener('mouseup',onUp);
+                });
+
+                // live corner resize
+                el.querySelectorAll('.gjs-resizer').forEach(h=>{
+                    h.addEventListener('mousedown', e=>{
+                    e.stopPropagation();
+                    const sx=e.clientX, sy=e.clientY;
+                    const rect=el.getBoundingClientRect();
+                    const z=parseFloat(document.getElementById('zoom-slider').value)/100;
+                    const w0=rect.width/z, h0=rect.height/z;
+                    const l0=parseFloat(el.style.left)||0, t0=parseFloat(el.style.top)||0;
+
+                    const onMove = ev=>{
+                        const dx=(ev.clientX-sx)/z, dy=(ev.clientY-sy)/z;
+                        let w=w0, h=h0, l=l0, t=t0;
+                        if(h.classList.contains('se')){ w=w0+dx; h=h0+dy; }
+                        if(h.classList.contains('sw')){ w=w0-dx; h=h0+dy; l=l0+dx; }
+                        if(h.classList.contains('ne')){ w=w0+dx; h=h0-dy; t=t0+dy; }
+                        if(h.classList.contains('nw')){ w=w0-dx; h=h0-dy; l=l0+dx; t=t0+dy; }
+                        el.style.width  = Math.max(10,w)+'px';
+                        el.style.height = Math.max(10,h)+'px';
+                        el.style.left   = l+'px';
+                        el.style.top    = t+'px';
+                    };
+                    const onUp = ()=>{
+                        document.removeEventListener('mousemove',onMove);
+                        document.removeEventListener('mouseup',onUp);
                         this.saveToHistory();
                     };
-                    document.addEventListener('mousemove', move);
-                    document.addEventListener('mouseup', up);
+                    document.addEventListener('mousemove',onMove);
+                    document.addEventListener('mouseup',onUp);
+                    });
                 });
-            }
-
+                }
             
             setupEventListeners() {
                 this.clipboard = null;
@@ -1154,10 +1095,11 @@
             addComponent(componentType, event) {
                 const component = this.components.get(componentType);
                 if (!component) return;
-                element.style.position = 'absolute';
+
 
                 const element = document.createElement('div');
                 element.className = 'canvas-element';
+                element.style.position = 'absolute';
                 element.innerHTML = component.html;
                 element.dataset.componentType = componentType;
                 element.dataset.elementId = this.generateId();
@@ -1208,7 +1150,6 @@
                 this.selectedElement = element;
                 
                 this.showProperties(element);
-            //    this.repositionSelectionWrapper();
                 selectionWrapper.classList.add('hidden'); 
                 this.updateBreadcrumbs();
                 
