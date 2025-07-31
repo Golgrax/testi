@@ -393,16 +393,6 @@
         </div>
     </div>
 
-        <div id="selection-box" class="selection-box">
-            <div class="resizer top-left"></div>
-            <div class="resizer top-center"></div>
-            <div class="resizer top-right"></div>
-            <div class="resizer middle-left"></div>
-            <div class="resizer middle-right"></div>
-            <div class="resizer bottom-left"></div>
-            <div class="resizer bottom-center"></div>
-            <div class="resizer bottom-right"></div>
-        </div>
 
     <div id="drop-indicator" class="fixed bg-blue-500 h-1 pointer-events-none hidden" style="z-index: 9999;"></div>
     
@@ -711,11 +701,10 @@
            
             init() {
                 this.setupEventListeners();
-                this.setupEventListeners();
                 this.setupDragAndDrop();
                 this.loadComponents();
                 this.setupMonacoEditor();
-                this.setupResizing(); // Change this line
+                this.setupResizing();
                 this.loadFromLocalStorage();
             }
 
@@ -1291,8 +1280,6 @@
             selectElement(element) {
                 if (this.selectedElement === element) return; 
 
-                const selectionWrapper = document.getElementById('selection-wrapper');
-
                 // --- CRITICAL: Fully reset the PREVIOUSLY selected element ---
                 if (this.selectedElement) {
                     this.selectedElement.classList.remove('selected', 'is-editing');
@@ -1304,11 +1291,10 @@
 
                 // Select the new element in a clean state
                 element.classList.add('selected');
-                document.getElementById('selection-wrapper').classList.add('hidden');
                 this.selectedElement = element;
                 
                 this.showProperties(element);
-                this.updateSelectionBox(element); // Add this line
+                this.updateSelectionBox(element);
                 this.updateBreadcrumbs();
                 
                 document.querySelectorAll('.layer-item.active-layer').forEach(item => item.classList.remove('active-layer'));
@@ -1725,13 +1711,20 @@
             }
 
 
-            handleCanvasClick(e){
-                if (e.target.closest('.canvas-element')) return;
-                document.querySelectorAll('.canvas-element').forEach(x=>x.classList.remove('selected'));
-                this.selectedElement=null;
-                document.getElementById('properties-panel').innerHTML = `<div class="p-4 text-center text-gray-500"><i class="fas fa-mouse-pointer text-3xl mb-2"></i><p>Select an element to edit its properties</p></div>`;
-            }
+            handleCanvasClick(e) {
+                if (e.target.closest('.canvas-element, .resizer')) return;
 
+                if (this.selectedElement) {
+                    this.selectedElement.classList.remove('selected', 'is-editing');
+                    this.selectedElement = null;
+                }
+                
+                document.getElementById('properties-panel').innerHTML = `<div class="p-4 text-center text-gray-500"><i class="fas fa-mouse-pointer text-3xl mb-2 block"></i><p>Select an element to edit its properties</p></div>`;
+                this.updateSelectionBox(null); // This line is crucial
+                this.updateBreadcrumbs();
+                document.querySelectorAll('.layer-item.active-layer').forEach(item => item.classList.remove('active-layer'));
+            }
+            
             updateLayersTree() {
             const tree = document.getElementById('layers-tree');
             const canvas = document.getElementById('canvas');
