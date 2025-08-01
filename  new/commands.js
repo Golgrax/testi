@@ -516,28 +516,33 @@ function showShortcutsModal() {
 
 // ===== GLOBAL FUNCTIONS =====
 window.deleteCustomBlock = function(blockId) {
-  if (confirm("Are you sure you want to delete this custom block?")) {
-    let customBlocks = StorageManager.get("webbuilder-custom-blocks", []);
-    const initialLength = customBlocks.length;
-    customBlocks = customBlocks.filter(block => block.id !== blockId);
-    StorageManager.set("webbuilder-custom-blocks", customBlocks);
-
-    // Remove from GrapesJS BlockManager
-    if (window.webBuilderApp && window.webBuilderApp.editor) {
-      window.webBuilderApp.editor.BlockManager.remove(blockId);
-    }
-
-    if (customBlocks.length < initialLength) {
-      showToast("Custom block deleted successfully!", "success");
-      // Re-render the custom blocks modal if it's open
-      const modal = document.getElementById("custom-blocks-modal");
-      if (modal && modal.open) {
-        showCustomBlocksModal();
-      }
-    } else {
-      showToast("Custom block not found.", "warning");
-    }
+  if (confirm('Are you sure you want to delete this custom block?')) {
+    const customBlocks = StorageManager.get('webbuilder-custom-blocks', []);
+    const updatedBlocks = customBlocks.filter(block => block.id !== blockId);
+    StorageManager.set('webbuilder-custom-blocks', updatedBlocks);
+    
+    showToast('Custom block deleted', 'success');
+    showCustomBlocksModal(); // Refresh the modal
   }
 };
 
+// ===== COMMAND REGISTRATION FUNCTION =====
+const registerEnhancedCommands = (editor) => {
+  Object.entries(enhancedCommands).forEach(([commandName, commandConfig]) => {
+    editor.Commands.add(commandName, commandConfig);
+  });
+
+  // Add keyboard shortcuts
+  editor.Keymaps.add('core:save', 'ctrl+s', 'save-project');
+  editor.Keymaps.add('core:copy-component', 'ctrl+c', 'copy-component');
+  editor.Keymaps.add('core:paste-component', 'ctrl+v', 'paste-component');
+  editor.Keymaps.add('core:fullscreen', 'f11', 'fullscreen-toggle');
+  editor.Keymaps.add('core:shortcuts', 'ctrl+/', 'show-shortcuts');
+};
+
+// ===== EXPORT =====
+window.WebBuilderCommands = {
+  enhancedCommands,
+  registerEnhancedCommands
+};
 

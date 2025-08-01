@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="WebBuilder Pro - Enhanced Visual Website Builder with modern features and intuitive drag-and-drop interface" />
+    <meta name="keywords" content="website builder, visual editor, drag and drop, responsive design, html, css, javascript" />
+    <meta name="author" content="WebBuilder Pro Team" />
+    <title>WebBuilder Pro - Enhanced Visual Website Builder</title>
+
+    <!-- Preload critical resources -->
+    <link rel="preload" href="https://unpkg.com/grapesjs/dist/css/grapes.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    
+    <!-- CSS Reset -->
+    <link rel="stylesheet" href="reset.css" />
+    
+    <!-- Core Styles -->
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="context-menu.css" />
+    
+    <!-- GrapesJS and Plugin Styles -->
+    <noscript>
+        <link rel="stylesheet" href="https://unpkg.com/grapesjs/dist/css/grapes.min.css">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    </noscript>
+    <link rel="preload" href="https://unpkg.com/grapesjs-component-code-editor/dist/grapesjs-component-code-editor.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <link rel="preload" href="https://unpkg.com/grapesjs-component-toolbar/dist/grapesjs-component-toolbar.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    
+    <noscript>
+        <link rel="stylesheet" href="https://unpkg.com/grapesjs-component-code-editor/dist/grapesjs-component-code-editor.min.css">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+        <link rel="stylesheet" href="https://unpkg.com/grapesjs-component-toolbar/dist/grapesjs-component-toolbar.min.css">
+    </noscript>
+</head>
+<body>
+    <div id="app" class="app-container">
+        <div class="editor-layout">
+            <!-- Left Sidebar: Component Blocks -->
+            <aside class="sidebar sidebar--left" role="complementary" aria-label="Component blocks panel">
+                <header class="sidebar__header">
+                    <h2 class="sidebar__title">
+                        <i class="fas fa-cubes" aria-hidden="true"></i>
+                        Blocks
+                    </h2>
+                </header>
+                <div class="sidebar__content" id="blocks" role="region" aria-label="Available components"></div>
+            </aside>
+
+            <!-- Main Editor Area -->
+            <main class="editor-main" role="main">
+                <!-- Top Toolbar -->
+                <header class="toolbar" role="toolbar" aria-label="Editor controls">
+                    <nav class="toolbar__section" aria-label="Device preview">
+                        <div id="panel__devices" class="toolbar__group"></div>
+                        <div id="responsive-indicator" class="responsive-indicator" aria-live="polite"></div>
+                    </nav>
+                    
+                    <div class="toolbar__section">
+                        <div id="panel__options" class="toolbar__group"></div>
+                        <div id="panel__views" class="toolbar__group"></div>
+                    </div>
+                </header>
+
+                <!-- Canvas Area -->
+                <section class="canvas-container" aria-label="Website canvas">
+                    <div id="gjs" class="canvas">
+                        <article class="welcome-content">
+                            <h1>Welcome to WebBuilder Pro!</h1>
+                            <p>Drag and drop components from the left panel to build your page.</p>
+                        </article>
+                    </div>
+                </section>
+            </main>
+
+            <!-- Right Sidebar: Properties Panel -->
+            <aside class="sidebar sidebar--right" role="complementary" aria-label="Properties panel">
+                <header class="sidebar__header">
+                    <nav id="panel__switcher" class="panel-switcher" role="tablist" aria-label="Property panel tabs"></nav>
+                    <button id="theme-toggle" class="theme-toggle" title="Toggle Theme" aria-label="Toggle between light and dark theme">
+                        <i class="fa-solid fa-moon" aria-hidden="true"></i>
+                    </button>
+                </header>
+
+                <div class="sidebar__content properties-panel">
+                    <!-- Component Settings Section -->
+                    <section id="traits-section" class="property-section" role="tabpanel" aria-labelledby="show-traits">
+                        <header class="property-section__header">
+                            <h3><i class="fas fa-cog" aria-hidden="true"></i> Settings</h3>
+                        </header>
+                        <div id="trait-container" class="property-section__content"></div>
+                    </section>
+
+                    <!-- Styling Section -->
+                    <section id="style-section" class="property-section" role="tabpanel" aria-labelledby="show-styles">
+                        <header class="property-section__header">
+                            <h3><i class="fas fa-palette" aria-hidden="true"></i> Appearance</h3>
+                        </header>
+                        <div class="property-section__content">
+                            <div id="selector-manager-container"></div>
+                            <div id="style-properties-container"></div>
+                        </div>
+                    </section>
+
+                    <!-- Layer Manager Section -->
+                    <section id="layers-section" class="property-section" role="tabpanel" aria-labelledby="show-layers">
+                        <header class="property-section__header">
+                            <h3><i class="fas fa-layer-group" aria-hidden="true"></i> Navigator</h3>
+                        </header>
+                        <div id="layers-container" class="property-section__content"></div>
+                    </section>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- Context Menu -->
+    <div id="context-menu" class="context-menu" style="display:none; position:absolute;" role="menu" aria-hidden="true">
+        <div class="context-menu-item" data-action="clone" role="menuitem" tabindex="0">
+            <i class="fas fa-copy" aria-hidden="true"></i> Clone
+        </div>
+        <div class="context-menu-item" data-action="delete" role="menuitem" tabindex="0">
+            <i class="fas fa-trash" aria-hidden="true"></i> Delete
+        </div>
+        <div class="context-menu-item" data-action="move-up" role="menuitem" tabindex="0">
+            <i class="fas fa-arrow-up" aria-hidden="true"></i> Move Up
+        </div>
+        <div class="context-menu-item" data-action="move-down" role="menuitem" tabindex="0">
+            <i class="fas fa-arrow-down" aria-hidden="true"></i> Move Down
+        </div>
+        <div class="context-menu-item" data-action="copy" role="menuitem" tabindex="0">
+            <i class="fas fa-clipboard" aria-hidden="true"></i> Copy
+        </div>
+        <div class="context-menu-item" data-action="cut" role="menuitem" tabindex="0">
+            <i class="fas fa-scissors" aria-hidden="true"></i> Cut
+        </div>
+        <div class="context-menu-item" data-action="paste" role="menuitem" tabindex="0">
+            <i class="fas fa-paste" aria-hidden="true"></i> Paste
+        </div>
+        <div class="context-menu-item" data-action="wrap" role="menuitem" tabindex="0">
+            <i class="fas fa-layer-group" aria-hidden="true"></i> Wrap in Container
+        </div>
+    </div>
+
+    <!-- Templates Modal -->
+    <dialog id="templates-modal" class="modal" aria-labelledby="templates-modal-title">
+        <div class="modal__content">
+            <header class="modal__header">
+                <h2 id="templates-modal-title">Page Templates</h2>
+                <button id="templates-modal-close" class="modal__close" aria-label="Close templates modal">×</button>
+            </header>
+            <div id="templates-container" class="templates-grid">
+                <!-- Templates will be injected here by script.js -->
+            </div>
+        </div>
+    </dialog>
+
+    <!-- Custom Blocks Manager Modal -->
+    <dialog id="custom-blocks-modal" class="modal" aria-labelledby="custom-blocks-modal-title">
+        <div class="modal__content">
+            <header class="modal__header">
+                <h2 id="custom-blocks-modal-title">Custom Blocks</h2>
+                <button id="custom-blocks-modal-close" class="modal__close" aria-label="Close custom blocks modal">×</button>
+            </header>
+            <div id="custom-blocks-container" class="custom-blocks-grid">
+                <!-- Custom blocks will be injected here by script.js -->
+            </div>
+        </div>
+    </dialog>
+
+    <!-- Loading Indicator -->
+    <div id="loading-indicator" class="loading-indicator" aria-hidden="true">
+        <div class="loading-spinner"></div>
+        <p>Loading WebBuilder Pro...</p>
+    </div>
+
+    <!-- Scripts - Load asynchronously -->
+    <script defer src="https://unpkg.com/grapesjs"></script>
+    <script defer src="https://unpkg.com/grapesjs-preset-webpage"></script>
+    <script defer src="https://unpkg.com/grapesjs-blocks-basic"></script>
+    <script defer src="https://unpkg.com/grapesjs-plugin-forms"></script>
+    <script defer src="https://unpkg.com/grapesjs-plugin-export"></script>
+    <script defer src="https://unpkg.com/grapesjs-component-code-editor/dist/grapesjs-component-code-editor.min.js"></script>
+    <script defer src="https://unpkg.com/grapesjs-component-toolbar/dist/grapesjs-component-toolbar.min.js"></script>
+    
+    <!-- Custom Scripts -->
+    <script defer src="utils.js"></script>
+    <script defer src="blocks.js"></script>
+    <script defer src="commands.js"></script>
+    <script defer src="script.js"></script>
+
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => console.log('SW registered: ', registration))
+                    .catch(registrationError => console.log('SW registration failed: ', registrationError));
+            });
+        }
+    </script>
+</body>
+</html>
+

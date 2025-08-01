@@ -81,8 +81,8 @@ class WebBuilderApp {
       
       checkGrapesJS();
       
-      // Timeout after 30 seconds
-      setTimeout(() => reject(new Error("GrapesJS failed to load")), 30000);
+      // Timeout after 10 seconds
+      setTimeout(() => reject(new Error('GrapesJS failed to load')), 10000);
     });
   }
 
@@ -432,13 +432,9 @@ class WebBuilderApp {
   }
 
   updatePropertiesPanel(component) {
-    // Show traits panel when component is selected, if not already active
-    if (component && component.get("type") !== "wrapper") {
-      const panelSwitcher = this.editor.Panels.getPanel("panel__switcher");
-      const traitsButton = panelSwitcher.getButton("show-traits");
-      if (traitsButton && !traitsButton.get("active")) {
-        this.editor.runCommand("show-traits");
-      }
+    // Show traits panel when component is selected
+    if (component && component.get('type') !== 'wrapper') {
+      this.editor.runCommand('show-traits');
     }
   }
 
@@ -510,8 +506,9 @@ class WebBuilderApp {
           break;
         case 'wrap':
           if (selected) {
-            const wrapperComponent = this.editor.DomComponents.add({ tagName: 'div', classes: ['wrapper-container'], components: selected.toHTML() });
-            selected.replaceWith(wrapperComponent);
+            const wrapper = selected.parent().append('<div class="wrapper"></div>')[0];
+            selected.remove();
+            wrapper.append(selected);
           }
           break;
       }
@@ -520,11 +517,7 @@ class WebBuilderApp {
     });
 
     // Hide context menu when clicking elsewhere
-    document.addEventListener("click", (e) => {
-      if (this.contextMenu.style.display === "block" && !this.contextMenu.contains(e.target) && !e.target.closest(".modal")) {
-        this.hideContextMenu();
-      }
-    });
+    document.addEventListener('click', () => this.hideContextMenu());
   }
 
   handleContextMenu(e) {
