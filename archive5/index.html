@@ -1,0 +1,758 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="WebBuilder Pro - Enhanced Visual Website Builder with modern features and intuitive drag-and-drop interface" />
+    <meta name="keywords" content="website builder, visual editor, drag and drop, responsive design, html, css, javascript" />
+    <meta name="author" content="WebBuilder Pro Team" />
+    <title>WebBuilder Pro Enhanced - Advanced Visual Website Builder</title>
+
+    <!-- Enhanced Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='grad' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' style='stop-color:%237c3aed;stop-opacity:1' /><stop offset='100%' style='stop-color:%23a855f7;stop-opacity:1' /></linearGradient></defs><rect width='100' height='100' rx='20' fill='url(%23grad)'/><text x='50' y='65' font-family='Arial,sans-serif' font-size='60' font-weight='bold' text-anchor='middle' fill='white'>W</text></svg>">
+
+    <!-- Preload critical resources -->
+    <link rel="preload" href="https://unpkg.com/grapesjs/dist/css/grapes.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    
+    <!-- CSS Reset -->
+    <link rel="stylesheet" href="reset.css" />
+    
+    <!-- Core Styles -->
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="context-menu.css" />
+    
+    <!-- Enhanced Styles with Fixed Light Mode and Compact Menu -->
+    <style>
+        /* Enhanced Design System with Proper Light/Dark Mode */
+        :root {
+            /* Dark Mode Colors */
+            --color-accent-primary: #7c3aed;
+            --color-accent-secondary: #a855f7;
+            --color-bg-primary: #0f0f23;
+            --color-bg-secondary: #1a1a2e;
+            --color-bg-tertiary: #2d2d4a;
+            --color-text-primary: #ffffff;
+            --color-text-secondary: #b8b8d1;
+            --color-text-muted: #8b8ba7;
+            --color-border: #2d2d4a;
+            --color-border-light: #404066;
+            --shadow-primary: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-elevated: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Light Mode Colors */
+        [data-theme="light"] {
+            --color-bg-primary: #ffffff;
+            --color-bg-secondary: #f8fafc;
+            --color-bg-tertiary: #e2e8f0;
+            --color-text-primary: #1a202c;
+            --color-text-secondary: #4a5568;
+            --color-text-muted: #718096;
+            --color-border: #e2e8f0;
+            --color-border-light: #cbd5e0;
+            --shadow-primary: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-elevated: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Consolidated Header - Single Menu Bar */
+        .consolidated-header {
+            background: var(--color-bg-secondary);
+            border-bottom: 1px solid var(--color-border);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            height: 50px;
+            box-shadow: var(--shadow-primary);
+            display: flex;
+            align-items: center;
+            padding: 0 1rem;
+            gap: 1rem;
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--color-text-primary);
+            font-weight: 600;
+            font-size: 1rem;
+            min-width: 200px;
+        }
+
+        .header-logo {
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, var(--color-accent-primary) 0%, var(--color-accent-secondary) 100%);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 0.75rem;
+        }
+
+        .header-badge {
+            background: linear-gradient(135deg, var(--color-accent-primary) 0%, var(--color-accent-secondary) 100%);
+            color: white;
+            padding: 1px 4px;
+            border-radius: 3px;
+            font-size: 9px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Consolidated Toolbar */
+        .header-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex: 1;
+            justify-content: center;
+        }
+
+        .header-nav {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            min-width: 200px;
+            justify-content: flex-end;
+        }
+
+        .header-btn {
+            background: transparent;
+            color: var(--color-text-secondary);
+            border: 1px solid var(--color-border);
+            padding: 0.375rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            height: 32px;
+        }
+
+        .header-btn:hover {
+            background: var(--color-bg-tertiary);
+            border-color: var(--color-border-light);
+        }
+
+        .header-btn-primary {
+            background: var(--color-accent-primary);
+            color: white;
+            border-color: var(--color-accent-primary);
+        }
+
+        .header-btn-primary:hover {
+            background: var(--color-accent-secondary);
+            border-color: var(--color-accent-secondary);
+        }
+
+        /* Adjust main layout for consolidated header */
+        .app-container {
+            padding-top: 50px;
+        }
+
+        /* Enhanced sidebar styling with proper light mode */
+        .sidebar--left {
+            background: var(--color-bg-secondary);
+            border-right: 1px solid var(--color-border);
+        }
+
+        .sidebar--right {
+            background: var(--color-bg-secondary);
+            border-left: 1px solid var(--color-border);
+        }
+
+        .sidebar__title {
+            color: var(--color-text-primary);
+            font-weight: 600;
+        }
+
+        /* Enhanced canvas with proper light mode */
+        .canvas-container {
+            background: var(--color-bg-primary);
+        }
+
+        /* Enhanced loading indicator */
+        .loading-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--color-bg-primary);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            color: var(--color-text-primary);
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--color-border);
+            border-top: 3px solid var(--color-accent-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--color-text-primary);
+        }
+
+        .loading-subtext {
+            font-size: 0.875rem;
+            color: var(--color-text-muted);
+        }
+
+        /* Hide loading when app is ready */
+        .app-ready .loading-indicator {
+            display: none;
+        }
+
+        /* Enhanced notification system with proper light mode */
+        .notification-container {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            z-index: 1080;
+            max-width: 400px;
+            pointer-events: none;
+        }
+
+        .notification {
+            background: var(--color-bg-secondary);
+            border: 1px solid var(--color-border);
+            border-left: 4px solid var(--color-accent-primary);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            box-shadow: var(--shadow-elevated);
+            pointer-events: auto;
+            transform: translateX(100%);
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--color-text-primary);
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification-success {
+            border-left-color: #10b981;
+        }
+
+        .notification-warning {
+            border-left-color: #f59e0b;
+        }
+
+        .notification-error {
+            border-left-color: #ef4444;
+        }
+
+        /* Fix GrapesJS panels for light mode */
+        [data-theme="light"] .gjs-pn-panel {
+            background: var(--color-bg-secondary);
+            color: var(--color-text-primary);
+        }
+
+        [data-theme="light"] .gjs-pn-btn {
+            color: var(--color-text-secondary);
+        }
+
+        [data-theme="light"] .gjs-pn-btn:hover {
+            background: var(--color-bg-tertiary);
+        }
+
+        [data-theme="light"] .gjs-pn-btn.gjs-pn-active {
+            background: var(--color-accent-primary);
+            color: white;
+        }
+
+        /* Fix blocks panel for light mode */
+        [data-theme="light"] .gjs-blocks-c {
+            background: var(--color-bg-secondary);
+        }
+
+        [data-theme="light"] .gjs-block {
+            background: var(--color-bg-primary);
+            border: 1px solid var(--color-border);
+            color: var(--color-text-primary);
+        }
+
+        [data-theme="light"] .gjs-block:hover {
+            background: var(--color-bg-tertiary);
+        }
+
+        /* Fix style manager for light mode */
+        [data-theme="light"] .gjs-sm-sector {
+            background: var(--color-bg-secondary);
+            border: 1px solid var(--color-border);
+        }
+
+        [data-theme="light"] .gjs-sm-title {
+            background: var(--color-bg-tertiary);
+            color: var(--color-text-primary);
+        }
+
+        [data-theme="light"] .gjs-sm-property {
+            background: var(--color-bg-primary);
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        [data-theme="light"] .gjs-sm-label {
+            color: var(--color-text-secondary);
+        }
+
+        [data-theme="light"] .gjs-field {
+            background: var(--color-bg-primary);
+            border: 1px solid var(--color-border);
+            color: var(--color-text-primary);
+        }
+
+        /* Fix layers panel for light mode */
+        [data-theme="light"] .gjs-lm-layer {
+            background: var(--color-bg-primary);
+            border-bottom: 1px solid var(--color-border);
+            color: var(--color-text-primary);
+        }
+
+        [data-theme="light"] .gjs-lm-layer:hover {
+            background: var(--color-bg-tertiary);
+        }
+
+        [data-theme="light"] .gjs-lm-layer.gjs-lm-highlight {
+            background: var(--color-accent-primary);
+            color: white;
+        }
+
+        /* Fix canvas for light mode */
+        [data-theme="light"] .gjs-cv-canvas {
+            background: var(--color-bg-primary);
+        }
+
+        /* Theme toggle button styling */
+        .theme-toggle {
+            background: transparent;
+            border: 1px solid var(--color-border);
+            color: var(--color-text-secondary);
+            padding: 0.375rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+        }
+
+        .theme-toggle:hover {
+            background: var(--color-bg-tertiary);
+            border-color: var(--color-border-light);
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .consolidated-header {
+                padding: 0 0.5rem;
+                gap: 0.5rem;
+            }
+            
+            .header-brand {
+                min-width: auto;
+                font-size: 0.875rem;
+            }
+            
+            .header-nav {
+                min-width: auto;
+            }
+            
+            .header-btn {
+                padding: 0.25rem 0.5rem;
+                font-size: 0.7rem;
+            }
+        }
+    </style>
+    
+    <!-- GrapesJS and Plugin Styles -->
+    <noscript>
+        <link rel="stylesheet" href="https://unpkg.com/grapesjs/dist/css/grapes.min.css">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    </noscript>
+</head>
+<body data-theme="dark">
+    <!-- Enhanced Loading Screen -->
+    <div id="loading-indicator" class="loading-indicator">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">WebBuilder Pro Enhanced</div>
+        <div class="loading-subtext">Loading advanced website builder...</div>
+    </div>
+
+    <!-- Consolidated Header with Single Menu Bar -->
+    <header class="consolidated-header">
+        <!-- Brand Section -->
+        <div class="header-brand">
+            <div class="header-logo">W</div>
+            <span>WebBuilder Pro</span>
+            <span class="header-badge">Enhanced</span>
+        </div>
+
+        <!-- Consolidated Toolbar -->
+        <div class="header-toolbar">
+            <!-- Device Preview -->
+            <div id="panel__devices" class="toolbar__group"></div>
+            
+            <!-- Editor Options -->
+            <div id="panel__options" class="toolbar__group"></div>
+            
+            <!-- View Controls -->
+            <div id="panel__views" class="toolbar__group"></div>
+        </div>
+
+        <!-- Navigation Section -->
+        <nav class="header-nav">
+            <button class="header-btn" onclick="showNotification('Templates coming soon!', 'info')">
+                <i class="fas fa-layer-group"></i>
+                Templates
+            </button>
+            <button class="header-btn" onclick="showNotification('Help mode activated!', 'success')">
+                <i class="fas fa-question-circle"></i>
+                Help
+            </button>
+            <button class="header-btn header-btn-primary" onclick="showNotification('Project saved successfully!', 'success')">
+                <i class="fas fa-save"></i>
+                Save
+            </button>
+            <button id="theme-toggle" class="theme-toggle" title="Toggle Theme" aria-label="Toggle between light and dark theme">
+                <i class="fa-solid fa-moon" aria-hidden="true"></i>
+            </button>
+        </nav>
+    </header>
+
+    <!-- Notification Container -->
+    <div id="notification-container" class="notification-container"></div>
+
+    <div id="app" class="app-container">
+        <div class="editor-layout">
+            <!-- Left Sidebar: Component Blocks -->
+            <aside class="sidebar sidebar--left" role="complementary" aria-label="Component blocks panel">
+                <header class="sidebar__header">
+                    <h2 class="sidebar__title">
+                        <i class="fas fa-cubes" aria-hidden="true"></i>
+                        Blocks
+                    </h2>
+                </header>
+                <div class="sidebar__content" id="blocks" role="region" aria-label="Available components"></div>
+            </aside>
+
+            <!-- Main Editor Area -->
+            <main class="editor-main" role="main">
+                <!-- Canvas Area -->
+                <section class="canvas-container" aria-label="Website canvas">
+                    <div id="gjs" class="canvas">
+                        <article class="welcome-content" style="
+                            padding: 3rem 2rem;
+                            text-align: center;
+                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                            color: white;
+                            border-radius: 12px;
+                            margin: 2rem;
+                            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+                        ">
+                            <h1 style="font-size: 2.5rem; font-weight: bold; margin-bottom: 1rem; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+                                Welcome to WebBuilder Pro Enhanced!
+                            </h1>
+                            <p style="font-size: 1.125rem; margin-bottom: 2rem; opacity: 0.9; max-width: 600px; margin-left: auto; margin-right: auto;">
+                                Create stunning, responsive websites with our enhanced drag-and-drop builder. 
+                                Drag components from the left panel to start building your amazing website.
+                            </p>
+                            <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                                <button style="
+                                    background: white;
+                                    color: #667eea;
+                                    border: none;
+                                    padding: 0.75rem 1.5rem;
+                                    border-radius: 25px;
+                                    font-size: 1rem;
+                                    font-weight: 600;
+                                    cursor: pointer;
+                                    transition: all 0.3s ease;
+                                " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 25px rgba(0,0,0,0.2)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                                    <i class="fas fa-play" style="margin-right: 0.5rem;"></i>
+                                    Start Building
+                                </button>
+                                <button style="
+                                    background: transparent;
+                                    color: white;
+                                    border: 2px solid rgba(255,255,255,0.5);
+                                    padding: 0.75rem 1.5rem;
+                                    border-radius: 25px;
+                                    font-size: 1rem;
+                                    font-weight: 600;
+                                    cursor: pointer;
+                                    transition: all 0.3s ease;
+                                " onmouseover="this.style.background='rgba(255,255,255,0.1)'; this.style.borderColor='white'" onmouseout="this.style.background='transparent'; this.style.borderColor='rgba(255,255,255,0.5)'">
+                                    <i class="fas fa-video" style="margin-right: 0.5rem;"></i>
+                                    Watch Tutorial
+                                </button>
+                            </div>
+                        </article>
+                    </div>
+                </section>
+            </main>
+
+            <!-- Right Sidebar: Properties Panel -->
+            <aside class="sidebar sidebar--right" role="complementary" aria-label="Properties panel">
+                <header class="sidebar__header">
+                    <nav id="panel__switcher" class="panel-switcher" role="tablist" aria-label="Property panel tabs"></nav>
+                </header>
+
+                <div class="sidebar__content properties-panel">
+                    <!-- Component Settings Section -->
+                    <section id="traits-section" class="property-section" role="tabpanel" aria-labelledby="show-traits">
+                        <header class="property-section__header">
+                            <h3><i class="fas fa-cog" aria-hidden="true"></i> Settings</h3>
+                        </header>
+                        <div id="trait-container" class="property-section__content"></div>
+                    </section>
+
+                    <!-- Styling Section -->
+                    <section id="style-section" class="property-section" role="tabpanel" aria-labelledby="show-styles">
+                        <header class="property-section__header">
+                            <h3><i class="fas fa-palette" aria-hidden="true"></i> Appearance</h3>
+                        </header>
+                        <div class="property-section__content">
+                            <div id="selector-manager-container"></div>
+                            <div id="style-properties-container"></div>
+                        </div>
+                    </section>
+
+                    <!-- Layer Manager Section -->
+                    <section id="layers-section" class="property-section" role="tabpanel" aria-labelledby="show-layers">
+                        <header class="property-section__header">
+                            <h3><i class="fas fa-layer-group" aria-hidden="true"></i> Navigator</h3>
+                        </header>
+                        <div id="layers-container" class="property-section__content"></div>
+                    </section>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- Context Menu -->
+    <div id="context-menu" class="context-menu" style="display:none; position:absolute;" role="menu" aria-hidden="true">
+        <div class="context-menu-item" data-action="clone" role="menuitem" tabindex="0">
+            <i class="fas fa-copy" aria-hidden="true"></i> Clone
+        </div>
+        <div class="context-menu-item" data-action="delete" role="menuitem" tabindex="0">
+            <i class="fas fa-trash" aria-hidden="true"></i> Delete
+        </div>
+        <div class="context-menu-item" data-action="move-up" role="menuitem" tabindex="0">
+            <i class="fas fa-arrow-up" aria-hidden="true"></i> Move Up
+        </div>
+        <div class="context-menu-item" data-action="move-down" role="menuitem" tabindex="0">
+            <i class="fas fa-arrow-down" aria-hidden="true"></i> Move Down
+        </div>
+        <div class="context-menu-item" data-action="copy" role="menuitem" tabindex="0">
+            <i class="fas fa-clipboard" aria-hidden="true"></i> Copy
+        </div>
+        <div class="context-menu-item" data-action="cut" role="menuitem" tabindex="0">
+            <i class="fas fa-scissors" aria-hidden="true"></i> Cut
+        </div>
+        <div class="context-menu-item" data-action="paste" role="menuitem" tabindex="0">
+            <i class="fas fa-paste" aria-hidden="true"></i> Paste
+        </div>
+        <div class="context-menu-item" data-action="wrap" role="menuitem" tabindex="0">
+            <i class="fas fa-layer-group" aria-hidden="true"></i> Wrap in Container
+        </div>
+    </div>
+
+    <!-- Enhanced Scripts -->
+    <script>
+        // Enhanced notification system
+        function showNotification(message, type = 'info', duration = 3000) {
+            const container = document.getElementById('notification-container');
+            const notification = document.createElement('div');
+            const id = Date.now().toString();
+            
+            notification.className = `notification notification-${type}`;
+            notification.innerHTML = `
+                <i class="fas ${getNotificationIcon(type)}"></i>
+                <div style="flex: 1;">${message}</div>
+                <button onclick="removeNotification('${id}')" style="
+                    background: none;
+                    border: none;
+                    color: inherit;
+                    cursor: pointer;
+                    padding: 0.25rem;
+                    border-radius: 4px;
+                    opacity: 0.7;
+                    transition: opacity 0.2s ease;
+                " onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            
+            notification.id = `notification-${id}`;
+            container.appendChild(notification);
+            
+            // Animate in
+            requestAnimationFrame(() => {
+                notification.classList.add('show');
+            });
+            
+            // Auto remove
+            if (duration > 0) {
+                setTimeout(() => removeNotification(id), duration);
+            }
+        }
+
+        function getNotificationIcon(type) {
+            const icons = {
+                success: 'fa-check-circle',
+                warning: 'fa-exclamation-triangle',
+                error: 'fa-times-circle',
+                info: 'fa-info-circle'
+            };
+            return icons[type] || icons.info;
+        }
+
+        function removeNotification(id) {
+            const notification = document.getElementById(`notification-${id}`);
+            if (notification) {
+                notification.classList.remove('show');
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }
+        }
+
+        // Enhanced theme toggle functionality
+        function toggleTheme() {
+            const body = document.body;
+            const themeToggle = document.getElementById('theme-toggle');
+            const icon = themeToggle.querySelector('i');
+            
+            const currentTheme = body.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            
+            body.setAttribute('data-theme', newTheme);
+            
+            // Update icon
+            if (newTheme === 'light') {
+                icon.className = 'fa-solid fa-sun';
+                showNotification('Switched to light mode', 'success');
+            } else {
+                icon.className = 'fa-solid fa-moon';
+                showNotification('Switched to dark mode', 'success');
+            }
+            
+            // Save preference
+            localStorage.setItem('theme', newTheme);
+        }
+
+        // Initialize theme from localStorage
+        function initializeTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            const body = document.body;
+            const themeToggle = document.getElementById('theme-toggle');
+            
+            body.setAttribute('data-theme', savedTheme);
+            
+            if (themeToggle) {
+                const icon = themeToggle.querySelector('i');
+                if (savedTheme === 'light') {
+                    icon.className = 'fa-solid fa-sun';
+                } else {
+                    icon.className = 'fa-solid fa-moon';
+                }
+                
+                themeToggle.addEventListener('click', toggleTheme);
+            }
+        }
+
+        // Hide loading screen when app is ready
+        function hideLoadingScreen() {
+            document.body.classList.add('app-ready');
+            showNotification('WebBuilder Pro Enhanced loaded successfully!', 'success');
+        }
+
+        // Initialize everything when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeTheme();
+            
+            // Add a delay to ensure all scripts are loaded
+            setTimeout(() => {
+                if (typeof grapesjs !== 'undefined') {
+                    hideLoadingScreen();
+                } else {
+                    // If GrapesJS is not loaded, try again
+                    setTimeout(() => {
+                        if (typeof grapesjs !== 'undefined') {
+                            hideLoadingScreen();
+                        } else {
+                            showNotification('Loading GrapesJS...', 'info');
+                            // Keep checking until loaded
+                            const checkInterval = setInterval(() => {
+                                if (typeof grapesjs !== 'undefined') {
+                                    clearInterval(checkInterval);
+                                    hideLoadingScreen();
+                                }
+                            }, 500);
+                        }
+                    }, 2000);
+                }
+            }, 1000);
+        });
+
+        // Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => console.log('SW registered: ', registration))
+                    .catch(registrationError => console.log('SW registration failed: ', registrationError));
+            });
+        }
+    </script>
+
+    <!-- Scripts - Load asynchronously -->
+    <script defer src="https://unpkg.com/grapesjs"></script>
+    <script defer src="https://unpkg.com/grapesjs-preset-webpage"></script>
+    <script defer src="https://unpkg.com/grapesjs-blocks-basic"></script>
+    <script defer src="https://unpkg.com/grapesjs-plugin-forms"></script>
+    <script defer src="https://unpkg.com/grapesjs-plugin-export"></script>
+    
+    <!-- Custom Scripts -->
+    <script defer src="utils.js"></script>
+    <script defer src="blocks.js"></script>
+    <script defer src="commands.js"></script>
+    <script defer src="script.js"></script>
+</body>
+</html>
+

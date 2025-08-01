@@ -1,14 +1,14 @@
 /**
- * Enhanced WebBuilder Pro - Main Application Script
- * Modern ES6+ implementation with enhanced features
+ * WebBuilder Pro Enhanced - Fixed & Improved Version
+ * Combines the best of both improved UI and working functionality
  */
 
 // ===== CONSTANTS AND CONFIGURATION =====
 const APP_CONFIG = {
-  version: '2.0.0',
-  name: 'WebBuilder Pro Enhanced',
+  version: '2.1.0',
+  name: 'WebBuilder Pro Enhanced - Fixed',
   storagePrefix: 'webbuilder-pro-',
-  autoSaveInterval: 30000, // 30 seconds
+  autoSaveInterval: 30000,
   maxUndoSteps: 50
 };
 
@@ -18,50 +18,42 @@ class WebBuilderApp {
     this.editor = null;
     this.isInitialized = false;
     this.autoSaveTimer = null;
-    this.contextMenu = null;
-    this.clipboard = null;
+    this.leftSidebarVisible = true;
+    this.rightSidebarVisible = true;
+    this.currentTheme = 'dark';
     
-    // Bind methods to preserve context
-    this.handleContextMenu = this.handleContextMenu.bind(this);
+    // Bind methods
     this.handleKeyboardShortcuts = this.handleKeyboardShortcuts.bind(this);
     this.handleAutoSave = this.handleAutoSave.bind(this);
+    this.toggleLeftSidebar = this.toggleLeftSidebar.bind(this);
+    this.toggleRightSidebar = this.toggleRightSidebar.bind(this);
+    this.toggleTheme = this.toggleTheme.bind(this);
     
     this.init();
   }
 
   async init() {
     try {
-      // Show loading indicator
       this.showLoadingIndicator();
       
-      // Wait for DOM to be fully loaded
       if (document.readyState === 'loading') {
         await new Promise(resolve => document.addEventListener('DOMContentLoaded', resolve));
       }
 
-      // Wait for GrapesJS to be available
       await this.waitForGrapesJS();
-      
-      // Initialize the editor
       await this.initializeEditor();
       
-      // Setup additional features
-      this.setupContextMenu();
+      this.setupUI();
       this.setupKeyboardShortcuts();
       this.setupAutoSave();
       this.setupEventListeners();
       this.loadCustomBlocks();
       
-      // Hide loading indicator
       this.hideLoadingIndicator();
-      
       this.isInitialized = true;
-      console.log(`${APP_CONFIG.name} v${APP_CONFIG.version} initialized successfully`);
       
-      // Emit initialization event
-      if (window.WebBuilderUtils?.eventBus) {
-        window.WebBuilderUtils.eventBus.emit('app:initialized', this);
-      }
+      console.log(`${APP_CONFIG.name} v${APP_CONFIG.version} initialized successfully`);
+      this.showSuccessNotification('WebBuilder Pro Enhanced loaded successfully!');
       
     } catch (error) {
       console.error('Failed to initialize WebBuilder Pro:', error);
@@ -80,8 +72,6 @@ class WebBuilderApp {
       };
       
       checkGrapesJS();
-      
-      // Timeout after 30 seconds
       setTimeout(() => reject(new Error("GrapesJS failed to load")), 30000);
     });
   }
@@ -96,7 +86,7 @@ class WebBuilderApp {
       // Storage configuration
       storageManager: {
         type: 'local',
-        autosave: false, // We'll handle this manually
+        autosave: false,
         stepsBeforeSave: 1,
         options: {
           local: { key: `${APP_CONFIG.storagePrefix}project` }
@@ -108,9 +98,7 @@ class WebBuilderApp {
         'grapesjs-preset-webpage',
         'gjs-blocks-basic',
         'grapesjs-plugin-forms',
-        'grapesjs-plugin-export',
-        'grapesjs-component-code-editor',
-        'grapesjs-component-toolbar'
+        'grapesjs-plugin-export'
       ],
 
       pluginsOpts: {
@@ -124,436 +112,370 @@ class WebBuilderApp {
         'gjs-blocks-basic': { 
           flexGrid: true,
           stylePrefix: 'gjs-'
-        },
-        'grapesjs-component-toolbar': {
-          toolbar: [
-            { command: 'tlb-move', attributes: { title: 'Move', class: 'fa fa-arrows' } },
-            { command: 'tlb-clone', attributes: { title: 'Clone', class: 'fa fa-clone' } },
-            { command: 'tlb-delete', attributes: { title: 'Delete', class: 'fa fa-trash' } }
-          ]
         }
       },
 
-      // Panel configuration
-      panels: {
-        defaults: [
-          {
-            id: 'panel__devices',
-            el: '#panel__devices',
-            buttons: [
-              { 
-                id: 'device-desktop', 
-                command: 'set-device-desktop', 
-                label: '<i class="fas fa-desktop"></i>', 
-                active: true,
-                attributes: { title: 'Desktop View' }
-              },
-              { 
-                id: 'device-tablet', 
-                command: 'set-device-tablet', 
-                label: '<i class="fas fa-tablet-alt"></i>',
-                attributes: { title: 'Tablet View' }
-              },
-              { 
-                id: 'device-mobile', 
-                command: 'set-device-mobile', 
-                label: '<i class="fas fa-mobile-alt"></i>',
-                attributes: { title: 'Mobile View' }
-              }
-            ]
-          },
-          {
-            id: 'panel__options',
-            el: '#panel__options',
-            buttons: [
-              { 
-                id: 'preview', 
-                command: 'core:preview', 
-                context: 'core:preview', 
-                label: '<i class="fas fa-eye"></i>', 
-                attributes: { title: 'Preview' }
-              },
-              { 
-                id: 'fullscreen', 
-                command: 'fullscreen-toggle', 
-                label: '<i class="fas fa-expand"></i>', 
-                attributes: { title: 'Toggle Fullscreen' }
-              }
-            ]
-          },
-          {
-            id: 'panel__views',
-            el: '#panel__views',
-            buttons: [
-              { 
-                id: 'show-borders', 
-                command: 'core:component-outline', 
-                label: '<i class="fas fa-vector-square"></i>', 
-                attributes: { title: 'Show Component Borders' }
-              },
-              { 
-                id: 'open-code', 
-                command: 'core:open-code', 
-                label: '<i class="fas fa-code"></i>', 
-                attributes: { title: 'View Code' }
-              },
-              { 
-                id: 'undo', 
-                command: 'core:undo', 
-                label: '<i class="fas fa-undo"></i>', 
-                attributes: { title: 'Undo (Ctrl+Z)' }
-              },
-              { 
-                id: 'redo', 
-                command: 'core:redo', 
-                label: '<i class="fas fa-redo"></i>', 
-                attributes: { title: 'Redo (Ctrl+Y)' }
-              },
-              { 
-                id: 'open-templates', 
-                command: 'open-templates', 
-                label: '<i class="far fa-window-maximize"></i>', 
-                attributes: { title: 'Templates' }
-              },
-              { 
-                id: 'import-template', 
-                command: 'gjs-open-import-webpage', 
-                label: '<i class="fas fa-upload"></i>', 
-                attributes: { title: 'Import Template' }
-              },
-              { 
-                id: 'save-project', 
-                command: 'save-project', 
-                label: '<i class="fas fa-save"></i>', 
-                attributes: { title: 'Save Project (Ctrl+S)' }
-              },
-              { 
-                id: 'load-project', 
-                command: 'load-project', 
-                label: '<i class="fas fa-folder-open"></i>', 
-                attributes: { title: 'Load Project' }
-              },
-              { 
-                id: 'save-block', 
-                command: 'save-custom-block', 
-                label: '<i class="fas fa-cube"></i>', 
-                attributes: { title: 'Save as Custom Block' }
-              },
-              { 
-                id: 'export', 
-                command: 'export-project', 
-                label: '<i class="fas fa-file-export"></i>', 
-                attributes: { title: 'Export HTML' }
-              },
-              { 
-                id: 'clear-canvas', 
-                command: 'clear-canvas', 
-                label: '<i class="fas fa-trash"></i>', 
-                attributes: { title: 'Clear Canvas' }
-              },
-              { 
-                id: 'shortcuts', 
-                command: 'show-shortcuts', 
-                label: '<i class="fas fa-keyboard"></i>', 
-                attributes: { title: 'Keyboard Shortcuts (Ctrl+/)' }
-              }
-            ]
-          },
-          {
-            id: 'panel__switcher',
-            el: '#panel__switcher',
-            buttons: [
-              { 
-                id: 'show-layers', 
-                command: 'show-layers', 
-                active: true, 
-                label: '<i class="fas fa-layer-group"></i>', 
-                attributes: { title: 'Navigator', role: 'tab' }
-              },
-              { 
-                id: 'show-styles', 
-                command: 'show-styles', 
-                label: '<i class="fas fa-palette"></i>', 
-                attributes: { title: 'Styles', role: 'tab' }
-              },
-              { 
-                id: 'show-traits', 
-                command: 'show-traits', 
-                label: '<i class="fas fa-cog"></i>', 
-                attributes: { title: 'Settings', role: 'tab' }
-              }
-            ]
-          }
-        ]
+      // Block Manager configuration - CRITICAL for drag-and-drop
+      blockManager: {
+        appendTo: '#blocks-container',
+        blocks: []
       },
 
-      // Manager configurations
-      layerManager: { appendTo: '#layers-container' },
-      traitManager: { appendTo: '#trait-container' },
-      blockManager: { appendTo: '#blocks' },
-      selectorManager: { appendTo: '#selector-manager-container' },
-      styleManager: { 
-        appendTo: '#style-properties-container',
+      // Layer Manager
+      layerManager: {
+        appendTo: '#layers-container'
+      },
+
+      // Style Manager
+      styleManager: {
+        appendTo: '#styles-container',
         sectors: [
           {
             name: 'General',
             open: false,
-            properties: [
-              'display', 'position', 'top', 'right', 'left', 'bottom'
-            ]
+            buildProps: ['float', 'display', 'position', 'top', 'right', 'left', 'bottom']
           },
           {
             name: 'Layout',
             open: false,
-            properties: [
-              'width', 'height', 'max-width', 'min-height', 'margin', 'padding'
-            ]
+            buildProps: ['width', 'height', 'max-width', 'min-height', 'margin', 'padding']
           },
           {
             name: 'Typography',
             open: false,
-            properties: [
-              'font-family', 'font-size', 'font-weight', 'letter-spacing', 'color', 'line-height', 'text-align', 'text-decoration', 'text-shadow'
-            ]
+            buildProps: ['font-family', 'font-size', 'font-weight', 'letter-spacing', 'color', 'line-height', 'text-align', 'text-decoration', 'text-shadow']
           },
           {
             name: 'Background',
             open: false,
-            properties: [
-              'background-color', 'background-image', 'background-repeat', 'background-position', 'background-attachment', 'background-size'
-            ]
+            buildProps: ['background-color', 'background-image', 'background-repeat', 'background-position', 'background-attachment', 'background-size']
           },
           {
             name: 'Border',
             open: false,
-            properties: [
-              'border', 'border-radius', 'box-shadow'
-            ]
+            buildProps: ['border', 'border-radius', 'box-shadow']
           },
           {
             name: 'Effects',
             open: false,
-            properties: [
-              'opacity', 'transform', 'transition', 'filter'
-            ]
+            buildProps: ['opacity', 'transform', 'transition']
           }
         ]
       },
 
-      // Device manager
-      deviceManager: {
-        devices: [
-          { name: 'Desktop', width: '' },
-          { name: 'Tablet', width: '768px', widthMedia: '992px' },
-          { name: 'Mobile', width: '375px', widthMedia: '575px' }
-        ]
+      // Trait Manager
+      traitManager: {
+        appendTo: '#traits-container'
       },
 
       // Canvas configuration
       canvas: {
         styles: [
-          'https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css'
+          'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css'
         ],
-        scripts: [
-          'https://code.jquery.com/jquery-3.5.1.slim.min.js',
-          'https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js',
-          'https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js'
-        ]
+        scripts: []
       },
 
-      // Asset manager
-      assetManager: {
-        assets: [
-          'https://via.placeholder.com/350x250/667eea/fff?text=Placeholder+1',
-          'https://via.placeholder.com/350x250/764ba2/fff?text=Placeholder+2',
-          'https://via.placeholder.com/350x250/f093fb/fff?text=Placeholder+3'
-        ],
-        upload: false,
-        uploadText: 'Drag & drop images here or click to upload'
+      // Device Manager
+      deviceManager: {
+        devices: [
+          {
+            name: 'Desktop',
+            width: '',
+            priority: 1
+          },
+          {
+            name: 'Tablet',
+            width: '768px',
+            priority: 2
+          },
+          {
+            name: 'Mobile',
+            width: '320px',
+            priority: 3
+          }
+        ]
       }
     };
 
-    // Initialize the editor
+    // Initialize GrapesJS editor
     this.editor = grapesjs.init(editorConfig);
-
-    // Configure enhanced blocks
-    if (window.WebBuilderBlocks?.configureBlockManager) {
-      window.WebBuilderBlocks.configureBlockManager(this.editor);
-    }
-
-    // Register enhanced commands
-    if (window.WebBuilderCommands?.registerEnhancedCommands) {
-      window.WebBuilderCommands.registerEnhancedCommands(this.editor);
-    }
 
     // Setup editor event listeners
     this.setupEditorEvents();
-
-    return this.editor;
   }
 
   setupEditorEvents() {
+    if (!this.editor) return;
+
     // Component selection events
     this.editor.on('component:selected', (component) => {
       console.log('Component selected:', component);
-      
-      // Update properties panel
       this.updatePropertiesPanel(component);
-      
-      // Emit event
-      if (window.WebBuilderUtils?.eventBus) {
-        window.WebBuilderUtils.eventBus.emit('component:selected', component);
-      }
     });
 
-    // Component change events
-    this.editor.on('component:update', (component) => {
-      console.log('Component updated:', component);
-      this.scheduleAutoSave();
+    this.editor.on('component:deselected', (component) => {
+      console.log('Component deselected:', component);
+      this.clearPropertiesPanel();
     });
 
-    // Style change events
-    this.editor.on('style:update', (style) => {
-      console.log('Style updated:', style);
-      this.scheduleAutoSave();
+    // Block drag events
+    this.editor.on('block:drag:start', (block) => {
+      console.log('Block drag started:', block);
+      this.showDropZones();
     });
 
-    // Device change events
-    this.editor.on('change:device', () => {
-      const device = this.editor.getDevice();
-      this.updateResponsiveIndicator(device);
+    this.editor.on('block:drag:stop', (block) => {
+      console.log('Block drag stopped:', block);
+      this.hideDropZones();
     });
 
     // Canvas events
     this.editor.on('canvas:drop', (dataTransfer, component) => {
-      console.log('Component dropped:', component);
-      this.scheduleAutoSave();
+      console.log('Component dropped on canvas:', component);
+      this.showSuccessNotification('Component added successfully!');
+    });
+
+    // Storage events
+    this.editor.on('storage:start', () => {
+      console.log('Storage operation started');
+    });
+
+    this.editor.on('storage:end', () => {
+      console.log('Storage operation completed');
+    });
+
+    // Device change events
+    this.editor.on('change:device', () => {
+      this.updateDeviceButtons();
     });
   }
 
   updatePropertiesPanel(component) {
-    // Show traits panel when component is selected, if not already active
-    if (component && component.get("type") !== "wrapper") {
-      const panelSwitcher = this.editor.Panels.getPanel("panel__switcher");
-      const traitsButton = panelSwitcher.getButton("show-traits");
-      if (traitsButton && !traitsButton.get("active")) {
-        this.editor.runCommand("show-traits");
-      }
+    // Update the properties panel with component-specific settings
+    const propertiesContent = document.querySelector('.properties-content');
+    if (propertiesContent && component) {
+      console.log('Updating properties for:', component.get('type'));
     }
   }
 
-  updateResponsiveIndicator(device) {
-    const indicator = document.getElementById('responsive-indicator');
-    if (indicator) {
-      indicator.textContent = device;
-      indicator.className = `responsive-indicator device-${device.toLowerCase()}`;
-    }
+  clearPropertiesPanel() {
+    console.log('Clearing properties panel');
   }
 
-  setupContextMenu() {
-    const contextMenu = document.getElementById('context-menu');
-    if (!contextMenu) return;
-
-    this.contextMenu = contextMenu;
-
-    // Add context menu to canvas
-    const canvas = this.editor.Canvas.getElement();
-    if (canvas) {
-      canvas.addEventListener('contextmenu', this.handleContextMenu);
-    }
-
-    // Add click handlers for context menu items
-    contextMenu.addEventListener('click', (e) => {
-      const item = e.target.closest('.context-menu-item');
-      if (!item) return;
-
-      const action = item.dataset.action;
-      const selected = this.editor.getSelected();
-
-      switch (action) {
-        case 'clone':
-          if (selected) selected.clone();
-          break;
-        case 'delete':
-          if (selected) selected.remove();
-          break;
-        case 'move-up':
-          if (selected) {
-            const parent = selected.parent();
-            const index = parent.components().indexOf(selected);
-            if (index > 0) {
-              parent.components().remove(selected);
-              parent.components().add(selected, { at: index - 1 });
-            }
-          }
-          break;
-        case 'move-down':
-          if (selected) {
-            const parent = selected.parent();
-            const components = parent.components();
-            const index = components.indexOf(selected);
-            if (index < components.length - 1) {
-              components.remove(selected);
-              components.add(selected, { at: index + 1 });
-            }
-          }
-          break;
-        case 'copy':
-          this.editor.runCommand('copy-component');
-          break;
-        case 'cut':
-          this.editor.runCommand('copy-component');
-          if (selected) selected.remove();
-          break;
-        case 'paste':
-          this.editor.runCommand('paste-component');
-          break;
-        case 'wrap':
-          if (selected) {
-            const wrapperComponent = this.editor.DomComponents.add({ tagName: 'div', classes: ['wrapper-container'], components: selected.toHTML() });
-            selected.replaceWith(wrapperComponent);
-          }
-          break;
-      }
-
-      this.hideContextMenu();
-    });
-
-    // Hide context menu when clicking elsewhere
-    document.addEventListener("click", (e) => {
-      if (this.contextMenu.style.display === "block" && !this.contextMenu.contains(e.target) && !e.target.closest(".modal")) {
-        this.hideContextMenu();
-      }
-    });
+  showDropZones() {
+    document.body.classList.add('dragging');
   }
 
-  handleContextMenu(e) {
-    e.preventDefault();
+  hideDropZones() {
+    document.body.classList.remove('dragging');
+  }
+
+  updateDeviceButtons() {
+    const currentDevice = this.editor.getDevice();
+    const deviceButtons = document.querySelectorAll('.device-btn');
     
-    const selected = this.editor.getSelected();
-    if (!selected) return;
+    deviceButtons.forEach(btn => {
+      btn.classList.remove('active');
+      if (btn.dataset.device === currentDevice) {
+        btn.classList.add('active');
+      }
+    });
+  }
 
-    const contextMenu = this.contextMenu;
-    contextMenu.style.display = 'block';
-    contextMenu.style.left = `${e.pageX}px`;
-    contextMenu.style.top = `${e.pageY}px`;
-    contextMenu.setAttribute('aria-hidden', 'false');
-
-    // Adjust position if menu goes off-screen
-    const rect = contextMenu.getBoundingClientRect();
-    if (rect.right > window.innerWidth) {
-      contextMenu.style.left = `${e.pageX - rect.width}px`;
+  loadCustomBlocks() {
+    if (!this.editor || typeof loadEnhancedBlocks !== 'function') {
+      console.warn('Enhanced blocks not available');
+      return;
     }
-    if (rect.bottom > window.innerHeight) {
-      contextMenu.style.top = `${e.pageY - rect.height}px`;
+
+    try {
+      loadEnhancedBlocks(this.editor);
+      this.setupBlockSearch();
+      this.showSuccessNotification('Custom blocks loaded successfully!');
+    } catch (error) {
+      console.error('Failed to load custom blocks:', error);
+      this.showError('Failed to load custom blocks');
     }
   }
 
-  hideContextMenu() {
-    if (this.contextMenu) {
-      this.contextMenu.style.display = 'none';
-      this.contextMenu.setAttribute('aria-hidden', 'true');
+  setupBlockSearch() {
+    const searchInput = document.getElementById('block-search');
+    if (!searchInput) return;
+
+    searchInput.addEventListener('input', (e) => {
+      const searchTerm = e.target.value.toLowerCase();
+      this.filterBlocks(searchTerm);
+    });
+  }
+
+  filterBlocks(searchTerm) {
+    const blockElements = document.querySelectorAll('.gjs-block');
+    
+    blockElements.forEach(block => {
+      const label = block.querySelector('.gjs-block-label');
+      if (label) {
+        const text = label.textContent.toLowerCase();
+        const shouldShow = text.includes(searchTerm) || searchTerm === '';
+        block.style.display = shouldShow ? 'block' : 'none';
+      }
+    });
+  }
+
+  setupUI() {
+    // Setup sidebar toggles
+    this.setupSidebarToggles();
+    
+    // Setup theme toggle
+    this.setupThemeToggle();
+    
+    // Setup device buttons
+    this.setupDeviceButtons();
+    
+    // Setup properties tabs
+    this.setupPropertiesTabs();
+    
+    // Setup action buttons
+    this.setupActionButtons();
+  }
+
+  setupSidebarToggles() {
+    const leftToggle = document.getElementById('left-sidebar-toggle');
+    const rightToggle = document.getElementById('right-sidebar-toggle');
+
+    if (leftToggle) {
+      leftToggle.addEventListener('click', this.toggleLeftSidebar);
     }
+
+    if (rightToggle) {
+      rightToggle.addEventListener('click', this.toggleRightSidebar);
+    }
+  }
+
+  setupThemeToggle() {
+    const themeToggle = document.getElementById('theme-toggle');
+    if (themeToggle) {
+      themeToggle.addEventListener('click', this.toggleTheme);
+    }
+  }
+
+  setupDeviceButtons() {
+    const deviceButtons = document.querySelectorAll('.device-btn');
+    
+    deviceButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const device = btn.dataset.device;
+        if (this.editor && device) {
+          this.editor.setDevice(device);
+          this.updateDeviceButtons();
+          this.showSuccessNotification(`Switched to ${device} view`);
+        }
+      });
+    });
+  }
+
+  setupPropertiesTabs() {
+    const tabs = document.querySelectorAll('.properties-tab');
+    const sections = document.querySelectorAll('.properties-section');
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const targetTab = tab.dataset.tab;
+        
+        // Update active tab
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        
+        // Update active section
+        sections.forEach(section => {
+          section.classList.remove('active');
+          if (section.id === `${targetTab}-container`) {
+            section.classList.add('active');
+          }
+        });
+      });
+    });
+  }
+
+  setupActionButtons() {
+    // Preview button
+    const previewBtn = document.getElementById('preview-btn');
+    if (previewBtn) {
+      previewBtn.addEventListener('click', () => {
+        if (this.editor) {
+          this.editor.runCommand('preview');
+        }
+      });
+    }
+
+    // Export button
+    const exportBtn = document.getElementById('export-btn');
+    if (exportBtn) {
+      exportBtn.addEventListener('click', () => {
+        this.exportProject();
+      });
+    }
+
+    // Save button
+    const saveBtn = document.getElementById('save-btn');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', () => {
+        this.saveProject();
+      });
+    }
+  }
+
+  toggleLeftSidebar() {
+    const sidebar = document.getElementById('left-sidebar');
+    const toggle = document.getElementById('left-sidebar-toggle');
+    
+    if (sidebar && toggle) {
+      this.leftSidebarVisible = !this.leftSidebarVisible;
+      sidebar.classList.toggle('hidden', !this.leftSidebarVisible);
+      toggle.classList.toggle('active', this.leftSidebarVisible);
+      
+      this.showSuccessNotification(
+        `Left sidebar ${this.leftSidebarVisible ? 'shown' : 'hidden'}`
+      );
+    }
+  }
+
+  toggleRightSidebar() {
+    const sidebar = document.getElementById('right-sidebar');
+    const toggle = document.getElementById('right-sidebar-toggle');
+    
+    if (sidebar && toggle) {
+      this.rightSidebarVisible = !this.rightSidebarVisible;
+      sidebar.classList.toggle('hidden', !this.rightSidebarVisible);
+      toggle.classList.toggle('active', this.rightSidebarVisible);
+      
+      this.showSuccessNotification(
+        `Right sidebar ${this.rightSidebarVisible ? 'shown' : 'hidden'}`
+      );
+    }
+  }
+
+  toggleTheme() {
+    const body = document.body;
+    const themeToggle = document.getElementById('theme-toggle');
+    
+    if (this.currentTheme === 'dark') {
+      this.currentTheme = 'light';
+      body.classList.remove('theme-dark');
+      body.classList.add('theme-light');
+      if (themeToggle) {
+        themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+      }
+    } else {
+      this.currentTheme = 'dark';
+      body.classList.remove('theme-light');
+      body.classList.add('theme-dark');
+      if (themeToggle) {
+        themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
+      }
+    }
+    
+    this.showSuccessNotification(`Switched to ${this.currentTheme} theme`);
   }
 
   setupKeyboardShortcuts() {
@@ -561,269 +483,200 @@ class WebBuilderApp {
   }
 
   handleKeyboardShortcuts(e) {
-    // Ctrl+S - Save project
-    if (e.ctrlKey && e.key === 's') {
-      e.preventDefault();
-      this.editor.runCommand('save-project');
-    }
-    
-    // Ctrl+C - Copy component
-    if (e.ctrlKey && e.key === 'c' && this.editor.getSelected()) {
-      e.preventDefault();
-      this.editor.runCommand('copy-component');
-    }
-    
-    // Ctrl+V - Paste component
-    if (e.ctrlKey && e.key === 'v') {
-      e.preventDefault();
-      this.editor.runCommand('paste-component');
-    }
-    
-    // Delete - Remove selected component
-    if (e.key === 'Delete' && this.editor.getSelected()) {
-      e.preventDefault();
-      this.editor.getSelected().remove();
-    }
-    
-    // F11 - Toggle fullscreen
-    if (e.key === 'F11') {
-      e.preventDefault();
-      this.editor.runCommand('fullscreen-toggle');
-    }
-    
-    // Ctrl+/ - Show shortcuts
-    if (e.ctrlKey && e.key === '/') {
-      e.preventDefault();
-      this.editor.runCommand('show-shortcuts');
-    }
-    
-    // Escape - Deselect component
-    if (e.key === 'Escape') {
-      this.editor.select();
-      this.hideContextMenu();
+    if (e.ctrlKey || e.metaKey) {
+      switch (e.key) {
+        case 's':
+          e.preventDefault();
+          this.saveProject();
+          break;
+        case 'z':
+          e.preventDefault();
+          if (this.editor) {
+            this.editor.runCommand('core:undo');
+          }
+          break;
+        case 'y':
+          e.preventDefault();
+          if (this.editor) {
+            this.editor.runCommand('core:redo');
+          }
+          break;
+        case '1':
+          e.preventDefault();
+          this.toggleLeftSidebar();
+          break;
+        case '2':
+          e.preventDefault();
+          this.toggleRightSidebar();
+          break;
+      }
     }
   }
 
   setupAutoSave() {
-    // Auto-save every 30 seconds
-    this.autoSaveTimer = setInterval(this.handleAutoSave, APP_CONFIG.autoSaveInterval);
-    
-    // Save on page unload
-    window.addEventListener('beforeunload', () => {
-      this.handleAutoSave();
-    });
-  }
-
-  scheduleAutoSave() {
-    // Debounced auto-save
-    if (this.autoSaveTimeout) {
-      clearTimeout(this.autoSaveTimeout);
+    if (this.autoSaveTimer) {
+      clearInterval(this.autoSaveTimer);
     }
     
-    this.autoSaveTimeout = setTimeout(() => {
-      this.handleAutoSave();
-    }, 5000); // Save 5 seconds after last change
+    this.autoSaveTimer = setInterval(this.handleAutoSave, APP_CONFIG.autoSaveInterval);
   }
 
   handleAutoSave() {
-    if (!this.editor || !this.isInitialized) return;
-    
-    try {
-      const projectData = {
-        html: this.editor.getHtml(),
-        css: this.editor.getCss(),
-        components: this.editor.getComponents().toJSON(),
-        timestamp: Date.now(),
-        version: APP_CONFIG.version,
-        autoSaved: true
-      };
+    if (this.editor && this.isInitialized) {
+      try {
+        this.editor.store();
+        console.log('Auto-save completed');
+      } catch (error) {
+        console.error('Auto-save failed:', error);
+      }
+    }
+  }
 
-      window.WebBuilderUtils?.StorageManager?.set('webbuilder-project-autosave', projectData);
-      console.log('Project auto-saved');
+  saveProject() {
+    if (!this.editor) {
+      this.showError('Editor not initialized');
+      return;
+    }
+
+    try {
+      this.editor.store();
+      this.showSuccessNotification('Project saved successfully!');
     } catch (error) {
-      console.error('Auto-save failed:', error);
+      console.error('Save failed:', error);
+      this.showError('Failed to save project');
+    }
+  }
+
+  exportProject() {
+    if (!this.editor) {
+      this.showError('Editor not initialized');
+      return;
+    }
+
+    try {
+      const html = this.editor.getHtml();
+      const css = this.editor.getCss();
+      const fullHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exported Website</title>
+    <style>${css}</style>
+</head>
+<body>
+    ${html}
+</body>
+</html>`;
+
+      const blob = new Blob([fullHtml], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'website.html';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      this.showSuccessNotification('Website exported successfully!');
+    } catch (error) {
+      console.error('Export failed:', error);
+      this.showError('Failed to export website');
     }
   }
 
   setupEventListeners() {
-    // Theme toggle
-    const themeToggle = document.getElementById('theme-toggle');
-    if (themeToggle) {
-      themeToggle.addEventListener('click', () => {
-        window.WebBuilderUtils?.themeManager?.toggle();
-      });
-    }
-
-    // Modal close buttons - use more specific event delegation
-    document.addEventListener('click', (e) => {
-      // Handle close button clicks
-      if (e.target.matches('#templates-modal-close, #custom-blocks-modal-close, .modal__close')) {
-        e.preventDefault();
-        e.stopPropagation();
-        const modal = e.target.closest('dialog');
-        if (modal) {
-          modal.close();
-          console.log('Modal closed via close button');
-        }
+    // Window resize handler
+    window.addEventListener('resize', () => {
+      if (this.editor) {
+        this.editor.refresh();
       }
     });
 
-    // Modal backdrop clicks - only close when clicking the backdrop itself
-    document.addEventListener('click', (e) => {
-      if (e.target.tagName === 'DIALOG' && e.target.open) {
-        const rect = e.target.getBoundingClientRect();
-        const isInDialog = (
-          e.clientX >= rect.left &&
-          e.clientX <= rect.right &&
-          e.clientY >= rect.top &&
-          e.clientY <= rect.bottom
-        );
-        
-        if (isInDialog) {
-          const modalContent = e.target.querySelector('.modal__content');
-          if (modalContent) {
-            const contentRect = modalContent.getBoundingClientRect();
-            const isInContent = (
-              e.clientX >= contentRect.left &&
-              e.clientX <= contentRect.right &&
-              e.clientY >= contentRect.top &&
-              e.clientY <= contentRect.bottom
-            );
-            
-            // Only close if clicking outside the content area
-            if (!isInContent) {
-              e.target.close();
-              console.log('Modal closed via backdrop click');
-            }
-          }
-        }
+    // Before unload handler
+    window.addEventListener('beforeunload', (e) => {
+      if (this.editor) {
+        this.editor.store();
       }
     });
-
-    // ESC key to close modals
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        const openModals = document.querySelectorAll('dialog[open]');
-        openModals.forEach(modal => {
-          modal.close();
-          console.log('Modal closed via ESC key');
-        });
-      }
-    });
-  }
-
-  loadCustomBlocks() {
-    const customBlocks = window.WebBuilderUtils?.StorageManager?.get('webbuilder-custom-blocks', []);
-    
-    customBlocks.forEach(block => {
-      this.editor.BlockManager.add(block.id, {
-        label: block.label,
-        category: 'Custom',
-        content: block.content,
-        attributes: { class: 'gjs-block-custom' }
-      });
-    });
-
-    if (customBlocks.length > 0) {
-      console.log(`Loaded ${customBlocks.length} custom blocks`);
-    }
   }
 
   showLoadingIndicator() {
     const indicator = document.getElementById('loading-indicator');
     if (indicator) {
-      indicator.setAttribute('aria-hidden', 'false');
-      indicator.style.opacity = '1';
+      indicator.style.display = 'flex';
     }
   }
 
   hideLoadingIndicator() {
     const indicator = document.getElementById('loading-indicator');
     if (indicator) {
-      indicator.setAttribute('aria-hidden', 'true');
-      indicator.style.opacity = '0';
+      indicator.style.display = 'none';
     }
+  }
+
+  showNotification(message, type = 'info') {
+    const container = document.getElementById('notification-container') || document.body;
+    
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    
+    const icon = type === 'success' ? 'check-circle' : 
+                 type === 'error' ? 'exclamation-circle' : 
+                 'info-circle';
+    
+    notification.innerHTML = `
+      <div class="notification-content">
+        <i class="fas fa-${icon}"></i>
+        <span>${message}</span>
+      </div>
+      <button class="notification-close">
+        <i class="fas fa-times"></i>
+      </button>
+    `;
+    
+    container.appendChild(notification);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.parentNode.removeChild(notification);
+      }
+    }, 5000);
+    
+    // Close button handler
+    const closeBtn = notification.querySelector('.notification-close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => {
+        if (notification.parentNode) {
+          notification.parentNode.removeChild(notification);
+        }
+      });
+    }
+  }
+
+  showSuccessNotification(message) {
+    this.showNotification(message, 'success');
   }
 
   showError(message) {
-    const errorHtml = `
-      <div style="
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: var(--color-bg-panel);
-        color: var(--color-text-primary);
-        padding: 32px;
-        border-radius: var(--border-radius-xl);
-        box-shadow: var(--shadow-xl);
-        z-index: var(--z-modal);
-        max-width: 500px;
-        text-align: center;
-      ">
-        <h2 style="color: var(--color-error); margin: 0 0 16px 0;">Error</h2>
-        <p style="margin: 0 0 24px 0;">${message}</p>
-        <button onclick="location.reload()" style="
-          padding: 12px 24px;
-          background: var(--color-accent-primary);
-          color: white;
-          border: none;
-          border-radius: var(--border-radius-md);
-          cursor: pointer;
-        ">Reload Page</button>
-      </div>
-    `;
-    
-    document.body.insertAdjacentHTML('beforeend', errorHtml);
-  }
-
-  // Public API methods
-  getEditor() {
-    return this.editor;
-  }
-
-  isReady() {
-    return this.isInitialized;
-  }
-
-  destroy() {
-    // Cleanup
-    if (this.autoSaveTimer) {
-      clearInterval(this.autoSaveTimer);
-    }
-    
-    if (this.autoSaveTimeout) {
-      clearTimeout(this.autoSaveTimeout);
-    }
-    
-    document.removeEventListener('keydown', this.handleKeyboardShortcuts);
-    
-    const canvas = this.editor?.Canvas?.getElement();
-    if (canvas) {
-      canvas.removeEventListener('contextmenu', this.handleContextMenu);
-    }
-    
-    this.isInitialized = false;
+    this.showNotification(message, 'error');
   }
 }
 
-// ===== APPLICATION INITIALIZATION =====
-let webBuilderApp;
+// ===== INITIALIZE APPLICATION =====
+let app;
 
-// Initialize when DOM is ready
+// Wait for DOM to be ready
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
-    webBuilderApp = new WebBuilderApp();
+    app = new WebBuilderApp();
   });
 } else {
-  webBuilderApp = new WebBuilderApp();
+  app = new WebBuilderApp();
 }
 
-// Make app globally available
-window.WebBuilderApp = webBuilderApp;
-
-// Export for module systems
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = WebBuilderApp;
-}
+// Export for global access
+window.WebBuilderApp = app;
 
